@@ -4,6 +4,8 @@
 # database, the running session is not touched. Rerun after every GNOME upgrade.
 # --show: same in a window, with your own shell settings and extensions mirrored
 #         in, to try the dock by hand (needs mutter-dev-bin).
+# --show --clean: the window with Ubuntu's defaults, nothing of your setup but
+#         ArcMenu (with its own defaults), for the dock's menu button.
 
 # One block, read whole before it runs: bash reads a running script piece by piece
 # from disk, and an edit during a --show session would otherwise run fragments.
@@ -14,7 +16,14 @@ root=$(cd "$(dirname "$0")/.." && pwd)
 uuid=$(sed -n 's/.*"uuid": *"\([^"]*\)".*/\1/p' "$root/metadata.json")
 schema=org.gnome.shell.extensions.silver-dock
 show=
-[[ ${1:-} == --show ]] && show=1
+clean=
+for arg in "$@"; do
+    case $arg in
+    --show) show=1 ;;
+    --clean) clean=1 ;;
+    *) echo "usage: $0 [--show [--clean]]" >&2; exit 2 ;;
+    esac
+done
 work=$(mktemp -d)
 ext=$work/data/gnome-shell/extensions
 mkdir -p "$ext"
@@ -32,6 +41,8 @@ if [[ $show ]]; then
     if [[ -f /usr/share/gnome-shell/modes/ubuntu.json ]]; then
         mode+=(--mode=ubuntu)
     fi
+fi
+if [[ $show && ! $clean ]]; then
     # Read the real settings now, before the environment below points dconf elsewhere.
     mirror_shell=$(dconf dump /org/gnome/shell/)
     mirror_iface=$(dconf dump /org/gnome/desktop/interface/)
@@ -53,6 +64,14 @@ if [[ $show ]]; then
             ln -s "$e" "$ext/"
         fi
     done
+elif [[ $show ]]; then
+    # Desktop Icons gets an empty desktop folder of its own, it restarts in a loop without one.
+    mkdir -p "$work/config" "$work/desktop"
+    printf 'XDG_DESKTOP_DIR="%s"\n' "$work/desktop" >"$work/config/user-dirs.dirs"
+    arcmenu=${XDG_DATA_HOME:-$HOME/.local/share}/gnome-shell/extensions/arcmenu@arcmenu.com
+    if [[ -e $arcmenu ]]; then
+        ln -s "$arcmenu" "$ext/"
+    fi
 fi
 
 printf 'user-db:silverdocktest\n' >"$work/dconf-profile"
@@ -88,10 +107,15 @@ for _ in $(seq 25); do [[ -S $PIPEWIRE_RUNTIME_DIR/pipewire-0 ]] && break; sleep
 wireplumber --profile policy >>"$work/pipewire.log" 2>&1 &
 wp=$!
 
-if [[ $show ]]; then
+if [[ $show && ! $clean ]]; then
     dconf load /org/gnome/shell/ <<<"$mirror_shell"
     dconf load /org/gnome/desktop/interface/ <<<"$mirror_iface"
     dconf load /org/gnome/desktop/background/ <<<"$mirror_bg"
+elif [[ $show ]]; then
+    # Set before the start, like a login: switched at runtime right after another
+    # extension, GNOME's extension manager enabled ArcMenu twice.
+    dconf write /org/gnome/shell/enabled-extensions "['arcmenu@arcmenu.com']"
+    dconf write /org/gnome/shell/disabled-extensions "['ubuntu-dock@ubuntu.com']"
 fi
 
 # The test shell shares the real runtime dir. Killed within 60 s it leaves GNOME's crash
@@ -185,6 +209,8 @@ set_key trash false
 set_key drives false
 set_key internal-drives true
 set_key dnd false
+set_key peek false
+set_key scroll false
 set_key previews false
 set_key position right
 set_key style-top-bar false

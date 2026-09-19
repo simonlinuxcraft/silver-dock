@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: silver-dock\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-19 16:47+0200\n"
+"POT-Creation-Date: 2026-09-19 17:08+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,11 +17,11 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: extension.js:175
+#: extension.js:176
 msgid "Dock"
 msgstr ""
 
-#: places.js:22 prefs.js:97
+#: places.js:22 prefs.js:99
 msgid "Trash"
 msgstr ""
 
@@ -248,17 +248,25 @@ msgid "Show window previews on hover"
 msgstr ""
 
 #: prefs.js:95
-msgid "Drag to rearrange, pin and unpin apps"
+msgid "Show only that window while on its preview"
 msgstr ""
 
 #: prefs.js:96
-msgid "Places"
+msgid "Scroll over an icon to switch its windows"
+msgstr ""
+
+#: prefs.js:97
+msgid "Drag to rearrange, pin and unpin apps"
 msgstr ""
 
 #: prefs.js:98
+msgid "Places"
+msgstr ""
+
+#: prefs.js:100
 msgid "Removable drives (USB sticks, SD cards)"
 msgstr ""
 
-#: prefs.js:99
+#: prefs.js:101
 msgid "Internal drives too"
 msgstr ""

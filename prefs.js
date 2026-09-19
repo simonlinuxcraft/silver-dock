@@ -92,6 +92,8 @@ export default class SilverDockPrefs extends ExtensionPreferences {
         toggle(bar, 'autohide', _('Hide when a window overlaps the bar'));
         toggle(bar, 'tooltips', _('Show app names on hover'));
         toggle(bar, 'previews', _('Show window previews on hover'));
+        toggle(bar, 'peek', _('Show only that window while on its preview'));
+        toggle(bar, 'scroll', _('Scroll over an icon to switch its windows'));
         toggle(bar, 'dnd', _('Drag to rearrange, pin and unpin apps'));
         const places = group(behavior, _('Places'));
         toggle(places, 'trash', _('Trash'));

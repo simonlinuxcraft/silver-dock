@@ -41,6 +41,7 @@ const DOT = 5; // window dot size, the focused app's dots are DOT_LONG along the
 const DOT_LONG = 12;
 const BUTTON_LIFT = 3; // px a top bar button in the dock rises on hover
 const WARP_LIFT = 5;
+const SCROLL_PAUSE = 150; // ms between two window switches by scrolling, like GNOME's workspace scroll
 
 const SIDES = {bottom: St.Side.BOTTOM, top: St.Side.TOP, left: St.Side.LEFT, right: St.Side.RIGHT};
 // The dock's own look. Colors are "r, g, b", the opacity setting adds the alpha.
@@ -193,7 +194,7 @@ export default class SilverDock extends Extension {
         // Theme colors follow a switch of the shell or GTK theme.
         const retheme = () => {
             if (this._settings.get_boolean('theme-colors'))
-                this._refresh();
+                this._paint();
         };
         St.ThemeContext.get_for_stage(global.stage).connectObject('changed', retheme, this);
         this._iface = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
@@ -304,6 +305,47 @@ export default class SilverDock extends Extension {
         this._dressed = false;
     }
 
+    // Colors and transparency of the dock and its items, and the look of a top bar on
+    // its own. Runs again by itself when the theme changes or its GTK colors come in.
+    _paint() {
+        const margin = this._settings.get_int('margin');
+        const radius = this._settings.get_int('radius');
+        const themed = this._settings.get_boolean('theme-colors');
+        const colors = themed ? this._themeColors() : COLORS;
+        // The theme decides the transparency too, the slider is for the dock's own look.
+        const opacity = themed ? colors.alpha : this._settings.get_int('opacity') / 100;
+        this._geom.opacity = opacity;
+        this._accent = colors.accent ?? null; // null: the stylesheet's colors
+        if (themed)
+            this._bar.add_style_class_name('themed');
+        else
+            this._bar.remove_style_class_name('themed');
+
+        // There GNOME's top bar may wear the dock's look: colour, border, corners
+        // and the same gap to the screen edge. Its own style comes back afterwards.
+        if (this._ownTopBar && this._settings.get_boolean('style-top-bar')) {
+            if (!this._dressed) {
+                this._panelStyle = Main.panel.get_style();
+                this._dressed = true;
+            }
+            Main.panel.set_style(`margin: ${margin}px ${margin}px 0; ` +
+                `background-color: rgba(${colors.bg}, ${opacity}); border: ${colors.border}; ` +
+                `border-radius: ${radius}px;`);
+        } else {
+            this._undress();
+        }
+
+        // Transparency lives in the actor opacity, so the dynamic opacity can ease it.
+        this._bg.set_style(`border-radius: ${radius}px; background-color: rgb(${colors.bg}); border: ${colors.border};`);
+        this._bg.remove_transition('opacity');
+        this._bg.opacity = this._bgOpacity = Math.round(255 * opacity);
+        for (const sep of [...this._seps, ...this._rowSeps])
+            sep.set_style(`background-color: rgba(${colors.fg}, 0.25);`);
+        this._items.forEach(item => item.fill.set_style(this._accent && `background-color: rgb(${this._accent});`));
+        this._updateDots();
+        this._queueCheck(); // dynamic opacity starts from the new base
+    }
+
     // The dock takes the place of the top bar, so it wears the shell theme's top bar
     // colors, read from a hidden stand-in. A see-through top bar leaves the background
     // to the GTK theme. The accent comes from the GTK theme, else the system accent
@@ -316,7 +358,7 @@ export default class SilverDock extends Extension {
         const bg = node.get_background_color();
         const fg = rgb(node.get_foreground_color());
         panel.destroy();
-        const gtk = gtkColors(this._iface);
+        const gtk = gtkColors(this._iface, () => this._settings?.get_boolean('theme-colors') && this._paint());
         if (bg.alpha)
             return {bg: rgb(bg), alpha: bg.alpha / 255, fg, border: 'none', accent: gtk.accent};
         return {bg: gtk.bg ?? COLORS.bg, alpha: 1, fg, border: 'none', accent: gtk.accent};
@@ -366,11 +408,7 @@ export default class SilverDock extends Extension {
         const zoom = this._settings.get_double('zoom');
         const margin = this._settings.get_int('margin');
         const radius = this._settings.get_int('radius');
-        const themed = this._settings.get_boolean('theme-colors');
-        const colors = themed ? this._themeColors() : COLORS;
-        this._accent = colors.accent ?? null; // null: the stylesheet's colors
-        // The theme decides the transparency too, the slider is for the dock's own look.
-        const opacity = themed ? colors.alpha : this._settings.get_int('opacity') / 100;
+        this._previews.peek = this._settings.get_boolean('peek');
 
         this._style = this._settings.get_string('animation');
         this._position = this._settings.get_string('position');
@@ -384,7 +422,7 @@ export default class SilverDock extends Extension {
             icon,
             zoom,
             margin,
-            opacity,
+            opacity: 1, // see _paint
             slot: icon + Math.round(icon / 5),
             big: Math.round(icon * zoom), // rendered at full zoom, scaled down at rest, stays sharp
             thick: INNER + icon + OUTER,
@@ -411,9 +449,9 @@ export default class SilverDock extends Extension {
             this._bar.height = this._geom.thick + margin;
         // The top bar's content fits a bar at the bottom or top, a narrow side bar
         // would squeeze it. There GNOME's own top bar keeps it, at the bottom on request.
-        const ownTopBar = this._vertical ||
+        this._ownTopBar = this._vertical ||
             (this._position === 'bottom' && this._settings.get_boolean('keep-top-bar'));
-        const wantPanel = !ownTopBar && this._panelOk;
+        const wantPanel = !this._ownTopBar && this._panelOk;
         if (wantPanel && !this._boxes.length) {
             this._boxes = takePanel(this._bar, this._seps[0], this._seps[1]);
             this._panelOk = this._boxes.length > 0;
@@ -421,38 +459,17 @@ export default class SilverDock extends Extension {
             restorePanel(this._bar, this._boxes);
             this._boxes = [];
         }
-        // There GNOME's top bar may wear the dock's look: colour, border, corners
-        // and the same gap to the screen edge. Its own style comes back afterwards.
-        // Style classes for stylesheet.css, the last three named like their settings.
-        const classes = [['themed', themed], ...['lift-buttons', 'warp', 'glide'].map(key =>
-            [key, this._settings.get_boolean(key)])];
-        for (const [name, on] of classes) {
-            if (on)
-                this._bar.add_style_class_name(name);
+        // Style classes for stylesheet.css, named like their settings.
+        for (const key of ['lift-buttons', 'warp', 'glide']) {
+            if (this._settings.get_boolean(key))
+                this._bar.add_style_class_name(key);
             else
-                this._bar.remove_style_class_name(name);
+                this._bar.remove_style_class_name(key);
         }
-        if (ownTopBar && this._settings.get_boolean('style-top-bar')) {
-            if (!this._dressed) {
-                this._panelStyle = Main.panel.get_style();
-                this._dressed = true;
-            }
-            Main.panel.set_style(`margin: ${margin}px ${margin}px 0; ` +
-                `background-color: rgba(${colors.bg}, ${opacity}); border: ${colors.border}; ` +
-                `border-radius: ${radius}px;`);
-        } else {
-            this._undress();
-        }
-
-        // Transparency lives in the actor opacity, so the dynamic opacity can ease it.
-        this._bg.set_style(`border-radius: ${radius}px; background-color: rgb(${colors.bg}); border: ${colors.border};`);
-        this._bg.remove_transition('opacity');
-        this._bg.opacity = this._bgOpacity = Math.round(255 * opacity);
+        this._paint();
         const sepSize = this._xy(1, Math.round(icon * 0.6));
-        for (const sep of [...this._seps, ...this._rowSeps]) {
+        for (const sep of [...this._seps, ...this._rowSeps])
             sep.set_size(...sepSize);
-            sep.set_style(`background-color: rgba(${colors.fg}, 0.25);`);
-        }
         for (const sep of this._seps) {
             sep.visible = this._settings.get_boolean('separators') && this._boxes.length > 0;
             [sep.margin_left, sep.margin_right, sep.margin_top, sep.margin_bottom] = this._vertical
@@ -682,6 +699,7 @@ export default class SilverDock extends Extension {
             else
                 openPlace(key);
         });
+        button.connect('scroll-event', (actor, event) => this._scroll(item, event));
         button.connect('notify::hover', () => {
             if (button.hover) {
                 if (app && this._settings.get_boolean('previews') && !this._dragging && !this._menuOpen())
@@ -960,6 +978,32 @@ export default class SilverDock extends Extension {
             this._menuManager.addMenu(item.menu);
         }
         item.menu.open(BoxPointer.PopupAnimation.FULL);
+    }
+
+    // Scrolling over an icon steps through its app's windows in a fixed order, so each
+    // step goes on from the window the last one brought up. Smooth scrolling also
+    // arrives as whole steps, those are enough.
+    _scroll({app}, event) {
+        const step = {
+            [Clutter.ScrollDirection.UP]: -1,
+            [Clutter.ScrollDirection.LEFT]: -1,
+            [Clutter.ScrollDirection.DOWN]: 1,
+            [Clutter.ScrollDirection.RIGHT]: 1,
+        }[event.get_scroll_direction()];
+        if (!app || !step || !this._settings.get_boolean('scroll'))
+            return Clutter.EVENT_PROPAGATE;
+        const now = GLib.get_monotonic_time();
+        if (now - (this._scrolled ?? 0) < SCROLL_PAUSE * 1000)
+            return Clutter.EVENT_STOP;
+        this._scrolled = now;
+        const windows = app.get_windows().sort((a, b) => a.get_stable_sequence() - b.get_stable_sequence());
+        if (!windows.length)
+            return Clutter.EVENT_STOP;
+        const at = windows.indexOf(global.display.focus_window);
+        const next = at < 0 ? (step > 0 ? 0 : windows.length - 1) : (at + step + windows.length) % windows.length;
+        this._previews.hide();
+        Main.activateWindow(windows[next]);
+        return Clutter.EVENT_STOP;
     }
 
     // Focused app: one window minimizes, several cycle (the oldest comes up each click).

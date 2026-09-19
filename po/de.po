@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: silver-dock\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-19 16:47+0200\n"
+"POT-Creation-Date: 2026-09-19 17:08+0200\n"
 "PO-Revision-Date: 2026-09-19 10:07+0200\n"
 "Last-Translator: \n"
 "Language-Team: none\n"
@@ -14,11 +14,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: extension.js:175
+#: extension.js:176
 msgid "Dock"
 msgstr "Dock"
 
-#: places.js:22 prefs.js:97
+#: places.js:22 prefs.js:99
 msgid "Trash"
 msgstr "Papierkorb"
 
@@ -245,17 +245,25 @@ msgid "Show window previews on hover"
 msgstr "Fenstervorschau beim Überfahren zeigen"
 
 #: prefs.js:95
+msgid "Show only that window while on its preview"
+msgstr "Nur dieses Fenster zeigen, solange die Maus auf seiner Vorschau liegt"
+
+#: prefs.js:96
+msgid "Scroll over an icon to switch its windows"
+msgstr "Mausrad auf einem Icon wechselt zwischen dessen Fenstern"
+
+#: prefs.js:97
 msgid "Drag to rearrange, pin and unpin apps"
 msgstr "Apps per Ziehen anordnen, anheften und lösen"
 
-#: prefs.js:96
+#: prefs.js:98
 msgid "Places"
 msgstr "Orte"
 
-#: prefs.js:98
+#: prefs.js:100
 msgid "Removable drives (USB sticks, SD cards)"
 msgstr "Wechseldatenträger (USB-Sticks, SD-Karten)"
 
-#: prefs.js:99
+#: prefs.js:101
 msgid "Internal drives too"
 msgstr "Auch interne Laufwerke"

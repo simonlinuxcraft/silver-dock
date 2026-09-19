@@ -134,6 +134,14 @@
       <default>true</default>
       <summary>Show thumbnails of an app's windows when hovering its icon</summary>
     </key>
+    <key name="peek" type="b">
+      <default>true</default>
+      <summary>While the pointer rests on a window preview, only that window stays visible</summary>
+    </key>
+    <key name="scroll" type="b">
+      <default>true</default>
+      <summary>Scrolling over an app icon switches between the app's windows</summary>
+    </key>
     <key name="dnd" type="b">
       <default>true</default>
       <summary>Drag icons to rearrange favorites, drop apps to pin them, drag them off to unpin</summary>

@@ -40,40 +40,64 @@ export function definedColor(css, names) {
     return null;
 }
 
-let cache = {key: null, files: []};
+let cache = {key: null, files: null}; // files stays null while they are read
 
-// The theme's CSS files, the libadwaita override first, then GTK 3 and 4 (dark
-// variant first when dark is preferred).
-function themeCss(name, dark) {
-    const key = `${name} ${dark}`;
-    if (cache.key === key)
-        return cache.files;
+// Reads the theme's CSS files in the background: the libadwaita override first, then
+// GTK 3 and 4 (dark variant first when dark is preferred). Like GTK, each file comes
+// from the first folder that has it.
+function loadThemeCss(name, dark, done) {
     const bases = [GLib.get_user_data_dir(), ...GLib.get_system_data_dirs()]
         .map(dir => GLib.build_filenamev([dir, 'themes', name]))
         .concat(GLib.build_filenamev([GLib.get_home_dir(), '.themes', name]));
     const variants = ['libadwaita/gtk.css', ...['gtk-3.0', 'gtk-4.0'].flatMap(version =>
         [dark ? `${version}/gtk-dark.css` : null, `${version}/gtk.css`].filter(Boolean))];
-    // Like GTK, each file from the first folder that has it.
     const files = [];
-    for (const variant of variants) {
-        for (const base of bases) {
+    const next = (variant, base) => {
+        if (variant === variants.length) {
+            done(files);
+            return;
+        }
+        if (base === bases.length) {
+            next(variant + 1, 0);
+            return;
+        }
+        const file = Gio.File.new_for_path(GLib.build_filenamev([bases[base], variants[variant]]));
+        file.load_contents_async(null, (f, result) => {
+            let text = null;
             try {
-                const [, bytes] = GLib.file_get_contents(GLib.build_filenamev([base, variant]));
-                files.push(new TextDecoder().decode(bytes));
-                break;
+                text = new TextDecoder().decode(f.load_contents_finish(result)[1]);
             } catch {
                 // not in this folder
             }
-        }
-    }
-    // ponytail: cached per theme name, an edited theme file needs a theme switch or a restart
-    cache = {key, files};
-    return files;
+            if (text === null) {
+                next(variant, base + 1);
+            } else {
+                files.push(text);
+                next(variant + 1, 0);
+            }
+        });
+    };
+    next(0, 0);
 }
 
-// {bg, accent} of the GTK theme in use, each "r, g, b" or null.
-export function gtkColors(settings = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'})) {
-    const files = themeCss(settings.get_string('gtk-theme'), settings.get_string('color-scheme') === 'prefer-dark');
+// {bg, accent} of the GTK theme in use, each "r, g, b" or null. A theme seen for the
+// first time gives nulls, its files are read in the background and onLoaded runs once
+// they are in. ponytail: kept per theme name, an edited theme file needs a theme switch
+// or a new login.
+export function gtkColors(settings, onLoaded) {
+    const name = settings.get_string('gtk-theme');
+    const dark = settings.get_string('color-scheme') === 'prefer-dark';
+    const key = `${name} ${dark}`;
+    if (cache.key !== key) {
+        cache = {key, files: null};
+        loadThemeCss(name, dark, files => {
+            if (cache.key !== key)
+                return; // switched again meanwhile
+            cache.files = files;
+            onLoaded();
+        });
+    }
+    const files = cache.files ?? [];
     const first = names => files.map(css => definedColor(css, names)).find(Boolean) ?? null;
     return {
         bg: first(['window_bg_color', 'theme_bg_color']),

@@ -12,12 +12,16 @@ const HIDE_DELAY = 250;
 const THUMB_WIDTH = 220;
 const THUMB_HEIGHT = 140;
 const GAP = 8; // px between the icon and the previews
+const PEEK_DELAY = 250; // ms on a preview before only its window stays visible
+const PEEK_TIME = 200;
 
 export class WindowPreviews {
     // onChange runs whenever the previews appear, vanish or gain or lose the pointer.
     constructor(onChange) {
         this._onChange = onChange;
         this._timers = {};
+        this.peek = false; // set by the dock from its settings
+        this._peeked = new Set(); // faded window actors, see _peekAt
         this.actor = new St.BoxLayout({style_class: 'silver-dock-previews', reactive: true, track_hover: true, visible: false});
         this.actor.connect('notify::hover', () => {
             if (this.actor.hover)
@@ -65,6 +69,7 @@ export class WindowPreviews {
     hide() {
         this._stop('show');
         this._stop('hide');
+        this._endPeek();
         if (!this.shown)
             return;
         this.actor.hide();
@@ -77,9 +82,48 @@ export class WindowPreviews {
     destroy() {
         this._stop('show');
         this._stop('hide');
+        this._endPeek(true);
         this.actor.get_allocation_box(); // pending relayout, see SilverDock.disable()
         Main.layoutManager.removeChrome(this.actor);
         this.actor.destroy();
+    }
+
+    // Only this window stays visible, the others fade out until _endPeek. Desktop
+    // icons and docks (skip taskbar) stay. A minimized window has nothing to show.
+    _peekAt(win) {
+        if (win.minimized) {
+            this._endPeek();
+            return;
+        }
+        for (const actor of global.get_window_actors()) {
+            const other = actor.meta_window;
+            const fade = other !== win && actor.visible && !other.is_skip_taskbar();
+            if (fade && !this._peeked.has(actor)) {
+                this._peeked.add(actor);
+                actor.connectObject('destroy', () => this._peeked.delete(actor), this);
+            } else if (!fade && this._peeked.has(actor)) {
+                this._restore(actor, false);
+            }
+            if (fade)
+                actor.ease({opacity: 0, duration: PEEK_TIME, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+        }
+    }
+
+    _endPeek(immediate = false) {
+        this._stop('peek');
+        this._stop('unpeek');
+        this._peeked.forEach(actor => this._restore(actor, immediate));
+    }
+
+    _restore(actor, immediate) {
+        actor.disconnectObject(this);
+        this._peeked.delete(actor);
+        if (immediate) {
+            actor.remove_transition('opacity');
+            actor.opacity = 255;
+        } else {
+            actor.ease({opacity: 255, duration: PEEK_TIME, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+        }
     }
 
     _start(name, delay, fn) {
@@ -149,6 +193,16 @@ export class WindowPreviews {
         box.add_child(this._thumbnail(win, width));
 
         const button = new St.Button({style_class: 'silver-dock-preview', child: box});
+        // Moving on to the next preview keeps the peek going, only its window changes.
+        button.connect('notify::hover', () => {
+            if (button.hover && this.peek) {
+                this._stop('unpeek');
+                this._start('peek', PEEK_DELAY, () => this._peekAt(win));
+            } else {
+                this._stop('peek');
+                this._start('unpeek', 100, () => this._endPeek());
+            }
+        });
         button.connect('clicked', () => {
             Main.activateWindow(win);
             this.hide();

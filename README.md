@@ -13,7 +13,8 @@ public Shell/St APIs only, which keeps breakage on new GNOME releases small.
 - Icons bounce while an app starts and wiggle when it asks for attention
 - One dot per window, the focused app's dots stand out
 - App name above the hovered icon, right click for the app menu
-- Window previews on hover: click one to raise it, close it from its title bar
+- Window previews on hover: click one to raise it, close it from its title bar, rest on one to see only that window
+- Scroll over an app icon to switch between its windows. Super+1 to 9 (GNOME's own shortcut) opens the favorites in dock order
 - Drag icons to rearrange favorites, drop apps from the overview to pin them, drag them off to unpin
 - Clicking the focused app minimizes it, or cycles through its windows
 - Badge counts and progress bars that apps publish (Unity LauncherEntry API)
@@ -31,6 +32,7 @@ gjs -m test/layout-test.js   # hover animation math
 gjs -m test/colors-test.js   # reading GTK theme colors
 test/smoke.sh                # headless GNOME Shell: enable/disable, settings, prefs, demo tray icons and window
 test/smoke.sh --show         # same in a window with your shell setup mirrored in (needs mutter-dev-bin)
+test/smoke.sh --show --clean # the window with Ubuntu's defaults (and ArcMenu) instead of your setup
 ```
 
 The test shell gets its own D-Bus and in-memory settings, the running session

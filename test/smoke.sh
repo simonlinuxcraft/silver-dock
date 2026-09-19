@@ -74,7 +74,11 @@ elif [[ $show ]]; then
     fi
 fi
 
-printf 'user-db:silverdocktest\n' >"$work/dconf-profile"
+# Own name per run: dconf flags changes through a file of that name in the shared runtime
+# dir, and a parallel run removing it leaves the other shell reading stale settings.
+# No hyphen, the name ends up in a D-Bus object path.
+db=silverdocktest$$
+printf 'user-db:%s\n' "$db" >"$work/dconf-profile"
 export DCONF_PROFILE="$work/dconf-profile" XDG_DATA_HOME="$work/data" XDG_CONFIG_HOME="$work/config" \
     XDG_STATE_HOME="$work/state" XDG_CACHE_HOME="$work/cache"
 # The test window speaks your language, the headless run and parsed output stay plain.
@@ -134,7 +138,7 @@ cleanup() {
     # setsid made the shell a session leader, so this only hits the test shell and its helpers
     [[ $(ps -o sid= -p "$shell" | tr -d ' ') == "$shell" ]] && pkill -s "$shell" || true
     kill "${bus[1]}" "${sysbus[1]}" ${tray:-} ${viewer:-} ${wp:-} ${pw:-} 2>/dev/null || true
-    rm -f "${XDG_RUNTIME_DIR:-/run/user/$UID}"/{dconf/silverdocktest,"$wl","$wl.lock"}
+    rm -f "${XDG_RUNTIME_DIR:-/run/user/$UID}"/{dconf/"$db","$wl","$wl.lock"}
     [[ $had_marker ]] || rm -f "$marker"
     echo "log: $work/shell.log"
 }

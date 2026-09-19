@@ -66,6 +66,22 @@ export default class SilverDockPrefs extends ExtensionPreferences {
             update();
             keys.forEach(key => settings.connect(`changed::${key}`, update));
         };
+        // A CSS color key with a color picker.
+        const color = (g, key, title) => {
+            const button = new Gtk.ColorDialogButton({dialog: new Gtk.ColorDialog({with_alpha: false}), valign: Gtk.Align.CENTER});
+            const row = new Adw.ActionRow({title, activatable_widget: button});
+            row.add_suffix(button);
+            put(g, row);
+            const show = () => {
+                const rgba = new Gdk.RGBA();
+                if (rgba.parse(settings.get_string(key)) && !rgba.equal(button.rgba))
+                    button.rgba = rgba;
+            };
+            show();
+            settings.connect(`changed::${key}`, show);
+            button.connect('notify::rgba', () => settings.set_string(key, button.rgba.to_string()));
+            return row;
+        };
         const is = (key, ...values) => values.includes(settings.get_string(key));
 
         const look = page(_('Appearance'), 'applications-graphics-symbolic');
@@ -85,22 +101,11 @@ export default class SilverDockPrefs extends ExtensionPreferences {
         const colors = group(look, _('Colors'));
         choice(colors, 'colors', _('Colors from'),
             [['dock', _('Silver Dock')], ['theme', _('Shell and GTK theme')], ['custom', _('Own color')]]);
-        const button = new Gtk.ColorDialogButton({dialog: new Gtk.ColorDialog({with_alpha: false}), valign: Gtk.Align.CENTER});
-        const colorRow = new Adw.ActionRow({title: _('Color'), activatable_widget: button});
-        colorRow.add_suffix(button);
-        colors.add(colorRow);
-        showIf(colorRow, () => is('colors', 'custom'), 'colors');
-        const showColor = () => {
-            const rgba = new Gdk.RGBA();
-            if (rgba.parse(settings.get_string('color')) && !rgba.equal(button.rgba))
-                button.rgba = rgba;
-        };
-        showColor();
-        settings.connect('changed::color', showColor);
-        button.connect('notify::rgba', () => settings.set_string('color', button.rgba.to_string()));
+        showIf(color(colors, 'color', _('Color')), () => is('colors', 'custom'), 'colors');
         // The theme brings its own transparency.
         showIf(spin(colors, 'opacity', _('Background opacity (%)'), 0, 100, 5), () => !is('colors', 'theme'), 'colors');
         toggle(colors, 'dynamic-opacity', _('Opaque while a window touches the bar'));
+        color(fold(colors, 'tint-icons', _('Tint app icons')), 'icon-color', _('Icon color'));
 
         const behavior = page(_('Behavior'), 'preferences-system-symbolic');
         const bar = group(behavior, _('Bar'));

@@ -111,6 +111,14 @@
       <default>'#1c1d21'</default>
       <summary>Background color as a CSS color, used when colors is custom</summary>
     </key>
+    <key name="tint-icons" type="b">
+      <default>false</default>
+      <summary>Show the icons in the row in one tone of icon-color</summary>
+    </key>
+    <key name="icon-color" type="s">
+      <default>'#d6dae2'</default>
+      <summary>Tint of the icons as a CSS color, used with tint-icons</summary>
+    </key>
     <key name="separators" type="b">
       <default>true</default>
       <summary>Separators between favorites, running apps and the top bar content</summary>

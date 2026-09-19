@@ -204,6 +204,8 @@ set_key colors custom
 set_key color "'rgb(236,1,1)'"
 set_key color "'not a color'"
 set_key colors theme
+set_key tint-icons true
+set_key icon-color "'rgb(227,154,227)'"
 set_key dynamic-opacity true
 set_key attention false
 set_key tooltips false

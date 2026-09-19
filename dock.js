@@ -14,7 +14,7 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {mix, parseColor} from './colors.js';
-import {HAS_ACCENT, setVertical} from './compat.js';
+import {Color, HAS_ACCENT, setVertical} from './compat.js';
 import {badgeOf, progressOf} from './launcher.js';
 import {dropIndex, hover, rest, STYLES} from './layout.js';
 import {TRASH, driveMounts, openPlace, placeActions, placeIcon, placeName} from './places.js';
@@ -248,6 +248,9 @@ export class Dock {
             // Dark text and icons (stylesheet.css) where the color covers what is behind it.
             ink = light && this._settings.get_int('opacity') >= 50;
         }
+        const tint = this._settings.get_boolean('tint-icons') && parseColor(this._settings.get_string('icon-color'));
+        const [red, green, blue] = tint ? tint.split(',').map(Number) : [];
+        this._tint = tint ? new Color({red, green, blue, alpha: 255}) : null;
         const mark = actor => (ink ? actor.add_style_class_name('silver-dock-ink') : actor.remove_style_class_name('silver-dock-ink'));
         mark(this._bar);
         // The theme decides the transparency too, the slider is for the other looks.
@@ -281,7 +284,10 @@ export class Dock {
         this._bg.opacity = this._bgOpacity = Math.round(255 * opacity);
         for (const sep of [...this._seps, ...this._rowSeps])
             sep.set_style(`background-color: rgba(${colors.fg}, 0.25);`);
-        this._items.forEach(item => item.fill.set_style(this._accent && `background-color: rgb(${this._accent});`));
+        this._items.forEach(item => {
+            item.fill.set_style(this._accent && `background-color: rgb(${this._accent});`);
+            this._tintIcon(item.icon);
+        });
         this.updateDots();
         this.queueCheck(); // dynamic opacity starts from the new base
     }
@@ -546,12 +552,21 @@ export class Dock {
         });
     }
 
+    // One tone for all icons in the row: gray levels times the tint color.
+    _tintIcon(icon) {
+        icon.remove_effect_by_name('silver-dock-tint');
+        if (this._tint)
+            icon.add_effect_with_name('silver-dock-tint', new Clutter.ColorizeEffect({tint: this._tint}));
+        return icon;
+    }
+
     _createItem(key) {
         const {icon: size, big, slot} = this._geom;
         const app = key instanceof Shell.App ? key : null;
         const name = app ? app.get_name() : placeName(key);
         const icon = app ? app.create_icon_texture(big) : placeIcon(key, big, this._ext.trash?.full);
         icon.set_pivot_point(0.5, 0.5);
+        this._tintIcon(icon);
 
         // Badge and progress bar live next to the button, see _placeExtras.
         const font = Math.max(10, Math.round(size / 3));
@@ -1183,7 +1198,7 @@ export class Dock {
         const {app, button, icon} = item;
         const delegate = {
             app,
-            getDragActor: () => app.create_icon_texture(this._geom.icon),
+            getDragActor: () => this._tintIcon(app.create_icon_texture(this._geom.icon)),
             getDragActorSource: () => icon,
         };
         button._delegate = delegate;

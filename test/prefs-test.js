@@ -52,6 +52,10 @@ const green = new Gdk.RGBA();
 green.parse('#00ff00');
 rows['Color'].activatable_widget.rgba = green;
 check(settings.get_string('color') === 'rgb(0,255,0)', 'color button not written');
+settings.set_string('icon-color', '#ec0101');
+check(rows['Icon color'].activatable_widget.rgba.to_string() === 'rgb(236,1,1)', 'icon color key not shown on its button');
+rows['Icon color'].activatable_widget.rgba = green;
+check(settings.get_string('icon-color') === 'rgb(0,255,0)', 'icon color button not written');
 settings.set_string('colors', 'theme');
 check(rows['Colors from'].selected === 1, 'colors key not shown in the combo');
 check(!rows['Color'].visible && !rows['Background opacity (%)'].visible, 'color rows shown with theme colors');
@@ -78,7 +82,7 @@ for (const [title, key] of [['Separators', 'separators'], ['Opaque while a windo
     ['Wiggle when an app asks for attention', 'attention'], ['Show app names on hover', 'tooltips'],
     ['Badges and progress on app icons', 'badges'], ['Trash', 'trash'], ['Removable drives (USB sticks, SD cards)', 'drives'],
     ['Drag to rearrange, pin and unpin apps', 'dnd'], ['Show window previews on hover', 'previews'],
-    ['Top bar in the dock\'s look', 'style-top-bar'], ['Keep the top bar', 'keep-top-bar'],
+    ['Top bar in the dock\'s look', 'style-top-bar'], ['Tint app icons', 'tint-icons'], ['Keep the top bar', 'keep-top-bar'],
     ['Apps pop in and out', 'pop'], ['Squash on click', 'squash'], ['Window dots glide', 'glide'],
     ['Rise in a wave after login and unlock', 'intro'], ['Badges pop up', 'badge-pop'],
     ['Bar springs back in after hiding', 'springy'], ['Windows minimize into their icon', 'minimize-to-icon'],

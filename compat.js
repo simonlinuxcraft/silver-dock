@@ -1,6 +1,7 @@
 // Differences between the GNOME versions the dock runs on (46 to 50). Check here
 // first when a version breaks something, next to takeover.js.
 import Clutter from 'gi://Clutter';
+import Cogl from 'gi://Cogl';
 import St from 'gi://St';
 
 // St.BoxLayout has an orientation from GNOME 48, before that a vertical flag.
@@ -12,6 +13,9 @@ export function setVertical(box, vertical) {
     else
         box.vertical = vertical;
 }
+
+// Colors for Clutter effects: Clutter.Color up to GNOME 46, Cogl.Color from 47.
+export const Color = Clutter.Color ?? Cogl.Color;
 
 // The system accent color, and -st-accent-color in stylesheets, from GNOME 47.
 export const HAS_ACCENT = 'accent_color' in St.Settings.prototype;

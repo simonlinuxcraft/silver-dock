@@ -317,7 +317,9 @@ export default class SilverDock extends Extension {
         const fg = rgb(node.get_foreground_color());
         panel.destroy();
         const gtk = gtkColors(this._iface);
-        return {bg: bg.alpha ? rgb(bg) : gtk.bg ?? COLORS.bg, fg, border: 'none', accent: gtk.accent};
+        if (bg.alpha)
+            return {bg: rgb(bg), alpha: bg.alpha / 255, fg, border: 'none', accent: gtk.accent};
+        return {bg: gtk.bg ?? COLORS.bg, alpha: 1, fg, border: 'none', accent: gtk.accent};
     }
 
     _separator() {
@@ -364,7 +366,11 @@ export default class SilverDock extends Extension {
         const zoom = this._settings.get_double('zoom');
         const margin = this._settings.get_int('margin');
         const radius = this._settings.get_int('radius');
-        const opacity = this._settings.get_int('opacity') / 100;
+        const themed = this._settings.get_boolean('theme-colors');
+        const colors = themed ? this._themeColors() : COLORS;
+        this._accent = colors.accent ?? null; // null: the stylesheet's colors
+        // The theme decides the transparency too, the slider is for the dock's own look.
+        const opacity = themed ? colors.alpha : this._settings.get_int('opacity') / 100;
 
         this._style = this._settings.get_string('animation');
         this._position = this._settings.get_string('position');
@@ -417,9 +423,6 @@ export default class SilverDock extends Extension {
         }
         // There GNOME's top bar may wear the dock's look: colour, border, corners
         // and the same gap to the screen edge. Its own style comes back afterwards.
-        const themed = this._settings.get_boolean('theme-colors');
-        const colors = themed ? this._themeColors() : COLORS;
-        this._accent = colors.accent ?? null; // null: the stylesheet's colors
         // Style classes for stylesheet.css, the last three named like their settings.
         const classes = [['themed', themed], ...['lift-buttons', 'warp', 'glide'].map(key =>
             [key, this._settings.get_boolean(key)])];

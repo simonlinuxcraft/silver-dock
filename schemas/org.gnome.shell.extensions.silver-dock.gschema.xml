@@ -96,7 +96,7 @@
     </key>
     <key name="theme-colors" type="b">
       <default>false</default>
-      <summary>Take the colors from the shell theme's top bar and the GTK theme's accent (else the system accent)</summary>
+      <summary>Take background and transparency from the shell theme's top bar, the accent from the GTK theme (else the system accent)</summary>
     </key>
     <key name="separators" type="b">
       <default>true</default>

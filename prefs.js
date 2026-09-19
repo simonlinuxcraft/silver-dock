@@ -27,9 +27,10 @@ export default class SilverDockPrefs extends ExtensionPreferences {
             row.set_digits(digits);
             settings.bind(key, row, 'value', Gio.SettingsBindFlags.DEFAULT);
             g.add(row);
+            return row;
         };
-        const toggle = (g, key, title) => {
-            const row = new Adw.SwitchRow({title});
+        const toggle = (g, key, title, subtitle = '') => {
+            const row = new Adw.SwitchRow({title, subtitle});
             settings.bind(key, row, 'active', Gio.SettingsBindFlags.DEFAULT);
             g.add(row);
         };
@@ -56,8 +57,11 @@ export default class SilverDockPrefs extends ExtensionPreferences {
         spin(size, 'margin', _('Distance from screen edge'), 0, 48, 1);
         spin(size, 'radius', _('Corner radius'), 0, 48, 1);
         const colors = group(look, _('Colors'));
-        toggle(colors, 'theme-colors', _('Colors from the shell and GTK theme'));
-        spin(colors, 'opacity', _('Background opacity (%)'), 0, 100, 5);
+        toggle(colors, 'theme-colors', _('Colors from the shell and GTK theme'),
+            _('Background, transparency and accent follow the themes'));
+        const opacity = spin(colors, 'opacity', _('Background opacity (%)'), 0, 100, 5);
+        settings.bind('theme-colors', opacity, 'sensitive',
+            Gio.SettingsBindFlags.GET | Gio.SettingsBindFlags.INVERT_BOOLEAN);
         toggle(colors, 'dynamic-opacity', _('Opaque while a window touches the bar'));
         toggle(colors, 'separators', _('Separators'));
 

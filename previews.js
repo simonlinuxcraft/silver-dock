@@ -143,7 +143,8 @@ export class WindowPreviews {
 
     _open(app, anchor, side) {
         const windows = app.get_windows().filter(win => win.get_compositor_private());
-        const monitor = Main.layoutManager.primaryMonitor; // none while all screens are off
+        // The icon's monitor, none while all screens are off.
+        const monitor = anchor.get_stage() && Main.layoutManager.findMonitorForActor(anchor);
         // A freshly built icon has no place yet, previews would land somewhere else.
         if (!windows.length || !monitor || !anchor.get_stage() || !anchor.has_allocation()) {
             this.hide();

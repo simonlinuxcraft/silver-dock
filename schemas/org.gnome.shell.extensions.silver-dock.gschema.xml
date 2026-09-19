@@ -86,6 +86,10 @@
       <default>'bottom'</default>
       <summary>Screen edge the bar sits on</summary>
     </key>
+    <key name="all-monitors" type="b">
+      <default>false</default>
+      <summary>A dock on every monitor, the top bar content stays on the primary one</summary>
+    </key>
     <key name="keep-top-bar" type="b">
       <default>false</default>
       <summary>With the bar at the bottom, keep GNOME's top bar at the top</summary>

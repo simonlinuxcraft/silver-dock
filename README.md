@@ -5,7 +5,7 @@ bar's content (menu, clock, tray, system menu) and the app icons together.
 Apart from moving the top bar's boxes (`takeover.js`) it uses its own actors and
 public Shell/St APIs only, which keeps breakage on new GNOME releases small.
 
-- On any screen edge. On the left or right the bar holds the apps and GNOME's top bar keeps the menu, clock, tray and system menu, optionally in the dock's look. At the bottom the top bar can stay on its own too
+- On any screen edge, on the primary monitor or on every monitor (the top bar content stays on the primary one). On the left or right the bar holds the apps and GNOME's top bar keeps the menu, clock, tray and system menu, optionally in the dock's look. At the bottom the top bar can stay on its own too
 - Own dark look by default, or the shell theme's top bar color with the GTK theme's accent (the system accent when the GTK theme has none)
 - Hover animations: magnify, ripple, lift or none
 - Apps pop in and out, icons squash on click, window dots glide, a wave after login and unlock, badges pop, windows minimize into their icon, the bar springs back in after autohide
@@ -45,7 +45,7 @@ catalogs live in `po/`, `test/smoke.sh` compiles them into `locale/`. After
 changing texts, update the template and merge it into each language:
 
 ```
-xgettext --from-code=UTF-8 --language=JavaScript --keyword=_ --package-name=silver-dock -o po/silver-dock.pot extension.js places.js prefs.js
+xgettext --from-code=UTF-8 --language=JavaScript --keyword=_ --package-name=silver-dock -o po/silver-dock.pot extension.js dock.js places.js prefs.js
 msgmerge --update po/de.po po/silver-dock.pot
 ```
 

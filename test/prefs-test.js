@@ -64,7 +64,7 @@ for (const [title, key] of [['Separators', 'separators'], ['Opaque while a windo
     ['Bar springs back in after hiding', 'springy'], ['Windows minimize into their icon', 'minimize-to-icon'],
     ['Warp start for the ArcMenu button', 'warp'],
     ['Buttons lift on hover instead of lighting up', 'lift-buttons'], ['Internal drives too', 'internal-drives'],
-    ['Show only that window while on its preview', 'peek'], ['Scroll over an icon to switch its windows', 'scroll']]) {
+    ['Show only that window while on its preview', 'peek'], ['A dock on every monitor', 'all-monitors'], ['Scroll over an icon to switch its windows', 'scroll']]) {
     rows[title].active = !settings.get_boolean(key);
     check(rows[title].active === settings.get_boolean(key), `${key} switch not written`);
 }

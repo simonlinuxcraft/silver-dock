@@ -50,6 +50,7 @@ export default class SilverDockPrefs extends ExtensionPreferences {
         const where = group(look, _('Position'));
         choice(where, 'position', _('Screen edge'),
             [['bottom', _('Bottom')], ['top', _('Top')], ['left', _('Left')], ['right', _('Right')]]);
+        toggle(where, 'all-monitors', _('A dock on every monitor'));
         toggle(where, 'keep-top-bar', _('Keep the top bar (bar at the bottom)'));
         toggle(where, 'style-top-bar', _('Top bar in the dock\'s look (when on its own)'));
         const size = group(look, _('Size'));

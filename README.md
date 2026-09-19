@@ -6,8 +6,10 @@ Apart from moving the top bar's boxes (`takeover.js`) it uses its own actors and
 public Shell/St APIs only, which keeps breakage on new GNOME releases small.
 
 - On any screen edge. On the left or right the bar holds the apps and GNOME's top bar keeps the menu, clock, tray and system menu, optionally in the dock's look. At the bottom the top bar can stay on its own too
-- Own dark look by default, or the colors of the shell theme and the system accent color
+- Own dark look by default, or the shell theme's top bar color with the GTK theme's accent (the system accent when the GTK theme has none)
 - Hover animations: magnify, ripple, lift or none
+- Apps pop in and out, icons squash on click, window dots glide, a wave after login and unlock, badges pop, windows minimize into their icon, the bar springs back in after autohide
+- Top bar buttons in the dock lift on hover instead of lighting up, the ArcMenu button takes off like a rocket
 - Icons bounce while an app starts and wiggle when it asks for attention
 - One dot per window, the focused app's dots stand out
 - App name above the hovered icon, right click for the app menu
@@ -15,7 +17,7 @@ public Shell/St APIs only, which keeps breakage on new GNOME releases small.
 - Drag icons to rearrange favorites, drop apps from the overview to pin them, drag them off to unpin
 - Clicking the focused app minimizes it, or cycles through its windows
 - Badge counts and progress bars that apps publish (Unity LauncherEntry API)
-- Trash and removable drives after the apps, with open, empty and eject
+- Trash and removable drives after the apps, with open, empty and eject, internal drives on request (open only)
 - Separators between favorites, running apps, places and the top bar content
 - Autohide while a window overlaps the bar, opaque background while one touches it
 
@@ -26,6 +28,7 @@ Primary monitor only.
 
 ```
 gjs -m test/layout-test.js   # hover animation math
+gjs -m test/colors-test.js   # reading GTK theme colors
 test/smoke.sh                # headless GNOME Shell: enable/disable, settings, prefs, demo tray icons and window
 test/smoke.sh --show         # same in a window with your shell setup mirrored in (needs mutter-dev-bin)
 ```

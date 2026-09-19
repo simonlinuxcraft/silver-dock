@@ -50,11 +50,16 @@ rows['Screen edge'].selected = 3;
 check(settings.get_string('position') === 'right', 'position combo not written');
 for (const [title, key] of [['Separators', 'separators'], ['Opaque while a window touches the bar', 'dynamic-opacity'],
     ['Wiggle when an app asks for attention', 'attention'], ['Show app names on hover', 'tooltips'],
-    ['Badges and progress on app icons', 'badges'], ['Trash', 'trash'], ['Removable drives', 'drives'],
+    ['Badges and progress on app icons', 'badges'], ['Trash', 'trash'], ['Removable drives (USB sticks, SD cards)', 'drives'],
     ['Drag to rearrange, pin and unpin apps', 'dnd'], ['Show window previews on hover', 'previews'],
     ['Top bar in the dock\'s look (when on its own)', 'style-top-bar'],
     ['Keep the top bar (bar at the bottom)', 'keep-top-bar'],
-    ['Colors from the shell theme and accent color', 'theme-colors']]) {
+    ['Colors from the shell and GTK theme', 'theme-colors'],
+    ['Apps pop in and out', 'pop'], ['Squash on click', 'squash'], ['Window dots glide', 'glide'],
+    ['Rise in a wave after login and unlock', 'intro'], ['Badges pop up', 'badge-pop'],
+    ['Bar springs back in after hiding', 'springy'], ['Windows minimize into their icon', 'minimize-to-icon'],
+    ['Warp start for the ArcMenu button', 'warp'],
+    ['Buttons lift on hover instead of lighting up', 'lift-buttons'], ['Internal drives too', 'internal-drives']]) {
     rows[title].active = !settings.get_boolean(key);
     check(rows[title].active === settings.get_boolean(key), `${key} switch not written`);
 }

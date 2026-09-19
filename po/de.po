@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: silver-dock\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-19 14:05+0200\n"
+"POT-Creation-Date: 2026-09-19 15:45+0200\n"
 "PO-Revision-Date: 2026-09-19 10:07+0200\n"
 "Last-Translator: \n"
 "Language-Team: none\n"
@@ -14,40 +14,40 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: extension.js:124
+#: extension.js:175
 msgid "Dock"
 msgstr "Dock"
 
-#: places.js:18 prefs.js:81
+#: places.js:22 prefs.js:93
 msgid "Trash"
 msgstr "Papierkorb"
 
-#: places.js:32
+#: places.js:36
 #, javascript-format
 msgid "Cannot open %s"
 msgstr "%s kann nicht geöffnet werden"
 
-#: places.js:38
+#: places.js:42
 msgid "Open"
 msgstr "Öffnen"
 
-#: places.js:40
+#: places.js:44
 msgid "Empty Trash"
 msgstr "Papierkorb leeren"
 
-#: places.js:42
+#: places.js:47
 msgid "Eject"
 msgstr "Auswerfen"
 
-#: places.js:42
+#: places.js:47
 msgid "Unmount"
 msgstr "Aushängen"
 
-#: places.js:54
+#: places.js:59
 msgid "Cannot empty the trash"
 msgstr "Der Papierkorb kann nicht geleert werden"
 
-#: places.js:67
+#: places.js:72
 #, javascript-format
 msgid "Cannot eject %s"
 msgstr "%s kann nicht ausgeworfen werden"
@@ -109,8 +109,8 @@ msgid "Colors"
 msgstr "Farben"
 
 #: prefs.js:59
-msgid "Colors from the shell theme and accent color"
-msgstr "Farben aus Shell-Theme und Akzentfarbe"
+msgid "Colors from the shell and GTK theme"
+msgstr "Farben aus Shell- und GTK-Theme"
 
 #: prefs.js:60
 msgid "Background opacity (%)"
@@ -157,49 +157,101 @@ msgid "Magnification"
 msgstr "Vergrößerung"
 
 #: prefs.js:69
+msgid "Icons"
+msgstr "Icons"
+
+#: prefs.js:70
+msgid "Apps pop in and out"
+msgstr "Apps springen herein und schrumpfen weg"
+
+#: prefs.js:71
+msgid "Squash on click"
+msgstr "Beim Klick stauchen"
+
+#: prefs.js:72
+msgid "Window dots glide"
+msgstr "Fensterpunkte gleiten"
+
+#: prefs.js:73
+msgid "Rise in a wave after login and unlock"
+msgstr "Nach Anmelden und Entsperren als Welle aufsteigen"
+
+#: prefs.js:74
 msgid "App status"
 msgstr "App-Status"
 
-#: prefs.js:70
+#: prefs.js:75
 msgid "Bounce while an app starts"
 msgstr "Hüpfen, während eine App startet"
 
-#: prefs.js:71
+#: prefs.js:76
 msgid "Wiggle when an app asks for attention"
 msgstr "Wackeln, wenn eine App Aufmerksamkeit anfordert"
 
-#: prefs.js:72
+#: prefs.js:77
 msgid "Badges and progress on app icons"
 msgstr "Zähler und Fortschritt auf App-Icons"
 
-#: prefs.js:74
+#: prefs.js:78
+msgid "Badges pop up"
+msgstr "Badges springen auf"
+
+#: prefs.js:79
+msgid "Bar and windows"
+msgstr "Leiste und Fenster"
+
+#: prefs.js:80
+msgid "Bar springs back in after hiding"
+msgstr "Leiste federt beim Wiedereinblenden"
+
+#: prefs.js:81
+msgid "Windows minimize into their icon"
+msgstr "Fenster ins Icon minimieren"
+
+#: prefs.js:82
+msgid "Top bar content in the dock"
+msgstr "Inhalt der oberen Leiste im Dock"
+
+#: prefs.js:83
+msgid "Warp start for the ArcMenu button"
+msgstr "Warp-Start für den ArcMenu-Knopf"
+
+#: prefs.js:84
+msgid "Buttons lift on hover instead of lighting up"
+msgstr "Knöpfe heben sich beim Überfahren, statt aufzuleuchten"
+
+#: prefs.js:86
 msgid "Behavior"
 msgstr "Verhalten"
 
-#: prefs.js:75
+#: prefs.js:87
 msgid "Bar"
 msgstr "Leiste"
 
-#: prefs.js:76
+#: prefs.js:88
 msgid "Hide when a window overlaps the bar"
 msgstr "Ausblenden, wenn ein Fenster die Leiste überdeckt"
 
-#: prefs.js:77
+#: prefs.js:89
 msgid "Show app names on hover"
 msgstr "App-Namen beim Überfahren zeigen"
 
-#: prefs.js:78
+#: prefs.js:90
 msgid "Show window previews on hover"
 msgstr "Fenstervorschau beim Überfahren zeigen"
 
-#: prefs.js:79
+#: prefs.js:91
 msgid "Drag to rearrange, pin and unpin apps"
 msgstr "Apps per Ziehen anordnen, anheften und lösen"
 
-#: prefs.js:80
+#: prefs.js:92
 msgid "Places"
 msgstr "Orte"
 
-#: prefs.js:82
-msgid "Removable drives"
-msgstr "Wechseldatenträger"
+#: prefs.js:94
+msgid "Removable drives (USB sticks, SD cards)"
+msgstr "Wechseldatenträger (USB-Sticks, SD-Karten)"
+
+#: prefs.js:95
+msgid "Internal drives too"
+msgstr "Auch interne Laufwerke"

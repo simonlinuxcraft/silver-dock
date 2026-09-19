@@ -8,10 +8,14 @@ import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js'
 
 export const TRASH = 'trash';
 
-// Removable media only: internal disks and network shares stay out of the dock.
-export function removableMounts(monitor) {
-    return monitor.get_mounts().filter(mount =>
-        !mount.is_shadowed() && (mount.can_eject() || Boolean(mount.get_drive()?.is_removable())));
+function isRemovable(mount) {
+    return mount.can_eject() || Boolean(mount.get_drive()?.is_removable());
+}
+
+// Removable media and, on request, the internal disks. Network shares stay out.
+export function driveMounts(monitor, removable, internal) {
+    return monitor.get_mounts().filter(mount => !mount.is_shadowed() &&
+        (isRemovable(mount) ? removable : internal && mount.get_root().is_native()));
 }
 
 export function placeName(place) {
@@ -38,7 +42,8 @@ export function placeActions(place) {
     const actions = [[_('Open'), () => openPlace(place)]];
     if (place === TRASH)
         actions.push([_('Empty Trash'), emptyTrash]);
-    else if (place.can_eject() || place.can_unmount())
+    // Internal disks only open, unmounting one from the dock is too easy a slip.
+    else if (isRemovable(place) && (place.can_eject() || place.can_unmount()))
         actions.push([place.can_eject() ? _('Eject') : _('Unmount'), () => eject(place)]);
     return actions;
 }

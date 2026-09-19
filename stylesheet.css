@@ -75,21 +75,27 @@
     spacing: 3px;
 }
 
+/* Sized in extension.js, the focused app's dots are longer. */
 .silver-dock-dot {
-    width: 5px;
-    height: 5px;
     border-radius: 3px;
     background-color: rgba(235, 237, 242, 0.55);
 }
 
 .silver-dock-dots.focused .silver-dock-dot {
-    width: 12px;
     background-color: rgba(255, 255, 255, 0.95);
 }
 
-.vertical .silver-dock-dots.focused .silver-dock-dot {
-    width: 5px;
-    height: 12px;
+.silver-dock.glide .silver-dock-dot {
+    transition-duration: 250ms;
+}
+
+/* Top bar buttons in the dock move on hover instead of lighting up. Open menus keep
+   the theme's look. GNOME themes light up the clock's inner .clock, not its button. */
+#panel.silver-dock.lift-buttons .panel-button:hover,
+#panel.silver-dock.lift-buttons .panel-button:hover .clock,
+#panel.silver-dock.warp .arcmenu-panel-menu:hover {
+    box-shadow: none;
+    background-color: transparent;
 }
 
 /* Theme colors: window dots and progress in the system accent color. */

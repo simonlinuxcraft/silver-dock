@@ -14,9 +14,10 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
+import {gtkColors} from './colors.js';
 import {LauncherEntries, badgeOf, progressOf} from './launcher.js';
 import {dropIndex, hover, rest, STYLES} from './layout.js';
-import {TRASH, TrashWatcher, openPlace, placeActions, placeIcon, placeName, removableMounts} from './places.js';
+import {TRASH, TrashWatcher, driveMounts, openPlace, placeActions, placeIcon, placeName} from './places.js';
 import {WindowPreviews} from './previews.js';
 import {restorePanel, takePanel} from './takeover.js';
 
@@ -35,10 +36,50 @@ const MOVE_TIME = 150;
 const EDGE = 4;
 const SEP_MARGIN = 4;
 const MIN_ICON = 16; // smallest icon size when the bar has to shrink to fit the screen
+const POP_TIME = 350;
+const DOT = 5; // window dot size, the focused app's dots are DOT_LONG along the bar
+const DOT_LONG = 12;
+const BUTTON_LIFT = 3; // px a top bar button in the dock rises on hover
+const WARP_LIFT = 5;
 
 const SIDES = {bottom: St.Side.BOTTOM, top: St.Side.TOP, left: St.Side.LEFT, right: St.Side.RIGHT};
 // The dock's own look. Colors are "r, g, b", the opacity setting adds the alpha.
 const COLORS = {bg: '28, 29, 33', fg: '235, 237, 242', border: '1px solid rgba(214, 218, 226, 0.3)'};
+
+// Eases the actor to props, or sets them at once. A value already there and not
+// on its way elsewhere starts no transition (an ease keeps the compositor busy).
+function settle(actor, props, immediate, params) {
+    const busy = key => actor.get_transition(key.replaceAll('_', '-'));
+    if (immediate) {
+        Object.keys(props).forEach(key => busy(key) && actor.remove_transition(key.replaceAll('_', '-')));
+        Object.assign(actor, props);
+    } else if (Object.entries(props).some(([key, value]) => busy(key) || actor[key] !== value)) {
+        actor.ease({...props, ...params});
+    }
+}
+
+function findActor(actor, test) {
+    if (test(actor))
+        return actor;
+    for (const child of actor.get_children()) {
+        const found = findActor(child, test);
+        if (found)
+            return found;
+    }
+    return null;
+}
+
+// The icon of ArcMenu's button, found by ArcMenu's own style classes.
+function rocketOf(button) {
+    return button?.has_style_class_name('arcmenu-panel-menu')
+        ? findActor(button, actor => actor instanceof St.Icon && actor.has_style_class_name('arcmenu-menu-button'))
+        : null;
+}
+
+function resetRocket(rocket) {
+    settle(rocket, {translation_y: 0, scale_x: 1, scale_y: 1, opacity: 255}, true);
+    rocket.set_pivot_point(0, 0);
+}
 
 // One bar on a screen edge with app icons, trash and drives. At the bottom or top
 // it also takes the top bar's content (menu, clock, tray, system menu), on the
@@ -71,6 +112,8 @@ export default class SilverDock extends Extension {
         this._dropIndex = null;
         this._dragging = false;
         this._watched = new Set(); // windows with our signals, see _watchWindow
+        this._intro = true; // the first icons rise in a wave, see _wave
+        this._hovered = null; // top bar button under the pointer, see _hoverButton
 
         this._bg = new St.Widget({style_class: 'silver-dock-bg'});
         // Named like the top bar so the moved panel buttons keep their theme styling.
@@ -116,7 +159,15 @@ export default class SilverDock extends Extension {
         this._bar.connectObject(
             'notify::width', () => this._queuePlace(),
             'notify::height', () => this._queuePlace(),
-            'notify::hover', () => this._updateAutohide(), this);
+            'notify::hover', () => {
+                if (!this._bar.hover)
+                    this._hoverButton(null);
+                this._updateAutohide();
+            },
+            // Seen before the top bar buttons themselves handle it.
+            'captured-event', (actor, event) => this._barEvent(event),
+            // Only GNOME's own teardown at logout gets here, disable() disconnects first.
+            'destroy', () => this._stopListening(), this);
 
         Main.layoutManager.addChrome(this._bg, {trackFullscreen: true});
         this._trackBar();
@@ -139,10 +190,14 @@ export default class SilverDock extends Extension {
             this._fitIcon = null;
             this._refresh();
         }, this);
-        St.ThemeContext.get_for_stage(global.stage).connectObject('changed', () => {
+        // Theme colors follow a switch of the shell or GTK theme.
+        const retheme = () => {
             if (this._settings.get_boolean('theme-colors'))
                 this._refresh();
-        }, this);
+        };
+        St.ThemeContext.get_for_stage(global.stage).connectObject('changed', retheme, this);
+        this._iface = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
+        this._iface.connectObject('changed::gtk-theme', retheme, 'changed::color-scheme', retheme, this);
         this._volumes = Gio.VolumeMonitor.get();
         this._volumes.connectObject('mount-added', sync, 'mount-removed', sync, 'mount-changed', sync, this);
         this._launcher = new LauncherEntries(() => this._updateBadges());
@@ -174,31 +229,16 @@ export default class SilverDock extends Extension {
 
     // Also runs after a failed enable, so every step tolerates missing parts.
     disable() {
-        Shell.AppSystem.get_default().disconnectObject(this);
-        Shell.WindowTracker.get_default().disconnectObject(this);
-        AppFavorites.getAppFavorites().disconnectObject(this);
-        Main.layoutManager.disconnectObject(this);
+        this._stopListening();
         St.ThemeContext.get_for_stage(global.stage).disconnectObject(this);
-        Main.overview.disconnectObject(this);
-        global.display.disconnectObject(this);
-        global.workspace_manager.disconnectObject(this);
         global.stage.disconnectObject(this);
-        this._watched?.forEach(win => win.disconnectObject(this));
-        this._volumes?.disconnectObject(this);
-        this._launcher?.destroy();
-        this._trash?.destroy();
-        this._settings?.disconnectObject(this);
-        this._row?.disconnectObject(this);
-        this._bar?.disconnectObject(this);
-        this._amount?.disconnectObject(this);
+        this._watched?.forEach(win => win.set_icon_geometry(null));
+        // Other extensions' actors, they have to be left as they were.
+        this._hoverButton(null, true);
+        this._rocket?.disconnectObject(this);
+        if (this._rocket)
+            resetRocket(this._rocket);
         this._amount?.remove_transition('value');
-        Object.values(this._laters ?? {}).forEach(id => id && global.compositor.get_laters().remove(id));
-        if (this._hideTimer)
-            GLib.source_remove(this._hideTimer);
-        if (this._wiggleTimer)
-            GLib.source_remove(this._wiggleTimer);
-        if (this._dragMonitor)
-            DND.removeDragMonitor(this._dragMonitor);
 
         // Off the stage before any child changes: a bar still on stage gets queued
         // for a relayout, which Clutter then runs on the destroyed bar.
@@ -218,12 +258,43 @@ export default class SilverDock extends Extension {
         this._undress();
         actors.forEach(actor => actor?.destroy());
 
-        this._settings = this._bg = this._bar = this._row = this._label = this._boxes = null;
+        this._settings = this._iface = this._bg = this._bar = this._row = this._label = this._boxes = null;
         this._amount = this._items = this._menuManager = this._geom = this._laters = null;
         this._labelItem = this._seps = this._rowSeps = this._volumes = this._launcher = this._trash = null;
-        this._previews = this._dragMonitor = this._watched = null;
+        this._previews = this._dragMonitor = this._watched = this._rocket = null;
         this._dragging = false;
+    }
+
+    // Nothing from outside reaches the dock afterwards. Also runs when GNOME tears the
+    // stage down at logout, which destroys the bar without disabling the extension.
+    _stopListening() {
+        Shell.AppSystem.get_default().disconnectObject(this);
+        Shell.WindowTracker.get_default().disconnectObject(this);
+        AppFavorites.getAppFavorites().disconnectObject(this);
+        Main.layoutManager.disconnectObject(this);
+        Main.overview.disconnectObject(this);
+        global.display.disconnectObject(this);
+        global.workspace_manager.disconnectObject(this);
+        this._watched?.forEach(win => win.disconnectObject(this));
+        this._volumes?.disconnectObject(this);
+        this._launcher?.destroy();
+        this._trash?.destroy();
+        this._launcher = this._trash = null;
+        this._settings?.disconnectObject(this);
+        this._iface?.disconnectObject(this);
+        this._row?.disconnectObject(this);
+        this._bar?.disconnectObject(this);
+        this._amount?.disconnectObject(this);
+        Object.values(this._laters ?? {}).forEach(id => id && global.compositor.get_laters().remove(id));
+        this._laters = {};
+        if (this._hideTimer)
+            GLib.source_remove(this._hideTimer);
+        if (this._wiggleTimer)
+            GLib.source_remove(this._wiggleTimer);
         this._hideTimer = this._wiggleTimer = 0;
+        if (this._dragMonitor)
+            DND.removeDragMonitor(this._dragMonitor);
+        this._dragMonitor = null;
     }
 
     _undress() {
@@ -233,24 +304,20 @@ export default class SilverDock extends Extension {
         this._dressed = false;
     }
 
-    // Colors of GNOME's own dash in the current shell theme, read from a hidden stand-in.
+    // The dock takes the place of the top bar, so it wears the shell theme's top bar
+    // colors, read from a hidden stand-in. A see-through top bar leaves the background
+    // to the GTK theme. The accent comes from the GTK theme, else the system accent
+    // color applies (stylesheet.css).
     _themeColors() {
-        const dash = new St.Widget({name: 'dash', visible: false});
-        const probe = new St.Widget({style_class: 'dash-background'});
-        dash.add_child(probe);
-        Main.layoutManager.uiGroup.add_child(dash);
-        const node = probe.get_theme_node();
+        const panel = new St.Widget({name: 'panel', visible: false});
+        Main.layoutManager.uiGroup.add_child(panel);
+        const node = panel.get_theme_node();
         const rgb = c => `${c.red}, ${c.green}, ${c.blue}`;
         const bg = node.get_background_color();
-        const width = node.get_border_width(St.Side.TOP);
-        const border = node.get_border_color(St.Side.TOP);
-        const colors = {
-            bg: bg.alpha ? rgb(bg) : COLORS.bg, // a see-through dash has no color to take
-            fg: rgb(node.get_foreground_color()),
-            border: width ? `${width}px solid rgba(${rgb(border)}, ${border.alpha / 255})` : 'none',
-        };
-        dash.destroy();
-        return colors;
+        const fg = rgb(node.get_foreground_color());
+        panel.destroy();
+        const gtk = gtkColors(this._iface);
+        return {bg: bg.alpha ? rgb(bg) : gtk.bg ?? COLORS.bg, fg, border: 'none', accent: gtk.accent};
     }
 
     _separator() {
@@ -291,6 +358,8 @@ export default class SilverDock extends Extension {
     }
 
     _refresh() {
+        // Before the axes change: a lifted top bar button drops on the axis it rose on.
+        this._hoverButton(null, true);
         const icon = Math.min(this._settings.get_int('icon-size'), this._fitIcon ?? Infinity);
         const zoom = this._settings.get_double('zoom');
         const margin = this._settings.get_int('margin');
@@ -350,10 +419,16 @@ export default class SilverDock extends Extension {
         // and the same gap to the screen edge. Its own style comes back afterwards.
         const themed = this._settings.get_boolean('theme-colors');
         const colors = themed ? this._themeColors() : COLORS;
-        if (themed)
-            this._bar.add_style_class_name('themed');
-        else
-            this._bar.remove_style_class_name('themed');
+        this._accent = colors.accent ?? null; // null: the stylesheet's colors
+        // Style classes for stylesheet.css, the last three named like their settings.
+        const classes = [['themed', themed], ...['lift-buttons', 'warp', 'glide'].map(key =>
+            [key, this._settings.get_boolean(key)])];
+        for (const [name, on] of classes) {
+            if (on)
+                this._bar.add_style_class_name(name);
+            else
+                this._bar.remove_style_class_name(name);
+        }
         if (ownTopBar && this._settings.get_boolean('style-top-bar')) {
             if (!this._dressed) {
                 this._panelStyle = Main.panel.get_style();
@@ -410,28 +485,127 @@ export default class SilverDock extends Extension {
             .sort((a, b) => (pos.get(a) ?? last) - (pos.get(b) ?? last));
         const places = [
             ...this._settings.get_boolean('trash') ? [TRASH] : [],
-            ...this._settings.get_boolean('drives') ? removableMounts(this._volumes) : [],
+            ...driveMounts(this._volumes, this._settings.get_boolean('drives'),
+                this._settings.get_boolean('internal-drives')),
         ];
 
-        const old = new Map(this._items.map(item => [item.key, item]));
-        this._items = [...favorites, ...running, ...places].map(key => {
-            const item = old.get(key) ?? this._createItem(key);
+        // Not on a rebuild: then every icon is new.
+        const pop = this._settings.get_boolean('pop') && this._items.length > 0;
+        const prev = this._items;
+        // An app back while its icon still shrinks away gets that icon back.
+        const old = new Map([...prev.filter(item => item.leaving), ...prev.filter(item => !item.leaving)]
+            .map(item => [item.key, item]));
+        const sections = [favorites, running, places];
+        const items = sections.flatMap((keys, section) => keys.map(key => {
+            let item = old.get(key);
+            if (item?.leaving) {
+                item.leaving = false;
+                item.button.reactive = true;
+                this._popIn(item, false);
+            } else if (!item) {
+                item = this._createItem(key);
+                if (pop)
+                    this._popIn(item);
+            }
             old.delete(key);
+            item.section = section;
             return item;
+        }));
+        // Icons already on their way out keep going, see below.
+        const gone = [...old.values()].filter(item => !item.leaving);
+        for (const item of gone) {
+            if (pop)
+                item.leaving = true;
+            else
+                this._destroyItem(item);
+        }
+        // Leaving icons keep their place behind their old neighbour until they are gone.
+        prev.forEach((item, i) => {
+            if (!item.leaving)
+                return;
+            const before = prev.slice(0, i).reverse().find(other => items.includes(other));
+            items.splice(before ? items.indexOf(before) + 1 : 0, 0, item);
         });
-        old.forEach(item => this._destroyItem(item));
+        this._items = items;
 
         const separators = this._settings.get_boolean('separators');
-        this._bounds = [favorites.length, favorites.length + running.length];
+        const start = section => {
+            const i = items.findIndex(item => item.section >= section);
+            return i < 0 ? items.length : i;
+        };
+        this._bounds = [start(1), start(2)];
         this._rowSeps.forEach((sep, i) => {
             const at = this._bounds[i];
-            sep.visible = separators && at > 0 && at < this._items.length && (i === 1 || running.length > 0);
+            sep.visible = separators && at > 0 && at < items.length && (i === 1 || this._bounds[1] > this._bounds[0]);
         });
 
         this._layout();
+        if (this._intro && this._settings.get_boolean('intro'))
+            this._wave();
+        this._intro = false;
         this._updateDots();
         this._updateBadges();
         this._animate();
+        // Last: without animations (switched off, bar unmapped) the ease ends at once
+        // and syncs again, which must find this sync finished.
+        if (pop)
+            gone.forEach(item => this._popOut(item));
+    }
+
+    // A new icon grows out of nothing and its neighbours make room, see _createItem.
+    _popIn({icon}, fromNothing = true) {
+        // The new ease replaces a running shrink, whose onComplete then never comes.
+        if (fromNothing)
+            icon.set_scale(0, 0);
+        icon.ease({scale_x: 1, scale_y: 1, duration: POP_TIME, mode: Clutter.AnimationMode.EASE_OUT_BACK});
+    }
+
+    // Shrinks away, the neighbours close the gap, then it is gone for good.
+    _popOut(item) {
+        item.button.reactive = false;
+        this._hideLabel(item);
+        if (item.app && this._previews.app === item.app)
+            this._previews.hide();
+        item.icon.ease({
+            scale_x: 0,
+            scale_y: 0,
+            duration: POP_TIME * 0.7,
+            mode: Clutter.AnimationMode.EASE_IN_QUAD,
+            onComplete: () => {
+                this._items = this._items.filter(other => other !== item);
+                this._destroyItem(item);
+                this._sync();
+            },
+        });
+    }
+
+    // After login or unlock the icons rise out of the screen edge one after another.
+    _wave() {
+        const {big} = this._geom;
+        this._items.forEach(({icon}, i) => {
+            icon[this._across] = -this._dir * big;
+            icon.opacity = 0;
+            const delay = i * 40;
+            icon.ease({[this._across]: 0, delay, duration: 450, mode: Clutter.AnimationMode.EASE_OUT_BACK});
+            icon.ease({opacity: 255, delay, duration: 250, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+        });
+    }
+
+    // A short squash as feedback for a click.
+    _squash({icon}) {
+        const [x, y] = this._xy(1.15, 0.8);
+        const [along, across] = this._xy('scale_x', 'scale_y');
+        icon.ease({
+            scale_x: x,
+            scale_y: y,
+            duration: 90,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            onComplete: () => {
+                // Along the bar no overshoot below 1, that would take room from the neighbours.
+                icon.ease({[along]: 1, duration: 200, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+                icon.ease({[across]: 1, duration: 300, mode: Clutter.AnimationMode.EASE_OUT_BACK});
+            },
+        });
     }
 
     _createItem(key) {
@@ -454,6 +628,8 @@ export default class SilverDock extends Extension {
             visible: false,
         });
         const fill = new St.Widget({style_class: 'silver-dock-progress-fill'});
+        if (this._accent)
+            fill.set_style(`background-color: rgb(${this._accent});`);
         progress.add_child(fill);
 
         const button = new St.Button({
@@ -476,8 +652,24 @@ export default class SilverDock extends Extension {
         const indicator = new St.Bin({child: dots});
         indicator.set_size(...this._xy(slot, -1));
 
-        const item = {key, app, name, icon, badge, progress, fill, fraction: 0, button, indicator, dots, menu: null};
+        const item = {key, app, name, icon, badge, progress, fill, fraction: 0, button, indicator, dots, menu: null, room: 1};
+        badge.set_pivot_point(0.5, 0.5);
+        // room: how much of its slot the icon takes, 0 to 1. It follows the icon's scale
+        // along the bar, so a popping icon pushes its neighbours aside as it grows.
+        const along = this._vertical ? 'scale_y' : 'scale_x';
+        icon.connect(`notify::${along.replace('_', '-')}`, () => {
+            const room = Math.min(1, icon[along]);
+            if (room === item.room)
+                return;
+            item.room = room;
+            this._queue('room', () => {
+                this._layout();
+                this._place();
+            });
+        });
         button.connect('clicked', (b, mouseButton) => {
+            if (this._settings.get_boolean('squash'))
+                this._squash(item);
             this._hideLabel(item);
             this._previews.hide();
             if (mouseButton === 3)
@@ -530,6 +722,11 @@ export default class SilverDock extends Extension {
             if (sep.visible)
                 gaps[this._bounds[i]] += sepGap;
         });
+        // A popping icon takes part of its slot, half the rest comes off each side.
+        this._items.forEach(({room}, i) => {
+            gaps[i] -= (1 - room) * slot / 2;
+            gaps[i + 1] -= (1 - room) * slot / 2;
+        });
         this._restNoDrop = rest(n, slot, gaps);
         if (this._dropIndex !== null)
             gaps[this._dropIndex] += slot;
@@ -566,21 +763,43 @@ export default class SilverDock extends Extension {
     // One dot per window, the focused app's dots stand out.
     _updateDots() {
         const focused = Shell.WindowTracker.get_default().focus_app;
+        const glide = this._settings.get_boolean('glide');
+        const mode = Clutter.AnimationMode.EASE_OUT_QUAD;
         for (const {app, dots} of this._items) {
             const n = app?.state === Shell.AppState.RUNNING
                 ? Math.min(Math.max(app.get_n_windows(), 1), MAX_DOTS) : 0;
+            const size = this._xy(app === focused ? DOT_LONG : DOT, DOT);
+            const changed = dots.has_style_class_name('focused') !== (app === focused);
             while (dots.get_n_children() > n)
                 dots.get_last_child().destroy();
-            while (dots.get_n_children() < n)
-                dots.add_child(new St.Widget({style_class: 'silver-dock-dot'}));
+            while (dots.get_n_children() < n) {
+                const dot = new St.Widget({style_class: 'silver-dock-dot'});
+                dot.set_size(...size);
+                if (glide) {
+                    dot.opacity = 0;
+                    dot.ease({opacity: 255, duration: 250, mode});
+                }
+                dots.add_child(dot);
+            }
             dots.style_class = app === focused ? 'silver-dock-dots focused' : 'silver-dock-dots';
+            // A GTK theme accent is set here, the system accent comes from the stylesheet.
+            const color = this._accent && `background-color: rgba(${this._accent}, ${app === focused ? 1 : 0.55});`;
+            dots.get_children().forEach(dot => dot.set_style(color || null));
+            if (!changed)
+                continue;
+            for (const dot of dots.get_children()) {
+                if (glide)
+                    dot.ease({width: size[0], height: size[1], duration: 250, mode});
+                else
+                    dot.set_size(...size);
+            }
         }
     }
 
     _onAppState(app) {
         this._sync();
         if (app.state === Shell.AppState.STARTING && this._settings.get_boolean('bounce'))
-            this._bounce(this._items.find(item => item.app === app));
+            this._bounce(this._items.find(item => item.app === app && !item.leaving));
     }
 
     // Numbers and progress that apps publish, urgency counts as attention too.
@@ -589,6 +808,13 @@ export default class SilverDock extends Extension {
         for (const item of this._items) {
             const entry = shown && item.app ? this._launcher.get(item.app.get_id()) : null;
             const text = badgeOf(entry);
+            // Not on an icon's first update, a rebuild would pop every badge again.
+            if (item.badgeText !== undefined && text !== null && text !== item.badgeText &&
+                this._settings.get_boolean('badge-pop')) {
+                item.badge.set_scale(0.3, 0.3);
+                item.badge.ease({scale_x: 1, scale_y: 1, duration: 300, mode: Clutter.AnimationMode.EASE_OUT_BACK});
+            }
+            item.badgeText = text;
             item.badge.visible = text !== null;
             item.badge.text = text ?? '';
             const fraction = progressOf(entry);
@@ -775,7 +1001,10 @@ export default class SilverDock extends Extension {
         win.connectObject(
             'position-changed', check,
             'size-changed', check,
-            'notify::minimized', check,
+            'notify::minimized', () => {
+                this._setIconGeometry(win);
+                check();
+            },
             'notify::demands-attention', attention,
             'notify::urgent', attention,
             // Meta.Window is no actor, its signal tracker entry would outlive the window.
@@ -786,6 +1015,24 @@ export default class SilverDock extends Extension {
                 attention();
             }, this);
         check();
+    }
+
+    // GNOME's minimize animation flies into a window's icon geometry, its unminimize
+    // grows out of it. Set right as the state changes, the animation follows later.
+    _setIconGeometry(win) {
+        let rect = null;
+        if (this._settings.get_boolean('minimize-to-icon')) {
+            const app = Shell.WindowTracker.get_default().get_window_app(win);
+            const button = this._items.find(item => item.app === app && !item.leaving)?.button;
+            if (button?.get_stage()) {
+                const [x, y] = button.get_transformed_position();
+                const [width, height] = button.get_transformed_size();
+                rect = new Mtk.Rectangle({
+                    x: Math.round(x), y: Math.round(y), width: Math.round(width), height: Math.round(height),
+                });
+            }
+        }
+        win.set_icon_geometry(rect);
     }
 
     // ponytail: primary monitor only, like the top bar it replaces
@@ -889,6 +1136,101 @@ export default class SilverDock extends Extension {
         this._bg.set_position(...this._xy(along + startShift, across + (this._edgeFirst ? margin : 0)));
         this._bg.set_size(...this._xy(length - startShift + endShift, thick - margin));
         this._placeLabel();
+    }
+
+    // Pointer and clicks over the top bar buttons in the dock. They belong to GNOME
+    // and other extensions, so they are only watched here, never connected to.
+    _barEvent(event) {
+        const type = event.type();
+        const press = type === Clutter.EventType.BUTTON_PRESS || type === Clutter.EventType.TOUCH_BEGIN;
+        if (type !== Clutter.EventType.MOTION && !press)
+            return Clutter.EVENT_PROPAGATE;
+        let button = global.stage.get_event_actor(event);
+        while (button && button !== this._bar && !button.has_style_class_name?.('panel-button'))
+            button = button.get_parent();
+        if (button === this._bar)
+            button = null;
+        if (!press)
+            this._hoverButton(button);
+        else if (this._settings.get_boolean('warp'))
+            this._launch(rocketOf(button));
+        return Clutter.EVENT_PROPAGATE;
+    }
+
+    _hoverButton(button, immediate = false) {
+        if (button === this._hovered)
+            return;
+        if (this._hovered) {
+            this._hovered.disconnectObject(this);
+            this._liftButton(this._hovered, false, immediate);
+        }
+        this._hovered = button;
+        button?.connectObject('destroy', () => (this._hovered = null), this);
+        if (button)
+            this._liftButton(button, true);
+    }
+
+    // The content of a hovered button rises a little, the ArcMenu rocket rises further
+    // and grows. Off hover both go back to rest, whatever the settings say by now.
+    _liftButton(button, up, immediate = false) {
+        const rocket = rocketOf(button);
+        const warp = up && Boolean(rocket) && this._settings.get_boolean('warp');
+        const lift = up && !warp && this._settings.get_boolean('lift-buttons');
+        const params = up
+            ? {duration: 300, mode: Clutter.AnimationMode.EASE_OUT_BACK}
+            : {duration: 200, mode: Clutter.AnimationMode.EASE_OUT_QUAD};
+        const content = button.get_first_child();
+        if (content)
+            settle(content, {[this._across]: lift ? this._dir * BUTTON_LIFT : 0}, immediate, params);
+        if (warp)
+            this._useRocket(rocket);
+        // In flight it lands by itself, see _land.
+        if (rocket && (immediate || !this._flying)) {
+            const scale = warp ? 1.12 : 1;
+            settle(rocket, {translation_y: warp ? this._dir * WARP_LIFT : 0, scale_x: scale, scale_y: scale},
+                immediate, params);
+        }
+    }
+
+    _useRocket(rocket) {
+        if (rocket === this._rocket)
+            return;
+        this._rocket?.disconnectObject(this);
+        if (this._rocket)
+            resetRocket(this._rocket);
+        this._rocket = rocket;
+        rocket.set_pivot_point(0.5, 0.5);
+        rocket.connectObject('destroy', () => (this._rocket = null), this);
+    }
+
+    // Warp start: the rocket stretches, shoots away from the screen edge and drops
+    // back in from the other side while ArcMenu opens.
+    _launch(rocket) {
+        if (!rocket || this._flying)
+            return;
+        this._useRocket(rocket);
+        this._flying = true;
+        const away = this._dir * this._bar.height;
+        const step = (props, duration, mode, next) => rocket.ease({
+            ...props, duration, mode,
+            // Only disable() stops it early, and resets the rocket right after.
+            onStopped: finished => (finished ? next() : (this._flying = false)),
+        });
+        step({scale_x: 0.8, scale_y: 1.3}, 110, Clutter.AnimationMode.EASE_OUT_QUAD, () =>
+            step({translation_y: away, scale_x: 0.6, scale_y: 1.6, opacity: 0}, 170,
+                Clutter.AnimationMode.EASE_IN_QUAD, () => this._land(rocket, -away / 2)));
+    }
+
+    _land(rocket, from) {
+        this._flying = false;
+        const up = rocketOf(this._hovered) === rocket;
+        const scale = up ? 1.12 : 1;
+        Object.assign(rocket, {translation_y: from, scale_x: 1, scale_y: 1});
+        rocket.ease({
+            translation_y: up ? this._dir * WARP_LIFT : 0, scale_x: scale, scale_y: scale,
+            duration: 380, mode: Clutter.AnimationMode.EASE_OUT_BACK,
+        });
+        rocket.ease({opacity: 255, duration: 200, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
     }
 
     _makeDraggable(item) {
@@ -1059,7 +1401,10 @@ export default class SilverDock extends Extension {
             this._hideLabel();
             this._previews.hide();
         }
-        const params = {duration: SLIDE_TIME, mode: Clutter.AnimationMode.EASE_OUT_QUAD};
+        const spring = !hidden && this._settings.get_boolean('springy');
+        const params = spring
+            ? {duration: SLIDE_TIME * 1.75, mode: Clutter.AnimationMode.EASE_OUT_BACK}
+            : {duration: SLIDE_TIME, mode: Clutter.AnimationMode.EASE_OUT_QUAD};
         const out = -this._dir;
         const [, , , thick] = this._barAxes();
         // A 1 px strip of the (transparent) bar stays on screen and catches the pointer.

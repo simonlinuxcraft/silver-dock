@@ -40,6 +40,42 @@
       <default>true</default>
       <summary>Bounce the icon while an app starts</summary>
     </key>
+    <key name="pop" type="b">
+      <default>true</default>
+      <summary>Apps pop in and out, their neighbours make room</summary>
+    </key>
+    <key name="squash" type="b">
+      <default>true</default>
+      <summary>Squash an icon briefly when it is clicked</summary>
+    </key>
+    <key name="glide" type="b">
+      <default>true</default>
+      <summary>Window dots glide to their new size</summary>
+    </key>
+    <key name="intro" type="b">
+      <default>true</default>
+      <summary>Icons rise in a wave when the bar appears (login, unlock)</summary>
+    </key>
+    <key name="badge-pop" type="b">
+      <default>true</default>
+      <summary>Badges pop up when their number changes</summary>
+    </key>
+    <key name="minimize-to-icon" type="b">
+      <default>true</default>
+      <summary>Windows minimize into their icon and come back out of it</summary>
+    </key>
+    <key name="springy" type="b">
+      <default>true</default>
+      <summary>The bar springs back in after autohide</summary>
+    </key>
+    <key name="lift-buttons" type="b">
+      <default>true</default>
+      <summary>Top bar buttons in the dock lift on hover instead of lighting up</summary>
+    </key>
+    <key name="warp" type="b">
+      <default>true</default>
+      <summary>The ArcMenu button in the dock takes off like a rocket</summary>
+    </key>
     <key name="position" type="s">
       <choices>
         <choice value="bottom"/>
@@ -60,7 +96,7 @@
     </key>
     <key name="theme-colors" type="b">
       <default>false</default>
-      <summary>Take the colors from the shell theme and the system accent color</summary>
+      <summary>Take the colors from the shell theme's top bar and the GTK theme's accent (else the system accent)</summary>
     </key>
     <key name="separators" type="b">
       <default>true</default>
@@ -89,6 +125,10 @@
     <key name="drives" type="b">
       <default>true</default>
       <summary>Show removable drives after the apps</summary>
+    </key>
+    <key name="internal-drives" type="b">
+      <default>false</default>
+      <summary>Also show internal drives (open only, no unmount from the dock)</summary>
     </key>
     <key name="previews" type="b">
       <default>true</default>

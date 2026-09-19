@@ -56,7 +56,7 @@ export default class SilverDockPrefs extends ExtensionPreferences {
         spin(size, 'margin', _('Distance from screen edge'), 0, 48, 1);
         spin(size, 'radius', _('Corner radius'), 0, 48, 1);
         const colors = group(look, _('Colors'));
-        toggle(colors, 'theme-colors', _('Colors from the shell theme and accent color'));
+        toggle(colors, 'theme-colors', _('Colors from the shell and GTK theme'));
         spin(colors, 'opacity', _('Background opacity (%)'), 0, 100, 5);
         toggle(colors, 'dynamic-opacity', _('Opaque while a window touches the bar'));
         toggle(colors, 'separators', _('Separators'));
@@ -66,10 +66,22 @@ export default class SilverDockPrefs extends ExtensionPreferences {
         choice(hovering, 'animation', _('Hover animation'),
             [['magnify', _('Magnify')], ['ripple', _('Ripple')], ['lift', _('Lift')], ['none', _('None')]]);
         spin(hovering, 'zoom', _('Magnification'), 1, 2.5, 0.1, 1);
+        const icons = group(motion, _('Icons'));
+        toggle(icons, 'pop', _('Apps pop in and out'));
+        toggle(icons, 'squash', _('Squash on click'));
+        toggle(icons, 'glide', _('Window dots glide'));
+        toggle(icons, 'intro', _('Rise in a wave after login and unlock'));
         const status = group(motion, _('App status'));
         toggle(status, 'bounce', _('Bounce while an app starts'));
         toggle(status, 'attention', _('Wiggle when an app asks for attention'));
         toggle(status, 'badges', _('Badges and progress on app icons'));
+        toggle(status, 'badge-pop', _('Badges pop up'));
+        const windows = group(motion, _('Bar and windows'));
+        toggle(windows, 'springy', _('Bar springs back in after hiding'));
+        toggle(windows, 'minimize-to-icon', _('Windows minimize into their icon'));
+        const topBar = group(motion, _('Top bar content in the dock'));
+        toggle(topBar, 'warp', _('Warp start for the ArcMenu button'));
+        toggle(topBar, 'lift-buttons', _('Buttons lift on hover instead of lighting up'));
 
         const behavior = page(_('Behavior'), 'preferences-system-symbolic');
         const bar = group(behavior, _('Bar'));
@@ -79,6 +91,7 @@ export default class SilverDockPrefs extends ExtensionPreferences {
         toggle(bar, 'dnd', _('Drag to rearrange, pin and unpin apps'));
         const places = group(behavior, _('Places'));
         toggle(places, 'trash', _('Trash'));
-        toggle(places, 'drives', _('Removable drives'));
+        toggle(places, 'drives', _('Removable drives (USB sticks, SD cards)'));
+        toggle(places, 'internal-drives', _('Internal drives too'));
     }
 }

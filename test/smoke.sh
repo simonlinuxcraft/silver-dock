@@ -170,6 +170,7 @@ set_key zoom 1.0
 set_key margin 0
 for style in ripple lift none magnify; do set_key animation "$style"; done
 set_key bounce false
+for key in pop squash glide intro badge-pop springy minimize-to-icon lift-buttons warp; do set_key "$key" false; done
 set_key separators false
 # The top bar back on its own at the top, in the dock's look and theme colors.
 set_key keep-top-bar true
@@ -182,6 +183,7 @@ set_key position left
 set_key badges false
 set_key trash false
 set_key drives false
+set_key internal-drives true
 set_key dnd false
 set_key previews false
 set_key position right

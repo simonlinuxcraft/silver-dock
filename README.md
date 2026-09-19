@@ -10,7 +10,7 @@ more). The differences between the versions live in `compat.js`. Tested on 46 an
 see Test below.
 
 - On any screen edge, on the primary monitor or on every monitor (the top bar content stays on the primary one). On the left or right the bar holds the apps and GNOME's top bar keeps the menu, clock, tray and system menu, optionally in the dock's look. At the bottom the top bar can stay on its own too
-- Own dark look by default, or the shell theme's top bar color with the GTK theme's accent (the system accent when the GTK theme has none)
+- Own dark look by default, a background color of your choice, or the shell theme's top bar color with the GTK theme's accent (the system accent when the GTK theme has none)
 - Hover animations: magnify, ripple, lift or none
 - Apps pop in and out, icons squash on click, window dots glide, a wave after login and unlock, badges pop, windows minimize into their icon, the bar springs back in after autohide
 - Top bar buttons in the dock lift on hover instead of lighting up, the ArcMenu button takes off like a rocket
@@ -35,8 +35,7 @@ Primary monitor only.
 gjs -m test/layout-test.js   # hover animation math
 gjs -m test/colors-test.js   # reading GTK theme colors
 test/smoke.sh                # headless GNOME Shell: enable/disable, settings, prefs, demo tray icons and window
-test/smoke.sh --show         # same in a window with your shell setup mirrored in (needs mutter-dev-bin)
-test/smoke.sh --show --clean # the window with Ubuntu's defaults (and ArcMenu) instead of your setup
+test/smoke.sh --show         # same in a window with Ubuntu's defaults and ArcMenu (needs mutter-dev-bin)
 test/gnome46.sh              # smoke.sh against GNOME 46 in a podman container, Wayland and X11
 ```
 

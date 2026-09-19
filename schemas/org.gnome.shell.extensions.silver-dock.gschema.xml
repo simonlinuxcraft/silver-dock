@@ -98,9 +98,18 @@
       <default>true</default>
       <summary>Give GNOME's top bar the dock's look where it stays on its own (bar on the left or right, or kept)</summary>
     </key>
-    <key name="theme-colors" type="b">
-      <default>false</default>
-      <summary>Take background and transparency from the shell theme's top bar, the accent from the GTK theme (else the system accent)</summary>
+    <key name="colors" type="s">
+      <choices>
+        <choice value="dock"/>
+        <choice value="theme"/>
+        <choice value="custom"/>
+      </choices>
+      <default>'dock'</default>
+      <summary>Colors of the bar: its own, from the themes (background and transparency from the shell theme's top bar, the accent from the GTK theme, else the system accent), or the color below with a border in a shade of it</summary>
+    </key>
+    <key name="color" type="s">
+      <default>'#1c1d21'</default>
+      <summary>Background color as a CSS color, used when colors is custom</summary>
     </key>
     <key name="separators" type="b">
       <default>true</default>

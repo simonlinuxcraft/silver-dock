@@ -2,10 +2,9 @@
 # Loads the extension in a headless GNOME Shell, cycles enable/disable (like
 # lock/unlock), changes settings and fails on errors. Own D-Bus and dconf
 # database, the running session is not touched. Rerun after every GNOME upgrade.
-# --show: same in a window, with your own shell settings and extensions mirrored
-#         in, to try the dock by hand (needs mutter-dev-bin).
-# --show --clean: the window with Ubuntu's defaults, nothing of your setup but
-#         ArcMenu (with its own defaults), for the dock's menu button.
+# --show: same in a window to try the dock by hand (needs mutter-dev-bin). Ubuntu's
+#         defaults, nothing of your desktop but ArcMenu (with its own defaults), for
+#         the dock's menu button.
 # --x11: an X11 session on a virtual X server instead of headless Wayland, for
 #         GNOME before 50 (see test/gnome46.sh, needs Xvfb).
 
@@ -18,14 +17,12 @@ root=$(cd "$(dirname "$0")/.." && pwd)
 uuid=$(sed -n 's/.*"uuid": *"\([^"]*\)".*/\1/p' "$root/metadata.json")
 schema=org.gnome.shell.extensions.silver-dock
 show=
-clean=
 x11=
 for arg in "$@"; do
     case $arg in
     --show) show=1 ;;
-    --clean) clean=1 ;;
     --x11) x11=1 ;;
-    *) echo "usage: $0 [--x11 | --show [--clean]]" >&2; exit 2 ;;
+    *) echo "usage: $0 [--x11 | --show]" >&2; exit 2 ;;
     esac
 done
 work=$(mktemp -d)
@@ -46,30 +43,6 @@ if [[ $show ]]; then
     if [[ -f /usr/share/gnome-shell/modes/ubuntu.json ]]; then
         mode+=(--mode=ubuntu)
     fi
-fi
-if [[ $show && ! $clean ]]; then
-    # Read the real settings now, before the environment below points dconf elsewhere.
-    mirror_shell=$(dconf dump /org/gnome/shell/)
-    mirror_iface=$(dconf dump /org/gnome/desktop/interface/)
-    mirror_bg=$(dconf dump /org/gnome/desktop/background/)
-    real_data=${XDG_DATA_HOME:-$HOME/.local/share}
-    for dir in applications icons themes fonts backgrounds; do
-        if [[ -e $real_data/$dir ]]; then
-            ln -s "$real_data/$dir" "$work/data/$dir"
-        fi
-    done
-    # Desktop Icons needs the localized desktop folder, it restarts in a loop without.
-    real_dirs=${XDG_CONFIG_HOME:-$HOME/.config}/user-dirs.dirs
-    if [[ -e $real_dirs ]]; then
-        mkdir -p "$work/config"
-        ln -s "$real_dirs" "$work/config/"
-    fi
-    for e in "$real_data"/gnome-shell/extensions/*; do
-        if [[ ! -e $ext/$(basename "$e") ]]; then
-            ln -s "$e" "$ext/"
-        fi
-    done
-elif [[ $show ]]; then
     # Desktop Icons gets an empty desktop folder of its own, it restarts in a loop without one.
     mkdir -p "$work/config" "$work/desktop"
     printf 'XDG_DESKTOP_DIR="%s"\n' "$work/desktop" >"$work/config/user-dirs.dirs"
@@ -122,11 +95,7 @@ for _ in $(seq 25); do [[ -S $PIPEWIRE_RUNTIME_DIR/pipewire-0 ]] && break; sleep
 wireplumber --profile policy >>"$work/pipewire.log" 2>&1 &
 wp=$!
 
-if [[ $show && ! $clean ]]; then
-    dconf load /org/gnome/shell/ <<<"$mirror_shell"
-    dconf load /org/gnome/desktop/interface/ <<<"$mirror_iface"
-    dconf load /org/gnome/desktop/background/ <<<"$mirror_bg"
-elif [[ $show ]]; then
+if [[ $show ]]; then
     # Set before the start, like a login: switched at runtime right after another
     # extension, GNOME's extension manager enabled ArcMenu twice.
     dconf write /org/gnome/shell/enabled-extensions "['arcmenu@arcmenu.com']"
@@ -199,10 +168,6 @@ if [[ $show ]]; then
     viewer=$(pgrep -P "$shell" -x mutter-devkit || true)
     # D-Bus started helpers (the prefs, Nautilus for the desktop icons) open in the test window.
     dbus-update-activation-environment WAYLAND_DISPLAY="$wl"
-    # Silver Dock replaces these, the preview shows the result.
-    for other in dash-to-panel@jderose9.github.com dash-to-dock@micxgx.gmail.com ubuntu-dock@ubuntu.com; do
-        switch Disable "$other"
-    done
 fi
 
 switch Enable ubuntu-appindicators@ubuntu.com
@@ -235,7 +200,10 @@ for key in pop squash glide intro badge-pop springy minimize-to-icon lift-button
 set_key separators false
 # The top bar back on its own at the top, in the dock's look and theme colors.
 set_key keep-top-bar true
-set_key theme-colors true
+set_key colors custom
+set_key color "'rgb(236,1,1)'"
+set_key color "'not a color'"
+set_key colors theme
 set_key dynamic-opacity true
 set_key attention false
 set_key tooltips false

@@ -21,6 +21,12 @@ export function parseColor(value) {
     return null;
 }
 
+// "r, g, b" of base moved the given share of the way to color.
+export function mix(base, color, share) {
+    const to = color.split(',').map(Number);
+    return base.split(',').map((c, i) => Math.round(Number(c) + (to[i] - c) * share)).join(', ');
+}
+
 // "r, g, b" of the first name the CSS defines as a plain color, or null.
 export function definedColor(css, names) {
     // A later definition wins, as in CSS.

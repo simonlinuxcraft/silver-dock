@@ -1,5 +1,5 @@
 // gjs -m test/colors-test.js
-import {definedColor, parseColor} from '../colors.js';
+import {definedColor, mix, parseColor} from '../colors.js';
 
 const check = (ok, msg) => {
     if (!ok)
@@ -12,6 +12,8 @@ check(parseColor(' black ') === '0, 0, 0', 'named');
 check(parseColor('rgba(8, 8, 8, 0.9)') === '8, 8, 8', 'rgba');
 check(parseColor('rgba(8, 8, 8, 0)') === null, 'transparent has no color to take');
 check(parseColor('mix(#fff, #000, 0.5)') === null, 'functions are skipped');
+check(mix('0, 0, 0', '255, 255, 255', 0.4) === '102, 102, 102', 'mix moves the share');
+check(mix('28, 29, 33', '28, 29, 33', 0.4) === '28, 29, 33', 'mix with itself');
 
 const css = `
 @define-color accent_bg_color #2777ff;

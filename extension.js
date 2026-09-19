@@ -41,7 +41,7 @@ export default class SilverDock extends Extension {
         const check = () => this._each(dock => dock.queueCheck());
         // Theme colors follow a switch of the shell or GTK theme.
         const retheme = () => {
-            if (this.settings.get_boolean('theme-colors'))
+            if (this.settings.get_string('colors') === 'theme')
                 this._each(dock => dock.paint());
         };
         Shell.AppSystem.get_default().connectObject(
@@ -198,7 +198,7 @@ export default class SilverDock extends Extension {
         const fg = rgb(node.get_foreground_color());
         panel.destroy();
         const gtk = gtkColors(this._iface, () => {
-            if (this.settings?.get_boolean('theme-colors'))
+            if (this.settings?.get_string('colors') === 'theme')
                 this._each(dock => dock.paint());
         });
         if (bg.alpha)

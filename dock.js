@@ -13,6 +13,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
+import {mix, parseColor} from './colors.js';
 import {HAS_ACCENT, setVertical} from './compat.js';
 import {badgeOf, progressOf} from './launcher.js';
 import {dropIndex, hover, rest, STYLES} from './layout.js';
@@ -232,9 +233,18 @@ export class Dock {
     paint() {
         const margin = this._settings.get_int('margin');
         const radius = this._settings.get_int('radius');
-        const themed = this._settings.get_boolean('theme-colors');
-        const colors = themed ? this._ext.themeColors() : COLORS;
-        // The theme decides the transparency too, the slider is for the dock's own look.
+        const mode = this._settings.get_string('colors');
+        const themed = mode === 'theme';
+        const own = mode === 'custom' && parseColor(this._settings.get_string('color'));
+        let colors = themed ? this._ext.themeColors() : COLORS;
+        if (own) {
+            // The background is the color itself. Border and separators take a lighter
+            // shade of it, a darker one on a light color, so they keep their contrast.
+            const light = own.split(',').reduce((sum, c, i) => sum + c * [0.299, 0.587, 0.114][i], 0) > 150;
+            const shade = mix(own, light ? '0, 0, 0' : '255, 255, 255', 0.6);
+            colors = {bg: own, fg: shade, border: `1px solid rgba(${shade}, 0.5)`};
+        }
+        // The theme decides the transparency too, the slider is for the other looks.
         const opacity = themed ? colors.alpha : this._settings.get_int('opacity') / 100;
         this._geom.opacity = opacity;
         this._accent = colors.accent ?? null; // null: the stylesheet's colors

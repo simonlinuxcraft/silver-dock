@@ -2,6 +2,7 @@
 // Builds the preferences window against in-memory settings and checks that
 // every row is bound to its key in both directions.
 import Adw from 'gi://Adw';
+import Gdk from 'gi://Gdk';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 
@@ -22,7 +23,7 @@ const rows = {};
 const walk = widget => {
     for (let child = widget.get_first_child(); child; child = child.get_next_sibling()) {
         if (child instanceof Adw.PreferencesRow)
-            rows[child.title] = child;
+            rows[child.title] ??= child; // an expander holds a header row of the same title
         walk(child);
     }
 };
@@ -42,10 +43,31 @@ rows['Hover animation'].selected = 2;
 check(settings.get_string('animation') === 'lift', 'animation combo not written');
 settings.set_string('animation', 'ripple');
 check(rows['Hover animation'].selected === 1, 'animation key not shown in the combo');
-settings.set_boolean('theme-colors', true);
-check(!rows['Background opacity (%)'].sensitive, 'opacity slider not greyed out with theme colors');
-settings.set_boolean('theme-colors', false);
-check(rows['Background opacity (%)'].sensitive, 'opacity slider stays greyed out');
+rows['Colors from'].selected = 2;
+check(settings.get_string('colors') === 'custom', 'colors combo not written');
+check(rows['Color'].visible && rows['Background opacity (%)'].visible, 'color rows hidden with an own color');
+settings.set_string('color', '#ec0101');
+check(rows['Color'].activatable_widget.rgba.to_string() === 'rgb(236,1,1)', 'color key not shown on its button');
+const green = new Gdk.RGBA();
+green.parse('#00ff00');
+rows['Color'].activatable_widget.rgba = green;
+check(settings.get_string('color') === 'rgb(0,255,0)', 'color button not written');
+settings.set_string('colors', 'theme');
+check(rows['Colors from'].selected === 1, 'colors key not shown in the combo');
+check(!rows['Color'].visible && !rows['Background opacity (%)'].visible, 'color rows shown with theme colors');
+settings.set_string('colors', 'dock');
+check(!rows['Color'].visible && rows['Background opacity (%)'].visible, 'wrong color rows for the dock colors');
+settings.set_string('animation', 'lift');
+check(!rows['Magnification'].visible, 'magnification shown for lift');
+settings.set_string('animation', 'magnify');
+check(rows['Magnification'].visible, 'magnification hidden for magnify');
+settings.set_string('position', 'bottom');
+settings.set_boolean('keep-top-bar', false);
+check(rows['Keep the top bar'].visible && !rows['Top bar in the dock\'s look'].visible, 'top bar rows wrong at the bottom');
+settings.set_boolean('keep-top-bar', true);
+check(rows['Top bar in the dock\'s look'].visible, 'top bar look hidden with a kept top bar');
+settings.set_string('position', 'left');
+check(!rows['Keep the top bar'].visible && rows['Top bar in the dock\'s look'].visible, 'top bar rows wrong on the left');
 rows['Hide when a window overlaps the bar'].active = true;
 check(settings.get_boolean('autohide'), 'autohide switch not written');
 rows['Bounce while an app starts'].active = false;
@@ -56,17 +78,16 @@ for (const [title, key] of [['Separators', 'separators'], ['Opaque while a windo
     ['Wiggle when an app asks for attention', 'attention'], ['Show app names on hover', 'tooltips'],
     ['Badges and progress on app icons', 'badges'], ['Trash', 'trash'], ['Removable drives (USB sticks, SD cards)', 'drives'],
     ['Drag to rearrange, pin and unpin apps', 'dnd'], ['Show window previews on hover', 'previews'],
-    ['Top bar in the dock\'s look (when on its own)', 'style-top-bar'],
-    ['Keep the top bar (bar at the bottom)', 'keep-top-bar'],
-    ['Colors from the shell and GTK theme', 'theme-colors'],
+    ['Top bar in the dock\'s look', 'style-top-bar'], ['Keep the top bar', 'keep-top-bar'],
     ['Apps pop in and out', 'pop'], ['Squash on click', 'squash'], ['Window dots glide', 'glide'],
     ['Rise in a wave after login and unlock', 'intro'], ['Badges pop up', 'badge-pop'],
     ['Bar springs back in after hiding', 'springy'], ['Windows minimize into their icon', 'minimize-to-icon'],
     ['Warp start for the ArcMenu button', 'warp'],
     ['Buttons lift on hover instead of lighting up', 'lift-buttons'], ['Internal drives too', 'internal-drives'],
     ['Show only that window while on its preview', 'peek'], ['A dock on every monitor', 'all-monitors'], ['Scroll over an icon to switch its windows', 'scroll']]) {
-    rows[title].active = !settings.get_boolean(key);
-    check(rows[title].active === settings.get_boolean(key), `${key} switch not written`);
+    const prop = rows[title] instanceof Adw.ExpanderRow ? 'enable_expansion' : 'active';
+    rows[title][prop] = !settings.get_boolean(key);
+    check(rows[title][prop] === settings.get_boolean(key), `${key} switch not written`);
 }
 
 print('prefs ok');

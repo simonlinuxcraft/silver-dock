@@ -111,6 +111,9 @@ export class Dock {
         this._hovered = null; // top bar button under the pointer, see _hoverButton
 
         this._bg = new St.Widget({style_class: 'silver-dock-bg'});
+        // X11 only passes the pointer to the shell inside tracked chrome, this covers
+        // the magnified icons above the bar while it is hovered.
+        this._reach = new St.Widget({visible: false});
         // Named like the top bar so the moved panel buttons keep their theme styling.
         this._bar = new St.BoxLayout({name: 'panel', style_class: 'silver-dock', reactive: true, track_hover: true});
         this._row = new St.Widget({reactive: true, track_hover: true});
@@ -155,6 +158,7 @@ export class Dock {
             'notify::width', () => this.queuePlace(),
             'notify::height', () => this.queuePlace(),
             'notify::hover', () => {
+                this._reach.visible = this._bar.hover;
                 if (!this._bar.hover)
                     this._hoverButton(null);
                 this._updateAutohide();
@@ -167,6 +171,7 @@ export class Dock {
         Main.layoutManager.addChrome(this._bg, {trackFullscreen: true});
         this.trackBar();
         Main.layoutManager.addChrome(this._label);
+        Main.layoutManager.addChrome(this._reach);
         if (primary)
             Main.ctrlAltTabManager.addGroup(this._bar, _('Dock'), 'shell-focus-top-bar-symbolic');
     }
@@ -185,7 +190,7 @@ export class Dock {
         // for a relayout, which Clutter then runs on the destroyed bar.
         if (this._bar && this._primary)
             Main.ctrlAltTabManager.removeGroup(this._bar);
-        const actors = [this._bar, this._bg, this._label];
+        const actors = [this._bar, this._bg, this._label, this._reach];
         // Clutter can hold a chrome actor twice in its relayout queue but drops only one
         // entry when it leaves the stage. Asking for the allocation runs that relayout now.
         actors.forEach(actor => actor?.get_stage() && actor.get_allocation_box());
@@ -197,7 +202,7 @@ export class Dock {
         this._undress();
         actors.forEach(actor => actor?.destroy());
 
-        this._settings = this._bg = this._bar = this._row = this._label = this._boxes = null;
+        this._settings = this._bg = this._reach = this._bar = this._row = this._label = this._boxes = null;
         this._amount = this._items = this._menuManager = this._geom = this._laters = null;
         this._labelItem = this._seps = this._rowSeps = this._previews = this._dragMonitor = this._rocket = null;
         this._dragging = false;
@@ -1096,6 +1101,10 @@ export class Dock {
         const [along, length, across, thick] = this._barAxes();
         this._bg.set_position(...this._xy(along + startShift, across + (this._edgeFirst ? margin : 0)));
         this._bg.set_size(...this._xy(length - startShift + endShift, thick - margin));
+        // Growth plus the highest lift (ripple, 0.3 slot) stays below one slot.
+        const over = this._geom.big - this._geom.icon + slot;
+        this._reach.set_position(...this._xy(along + startShift, this._edgeFirst ? across + thick : across - over));
+        this._reach.set_size(...this._xy(length - startShift + endShift, over));
         this._placeLabel();
     }
 

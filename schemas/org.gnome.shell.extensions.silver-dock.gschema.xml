@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.silver-dock" path="/org/gnome/shell/extensions/silver-dock/">
+    <key name="icon-size" type="i">
+      <range min="24" max="96"/>
+      <default>36</default>
+      <summary>App icon size in pixels</summary>
+    </key>
+    <key name="zoom" type="d">
+      <range min="1" max="2.5"/>
+      <default>1.6</default>
+      <summary>Magnification of the hovered icon, 1 turns it off</summary>
+    </key>
+    <key name="margin" type="i">
+      <range min="0" max="48"/>
+      <default>8</default>
+      <summary>Gap between the bar and the screen edge in pixels</summary>
+    </key>
+    <key name="opacity" type="i">
+      <range min="0" max="100"/>
+      <default>70</default>
+      <summary>Background opacity in percent</summary>
+    </key>
+    <key name="radius" type="i">
+      <range min="0" max="48"/>
+      <default>16</default>
+      <summary>Corner radius in pixels</summary>
+    </key>
+    <key name="animation" type="s">
+      <choices>
+        <choice value="magnify"/>
+        <choice value="ripple"/>
+        <choice value="lift"/>
+        <choice value="none"/>
+      </choices>
+      <default>'magnify'</default>
+      <summary>Hover animation of the app icons</summary>
+    </key>
+    <key name="bounce" type="b">
+      <default>true</default>
+      <summary>Bounce the icon while an app starts</summary>
+    </key>
+    <key name="position" type="s">
+      <choices>
+        <choice value="bottom"/>
+        <choice value="top"/>
+        <choice value="left"/>
+        <choice value="right"/>
+      </choices>
+      <default>'bottom'</default>
+      <summary>Screen edge the bar sits on</summary>
+    </key>
+    <key name="keep-top-bar" type="b">
+      <default>false</default>
+      <summary>With the bar at the bottom, keep GNOME's top bar at the top</summary>
+    </key>
+    <key name="style-top-bar" type="b">
+      <default>true</default>
+      <summary>Give GNOME's top bar the dock's look where it stays on its own (bar on the left or right, or kept)</summary>
+    </key>
+    <key name="theme-colors" type="b">
+      <default>false</default>
+      <summary>Take the colors from the shell theme and the system accent color</summary>
+    </key>
+    <key name="separators" type="b">
+      <default>true</default>
+      <summary>Separators between favorites, running apps and the top bar content</summary>
+    </key>
+    <key name="dynamic-opacity" type="b">
+      <default>false</default>
+      <summary>Make the background opaque while a window touches the bar</summary>
+    </key>
+    <key name="attention" type="b">
+      <default>true</default>
+      <summary>Wiggle the icon of an app that asks for attention</summary>
+    </key>
+    <key name="tooltips" type="b">
+      <default>true</default>
+      <summary>Show the app name above the hovered icon</summary>
+    </key>
+    <key name="badges" type="b">
+      <default>true</default>
+      <summary>Show counts and progress that apps publish on their icons</summary>
+    </key>
+    <key name="trash" type="b">
+      <default>true</default>
+      <summary>Show the trash after the apps</summary>
+    </key>
+    <key name="drives" type="b">
+      <default>true</default>
+      <summary>Show removable drives after the apps</summary>
+    </key>
+    <key name="previews" type="b">
+      <default>true</default>
+      <summary>Show thumbnails of an app's windows when hovering its icon</summary>
+    </key>
+    <key name="dnd" type="b">
+      <default>true</default>
+      <summary>Drag icons to rearrange favorites, drop apps to pin them, drag them off to unpin</summary>
+    </key>
+    <key name="autohide" type="b">
+      <default>false</default>
+      <summary>Hide the bar while a window overlaps it, show it again at the screen edge</summary>
+    </key>
+  </schema>
+</schemalist>

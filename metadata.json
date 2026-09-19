@@ -1,0 +1,10 @@
+{
+  "uuid": "silver-dock@simonlinuxcraft.github.io",
+  "name": "Silver Dock",
+  "description": "One bar at the bottom with app icons, tray, clock and system menu, with icon magnification.",
+  "shell-version": [
+    "50"
+  ],
+  "settings-schema": "org.gnome.shell.extensions.silver-dock",
+  "gettext-domain": "silver-dock"
+}

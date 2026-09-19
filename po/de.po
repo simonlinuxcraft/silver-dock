@@ -1,0 +1,205 @@
+# German translation for Silver Dock.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: silver-dock\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-09-19 14:05+0200\n"
+"PO-Revision-Date: 2026-09-19 10:07+0200\n"
+"Last-Translator: \n"
+"Language-Team: none\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: extension.js:124
+msgid "Dock"
+msgstr "Dock"
+
+#: places.js:18 prefs.js:81
+msgid "Trash"
+msgstr "Papierkorb"
+
+#: places.js:32
+#, javascript-format
+msgid "Cannot open %s"
+msgstr "%s kann nicht geöffnet werden"
+
+#: places.js:38
+msgid "Open"
+msgstr "Öffnen"
+
+#: places.js:40
+msgid "Empty Trash"
+msgstr "Papierkorb leeren"
+
+#: places.js:42
+msgid "Eject"
+msgstr "Auswerfen"
+
+#: places.js:42
+msgid "Unmount"
+msgstr "Aushängen"
+
+#: places.js:54
+msgid "Cannot empty the trash"
+msgstr "Der Papierkorb kann nicht geleert werden"
+
+#: places.js:67
+#, javascript-format
+msgid "Cannot eject %s"
+msgstr "%s kann nicht ausgeworfen werden"
+
+#: prefs.js:48
+msgid "Appearance"
+msgstr "Darstellung"
+
+#: prefs.js:49
+msgid "Position"
+msgstr "Position"
+
+#: prefs.js:50
+msgid "Screen edge"
+msgstr "Bildschirmrand"
+
+#: prefs.js:51
+msgid "Bottom"
+msgstr "Unten"
+
+#: prefs.js:51
+msgid "Top"
+msgstr "Oben"
+
+#: prefs.js:51
+msgid "Left"
+msgstr "Links"
+
+#: prefs.js:51
+msgid "Right"
+msgstr "Rechts"
+
+#: prefs.js:52
+msgid "Keep the top bar (bar at the bottom)"
+msgstr "Obere Leiste behalten (Dock unten)"
+
+#: prefs.js:53
+msgid "Top bar in the dock's look (when on its own)"
+msgstr "Obere Leiste im Dock-Look (wenn eigenständig)"
+
+#: prefs.js:54
+msgid "Size"
+msgstr "Größe"
+
+#: prefs.js:55
+msgid "Icon size"
+msgstr "Icon-Größe"
+
+#: prefs.js:56
+msgid "Distance from screen edge"
+msgstr "Abstand zum Bildschirmrand"
+
+#: prefs.js:57
+msgid "Corner radius"
+msgstr "Eckenradius"
+
+#: prefs.js:58
+msgid "Colors"
+msgstr "Farben"
+
+#: prefs.js:59
+msgid "Colors from the shell theme and accent color"
+msgstr "Farben aus Shell-Theme und Akzentfarbe"
+
+#: prefs.js:60
+msgid "Background opacity (%)"
+msgstr "Deckkraft des Hintergrunds (%)"
+
+#: prefs.js:61
+msgid "Opaque while a window touches the bar"
+msgstr "Deckend, solange ein Fenster die Leiste berührt"
+
+#: prefs.js:62
+msgid "Separators"
+msgstr "Trennlinien"
+
+#: prefs.js:64
+msgid "Animation"
+msgstr "Animation"
+
+#: prefs.js:65
+msgid "Hover"
+msgstr "Beim Überfahren"
+
+#: prefs.js:66
+msgid "Hover animation"
+msgstr "Animation beim Überfahren"
+
+#: prefs.js:67
+msgid "Magnify"
+msgstr "Vergrößern"
+
+#: prefs.js:67
+msgid "Ripple"
+msgstr "Welle"
+
+#: prefs.js:67
+msgid "Lift"
+msgstr "Anheben"
+
+#: prefs.js:67
+msgid "None"
+msgstr "Keine"
+
+#: prefs.js:68
+msgid "Magnification"
+msgstr "Vergrößerung"
+
+#: prefs.js:69
+msgid "App status"
+msgstr "App-Status"
+
+#: prefs.js:70
+msgid "Bounce while an app starts"
+msgstr "Hüpfen, während eine App startet"
+
+#: prefs.js:71
+msgid "Wiggle when an app asks for attention"
+msgstr "Wackeln, wenn eine App Aufmerksamkeit anfordert"
+
+#: prefs.js:72
+msgid "Badges and progress on app icons"
+msgstr "Zähler und Fortschritt auf App-Icons"
+
+#: prefs.js:74
+msgid "Behavior"
+msgstr "Verhalten"
+
+#: prefs.js:75
+msgid "Bar"
+msgstr "Leiste"
+
+#: prefs.js:76
+msgid "Hide when a window overlaps the bar"
+msgstr "Ausblenden, wenn ein Fenster die Leiste überdeckt"
+
+#: prefs.js:77
+msgid "Show app names on hover"
+msgstr "App-Namen beim Überfahren zeigen"
+
+#: prefs.js:78
+msgid "Show window previews on hover"
+msgstr "Fenstervorschau beim Überfahren zeigen"
+
+#: prefs.js:79
+msgid "Drag to rearrange, pin and unpin apps"
+msgstr "Apps per Ziehen anordnen, anheften und lösen"
+
+#: prefs.js:80
+msgid "Places"
+msgstr "Orte"
+
+#: prefs.js:82
+msgid "Removable drives"
+msgstr "Wechseldatenträger"

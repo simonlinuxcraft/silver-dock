@@ -1,0 +1,103 @@
+/* The bar carries the top bar's name for the theme's panel button styles,
+   its own background is drawn by .silver-dock-bg, colored in extension.js. */
+#panel.silver-dock {
+    background-color: transparent;
+    background-image: none;
+    border: none;
+    box-shadow: none;
+}
+
+/* Even padding for the moved top bar buttons, the row and separators are sized to match. */
+#panel.silver-dock .panel-button {
+    -natural-hpadding: 8px;
+    -minimum-hpadding: 4px;
+}
+
+/* The theme gives #panel a fixed height, a bar on the left or right grows with its icons. */
+#panel.silver-dock.vertical {
+    height: auto;
+}
+
+.silver-dock-badge {
+    color: white;
+    background-color: #e01b24;
+    font-weight: bold;
+    text-align: center;
+    padding: 0.05em 0.3em;
+}
+
+.silver-dock-progress {
+    background-color: rgba(0, 0, 0, 0.6);
+    border-radius: 2px;
+}
+
+.silver-dock-progress-fill {
+    background-color: rgba(235, 237, 242, 0.95);
+    border-radius: 2px;
+}
+
+.silver-dock-previews {
+    background-color: rgba(28, 29, 33, 0.95);
+    border: 1px solid rgba(214, 218, 226, 0.3);
+    border-radius: 12px;
+    padding: 6px;
+    spacing: 6px;
+}
+
+.silver-dock-preview {
+    padding: 6px;
+    border-radius: 8px;
+}
+
+.silver-dock-preview:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.silver-dock-preview-header {
+    spacing: 6px;
+    padding-bottom: 6px;
+}
+
+.silver-dock-preview-title {
+    color: rgba(235, 237, 242, 0.95);
+}
+
+.silver-dock-preview-close {
+    border-radius: 99px;
+    padding: 3px;
+}
+
+.silver-dock-preview-close:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.silver-dock-dots {
+    spacing: 3px;
+}
+
+.silver-dock-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 3px;
+    background-color: rgba(235, 237, 242, 0.55);
+}
+
+.silver-dock-dots.focused .silver-dock-dot {
+    width: 12px;
+    background-color: rgba(255, 255, 255, 0.95);
+}
+
+.vertical .silver-dock-dots.focused .silver-dock-dot {
+    width: 5px;
+    height: 12px;
+}
+
+/* Theme colors: window dots and progress in the system accent color. */
+.silver-dock.themed .silver-dock-dot {
+    background-color: st-transparentize(-st-accent-color, 0.45);
+}
+
+.silver-dock.themed .silver-dock-dots.focused .silver-dock-dot,
+.silver-dock.themed .silver-dock-progress-fill {
+    background-color: -st-accent-color;
+}

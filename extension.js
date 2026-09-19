@@ -1,0 +1,1069 @@
+import Clutter from 'gi://Clutter';
+import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
+import Meta from 'gi://Meta';
+import Mtk from 'gi://Mtk';
+import Shell from 'gi://Shell';
+import St from 'gi://St';
+
+import * as AppFavorites from 'resource:///org/gnome/shell/ui/appFavorites.js';
+import {AppMenu} from 'resource:///org/gnome/shell/ui/appMenu.js';
+import * as BoxPointer from 'resource:///org/gnome/shell/ui/boxpointer.js';
+import * as DND from 'resource:///org/gnome/shell/ui/dnd.js';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
+
+import {LauncherEntries, badgeOf, progressOf} from './launcher.js';
+import {dropIndex, hover, rest, STYLES} from './layout.js';
+import {TRASH, TrashWatcher, openPlace, placeActions, placeIcon, placeName, removableMounts} from './places.js';
+import {WindowPreviews} from './previews.js';
+import {restorePanel, takePanel} from './takeover.js';
+
+// Across the bar: INNER px between the icons and the side facing the screen,
+// OUTER px between the icons and the screen edge, where the window dots sit.
+const INNER = 6;
+const OUTER = 8;
+const MAX_DOTS = 4;
+const HIDE_DELAY = 400; // ms before the bar hides once nothing keeps it up
+const SLIDE_TIME = 200;
+const LIFT_TIME = 300;
+const WIGGLE_EVERY = 2500; // ms between two wiggles of an app asking for attention
+const MOVE_TIME = 150;
+// Room at both row ends and around each separator, so the space next to a separator
+// matches the panel buttons' padding (8 px) plus the separator margin (4 px).
+const EDGE = 4;
+const SEP_MARGIN = 4;
+const MIN_ICON = 16; // smallest icon size when the bar has to shrink to fit the screen
+
+const SIDES = {bottom: St.Side.BOTTOM, top: St.Side.TOP, left: St.Side.LEFT, right: St.Side.RIGHT};
+// The dock's own look. Colors are "r, g, b", the opacity setting adds the alpha.
+const COLORS = {bg: '28, 29, 33', fg: '235, 237, 242', border: '1px solid rgba(214, 218, 226, 0.3)'};
+
+// One bar on a screen edge with app icons, trash and drives. At the bottom or top
+// it also takes the top bar's content (menu, clock, tray, system menu), on the
+// left or right GNOME's top bar keeps it. Apart from takeover.js only own actors
+// and public Shell/St APIs are used.
+//
+// Geometry works in two axes: "along" runs with the row of icons, "across" from
+// the bar's inner side to the screen edge side. _xy() maps them to x and y.
+export default class SilverDock extends Extension {
+    enable() {
+        try {
+            this._setup();
+        } catch (e) {
+            // GNOME does not call disable() after a failed enable, and the top bar
+            // content must never stay stranded in a half built dock.
+            this.disable();
+            throw e;
+        }
+    }
+
+    _setup() {
+        this._settings = this.getSettings();
+        this._items = [];
+        this._laters = {};
+        this._pointer = 0;
+        this._hidden = false;
+        this._gaps = [];
+        this._restWidth = 0;
+        this._centers = [];
+        this._dropIndex = null;
+        this._dragging = false;
+        this._watched = new Set(); // windows with our signals, see _watchWindow
+
+        this._bg = new St.Widget({style_class: 'silver-dock-bg'});
+        // Named like the top bar so the moved panel buttons keep their theme styling.
+        this._bar = new St.BoxLayout({name: 'panel', style_class: 'silver-dock', reactive: true, track_hover: true});
+        this._row = new St.Widget({reactive: true, track_hover: true});
+        this._label = new St.Label({style_class: 'dash-label', visible: false});
+        // Separators beside the app row move with the panel boxes, the two inside the
+        // row sit between favorites, running apps and places.
+        this._seps = [this._separator(), this._separator()];
+        [this._seps[0], this._row, this._seps[1]].forEach(actor => this._bar.add_child(actor));
+        this._boxes = []; // the top bar's boxes while they sit in the bar
+        this._panelOk = true; // false once takePanel found changed internals
+        this._rowSeps = [this._separator(), this._separator()];
+        this._rowSeps.forEach(sep => this._row.add_child(sep));
+        this._bounds = [0, 0];
+        // Drop target for apps dragged from the dock itself, the overview or a menu.
+        this._row._delegate = {
+            handleDragOver: (source, actor, x, y) => this._dragOver(source, this._vertical ? y : x),
+            acceptDrop: source => this._acceptDrop(source),
+        };
+        this._menuManager = new PopupMenu.PopupMenuManager(this._bar);
+
+        this._amount = new St.Adjustment({actor: this._row, lower: 0, upper: 1});
+        this._amount.connectObject('notify::value', () => this._animate(), this);
+
+        this._row.connectObject(
+            'notify::hover', () => {
+                this._amount.ease(this._row.hover ? 1 : 0, {
+                    duration: 150,
+                    mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                });
+                // Eased styles follow the hover state, a very short visit may not move the amount at all.
+                this._animate();
+            },
+            'motion-event', (actor, event) => {
+                const [, x, y] = actor.transform_stage_point(...event.get_coords());
+                this._pointer = this._vertical ? y : x;
+                this._animate();
+                return Clutter.EVENT_PROPAGATE;
+            }, this);
+        // Size notifications arrive in the middle of a layout pass, moving the bar
+        // right there leaves it unallocated for that frame.
+        this._bar.connectObject(
+            'notify::width', () => this._queuePlace(),
+            'notify::height', () => this._queuePlace(),
+            'notify::hover', () => this._updateAutohide(), this);
+
+        Main.layoutManager.addChrome(this._bg, {trackFullscreen: true});
+        this._trackBar();
+        Main.layoutManager.addChrome(this._label);
+        Main.ctrlAltTabManager.addGroup(this._bar, _('Dock'), 'shell-focus-top-bar-symbolic');
+
+        const sync = () => this._sync();
+        Shell.AppSystem.get_default().connectObject(
+            'app-state-changed', (appSystem, app) => this._onAppState(app),
+            'installed-changed', sync, this);
+        AppFavorites.getAppFavorites().connectObject('changed', sync, this);
+        Shell.WindowTracker.get_default().connectObject('notify::focus-app', () => this._updateDots(), this);
+        this._settings.connectObject(
+            'changed::autohide', () => this._trackBar(),
+            'changed', () => {
+                this._fitIcon = null;
+                this._refresh();
+            }, this);
+        Main.layoutManager.connectObject('monitors-changed', () => {
+            this._fitIcon = null;
+            this._refresh();
+        }, this);
+        St.ThemeContext.get_for_stage(global.stage).connectObject('changed', () => {
+            if (this._settings.get_boolean('theme-colors'))
+                this._refresh();
+        }, this);
+        this._volumes = Gio.VolumeMonitor.get();
+        this._volumes.connectObject('mount-added', sync, 'mount-removed', sync, 'mount-changed', sync, this);
+        this._launcher = new LauncherEntries(() => this._updateBadges());
+        this._previews = new WindowPreviews(() => {
+            if (this._previews.shown)
+                this._hideLabel();
+            this._updateAutohide();
+        });
+
+        // Autohide follows every window that could cover the bar, and shows the
+        // bar for open menus (they take the key focus) and the overview.
+        const check = () => this._queueCheck();
+        global.display.connectObject(
+            'window-created', (display, win) => this._watchWindow(win),
+            'restacked', check,
+            // A side bar keeps clear of the top bar, which changes the work area.
+            'workareas-changed', () => this._queuePlace(), this);
+        global.workspace_manager.connectObject('active-workspace-changed', check, this);
+        global.stage.connectObject('notify::key-focus', check, this);
+        Main.overview.connectObject('showing', check, 'hidden', check, this);
+        Main.overview.connectObject(
+            'item-drag-begin', () => this._startDrag(),
+            'item-drag-end', () => this._endDrag(),
+            'item-drag-cancelled', () => this._endDrag(), this);
+        global.get_window_actors().forEach(actor => this._watchWindow(actor.meta_window));
+
+        this._refresh();
+    }
+
+    // Also runs after a failed enable, so every step tolerates missing parts.
+    disable() {
+        Shell.AppSystem.get_default().disconnectObject(this);
+        Shell.WindowTracker.get_default().disconnectObject(this);
+        AppFavorites.getAppFavorites().disconnectObject(this);
+        Main.layoutManager.disconnectObject(this);
+        St.ThemeContext.get_for_stage(global.stage).disconnectObject(this);
+        Main.overview.disconnectObject(this);
+        global.display.disconnectObject(this);
+        global.workspace_manager.disconnectObject(this);
+        global.stage.disconnectObject(this);
+        this._watched?.forEach(win => win.disconnectObject(this));
+        this._volumes?.disconnectObject(this);
+        this._launcher?.destroy();
+        this._trash?.destroy();
+        this._settings?.disconnectObject(this);
+        this._row?.disconnectObject(this);
+        this._bar?.disconnectObject(this);
+        this._amount?.disconnectObject(this);
+        this._amount?.remove_transition('value');
+        Object.values(this._laters ?? {}).forEach(id => id && global.compositor.get_laters().remove(id));
+        if (this._hideTimer)
+            GLib.source_remove(this._hideTimer);
+        if (this._wiggleTimer)
+            GLib.source_remove(this._wiggleTimer);
+        if (this._dragMonitor)
+            DND.removeDragMonitor(this._dragMonitor);
+
+        // Off the stage before any child changes: a bar still on stage gets queued
+        // for a relayout, which Clutter then runs on the destroyed bar.
+        if (this._bar)
+            Main.ctrlAltTabManager.removeGroup(this._bar);
+        const actors = [this._bar, this._bg, this._label];
+        // Clutter can hold a chrome actor twice in its relayout queue but drops only one
+        // entry when it leaves the stage. Asking for the allocation runs that relayout now.
+        actors.forEach(actor => actor?.get_stage() && actor.get_allocation_box());
+        actors.forEach(actor => actor?.get_parent() && Main.layoutManager.removeChrome(actor));
+        this._items?.forEach(item => this._destroyItem(item));
+        // After the items, they ask whether the previews show their app.
+        this._previews?.destroy();
+        // Hand the panel boxes back before destroying the bar, or they die with it.
+        if (this._boxes)
+            restorePanel(this._bar, this._boxes);
+        this._undress();
+        actors.forEach(actor => actor?.destroy());
+
+        this._settings = this._bg = this._bar = this._row = this._label = this._boxes = null;
+        this._amount = this._items = this._menuManager = this._geom = this._laters = null;
+        this._labelItem = this._seps = this._rowSeps = this._volumes = this._launcher = this._trash = null;
+        this._previews = this._dragMonitor = this._watched = null;
+        this._dragging = false;
+        this._hideTimer = this._wiggleTimer = 0;
+    }
+
+    _undress() {
+        if (!this._dressed)
+            return;
+        Main.panel.set_style(this._panelStyle);
+        this._dressed = false;
+    }
+
+    // Colors of GNOME's own dash in the current shell theme, read from a hidden stand-in.
+    _themeColors() {
+        const dash = new St.Widget({name: 'dash', visible: false});
+        const probe = new St.Widget({style_class: 'dash-background'});
+        dash.add_child(probe);
+        Main.layoutManager.uiGroup.add_child(dash);
+        const node = probe.get_theme_node();
+        const rgb = c => `${c.red}, ${c.green}, ${c.blue}`;
+        const bg = node.get_background_color();
+        const width = node.get_border_width(St.Side.TOP);
+        const border = node.get_border_color(St.Side.TOP);
+        const colors = {
+            bg: bg.alpha ? rgb(bg) : COLORS.bg, // a see-through dash has no color to take
+            fg: rgb(node.get_foreground_color()),
+            border: width ? `${width}px solid rgba(${rgb(border)}, ${border.alpha / 255})` : 'none',
+        };
+        dash.destroy();
+        return colors;
+    }
+
+    _separator() {
+        return new St.Widget({
+            style_class: 'silver-dock-separator',
+            x_align: Clutter.ActorAlign.CENTER,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+    }
+
+    // (along, across) in the row to (x, y).
+    _xy(along, across) {
+        return this._vertical ? [across, along] : [along, across];
+    }
+
+    // Back to rest on both axes: after a position change the old offset sits on the other one.
+    _resetSlide() {
+        this._hidden = false;
+        for (const actor of [this._bar, this._bg]) {
+            actor.remove_transition('translation-x');
+            actor.remove_transition('translation-y');
+            actor.translation_x = actor.translation_y = 0;
+        }
+    }
+
+    // Autohide lets windows use the whole screen, so no strut then.
+    _trackBar() {
+        // The strut is taken from the transformed position, a slid out bar would reserve 1 px.
+        this._resetSlide();
+        const params = {affectsStruts: !this._settings.get_boolean('autohide'), trackFullscreen: true};
+        // Re-tracking keeps the bar on stage, taking it off would reset hover and menus.
+        if (this._bar.get_parent()) {
+            Main.layoutManager.untrackChrome(this._bar);
+            Main.layoutManager.trackChrome(this._bar, params);
+        } else {
+            Main.layoutManager.addChrome(this._bar, params);
+        }
+    }
+
+    _refresh() {
+        const icon = Math.min(this._settings.get_int('icon-size'), this._fitIcon ?? Infinity);
+        const zoom = this._settings.get_double('zoom');
+        const margin = this._settings.get_int('margin');
+        const radius = this._settings.get_int('radius');
+        const opacity = this._settings.get_int('opacity') / 100;
+
+        this._style = this._settings.get_string('animation');
+        this._position = this._settings.get_string('position');
+        this._side = SIDES[this._position] ?? St.Side.BOTTOM;
+        this._vertical = this._position === 'left' || this._position === 'right';
+        this._edgeFirst = this._position === 'top' || this._position === 'left'; // screen edge at across 0
+        this._dir = this._edgeFirst ? 1 : -1; // where a lifted icon goes, away from the screen edge
+        this._along = this._vertical ? 'translation_y' : 'translation_x';
+        this._across = this._vertical ? 'translation_x' : 'translation_y';
+        this._geom = {
+            icon,
+            zoom,
+            margin,
+            opacity,
+            slot: icon + Math.round(icon / 5),
+            big: Math.round(icon * zoom), // rendered at full zoom, scaled down at rest, stays sharp
+            thick: INNER + icon + OUTER,
+        };
+
+        // The bar touches the screen edge (needed for the strut), the gap to the
+        // edge is transparent padding.
+        const end = Math.round(radius / 2) + 4;
+        this._bar.set_style({
+            bottom: `padding: 0 ${end}px ${margin}px;`,
+            top: `padding: ${margin}px ${end}px 0;`,
+            left: `padding: ${end}px 0 ${end}px ${margin}px;`,
+            right: `padding: ${end}px ${margin}px ${end}px 0;`,
+        }[this._position] ?? '');
+        this._bar.orientation = this._vertical ? Clutter.Orientation.VERTICAL : Clutter.Orientation.HORIZONTAL;
+        if (this._vertical)
+            this._bar.add_style_class_name('vertical');
+        else
+            this._bar.remove_style_class_name('vertical');
+        this._bar.set_size(-1, -1);
+        if (this._vertical)
+            this._bar.width = this._geom.thick + margin;
+        else
+            this._bar.height = this._geom.thick + margin;
+        // The top bar's content fits a bar at the bottom or top, a narrow side bar
+        // would squeeze it. There GNOME's own top bar keeps it, at the bottom on request.
+        const ownTopBar = this._vertical ||
+            (this._position === 'bottom' && this._settings.get_boolean('keep-top-bar'));
+        const wantPanel = !ownTopBar && this._panelOk;
+        if (wantPanel && !this._boxes.length) {
+            this._boxes = takePanel(this._bar, this._seps[0], this._seps[1]);
+            this._panelOk = this._boxes.length > 0;
+        } else if (!wantPanel && this._boxes.length) {
+            restorePanel(this._bar, this._boxes);
+            this._boxes = [];
+        }
+        // There GNOME's top bar may wear the dock's look: colour, border, corners
+        // and the same gap to the screen edge. Its own style comes back afterwards.
+        const themed = this._settings.get_boolean('theme-colors');
+        const colors = themed ? this._themeColors() : COLORS;
+        if (themed)
+            this._bar.add_style_class_name('themed');
+        else
+            this._bar.remove_style_class_name('themed');
+        if (ownTopBar && this._settings.get_boolean('style-top-bar')) {
+            if (!this._dressed) {
+                this._panelStyle = Main.panel.get_style();
+                this._dressed = true;
+            }
+            Main.panel.set_style(`margin: ${margin}px ${margin}px 0; ` +
+                `background-color: rgba(${colors.bg}, ${opacity}); border: ${colors.border}; ` +
+                `border-radius: ${radius}px;`);
+        } else {
+            this._undress();
+        }
+
+        // Transparency lives in the actor opacity, so the dynamic opacity can ease it.
+        this._bg.set_style(`border-radius: ${radius}px; background-color: rgb(${colors.bg}); border: ${colors.border};`);
+        this._bg.remove_transition('opacity');
+        this._bg.opacity = this._bgOpacity = Math.round(255 * opacity);
+        const sepSize = this._xy(1, Math.round(icon * 0.6));
+        for (const sep of [...this._seps, ...this._rowSeps]) {
+            sep.set_size(...sepSize);
+            sep.set_style(`background-color: rgba(${colors.fg}, 0.25);`);
+        }
+        for (const sep of this._seps) {
+            sep.visible = this._settings.get_boolean('separators') && this._boxes.length > 0;
+            [sep.margin_left, sep.margin_right, sep.margin_top, sep.margin_bottom] = this._vertical
+                ? [0, 0, SEP_MARGIN, SEP_MARGIN] : [SEP_MARGIN, SEP_MARGIN, 0, 0];
+        }
+        // The hide offset depends on thickness and side, autohide slides it out again if needed.
+        this._resetSlide();
+        for (const actor of [...this._boxes, ...this._seps, ...this._rowSeps])
+            actor.translation_x = actor.translation_y = 0;
+        if (this._settings.get_boolean('trash')) {
+            this._trash ??= new TrashWatcher(() => this._updateTrash());
+        } else {
+            this._trash?.destroy();
+            this._trash = null;
+        }
+
+        this._items.forEach(item => this._destroyItem(item));
+        this._items = [];
+        this._sync();
+        this._queueCheck();
+    }
+
+    // Keeps existing icons (and their open menus), adds and removes only what changed.
+    // An item is keyed by its Shell.App, TRASH or its Gio.Mount.
+    _sync() {
+        const favorites = AppFavorites.getAppFavorites().getFavorites();
+        const favIds = new Set(favorites.map(app => app.get_id()));
+        // Running apps keep their place, newcomers go to the end.
+        const pos = new Map(this._items.map((item, i) => [item.key, i]));
+        const last = this._items.length;
+        const running = Shell.AppSystem.get_default().get_running()
+            .filter(app => !favIds.has(app.get_id()))
+            .sort((a, b) => (pos.get(a) ?? last) - (pos.get(b) ?? last));
+        const places = [
+            ...this._settings.get_boolean('trash') ? [TRASH] : [],
+            ...this._settings.get_boolean('drives') ? removableMounts(this._volumes) : [],
+        ];
+
+        const old = new Map(this._items.map(item => [item.key, item]));
+        this._items = [...favorites, ...running, ...places].map(key => {
+            const item = old.get(key) ?? this._createItem(key);
+            old.delete(key);
+            return item;
+        });
+        old.forEach(item => this._destroyItem(item));
+
+        const separators = this._settings.get_boolean('separators');
+        this._bounds = [favorites.length, favorites.length + running.length];
+        this._rowSeps.forEach((sep, i) => {
+            const at = this._bounds[i];
+            sep.visible = separators && at > 0 && at < this._items.length && (i === 1 || running.length > 0);
+        });
+
+        this._layout();
+        this._updateDots();
+        this._updateBadges();
+        this._animate();
+    }
+
+    _createItem(key) {
+        const {icon: size, big, slot} = this._geom;
+        const app = key instanceof Shell.App ? key : null;
+        const name = app ? app.get_name() : placeName(key);
+        const icon = app ? app.create_icon_texture(big) : placeIcon(key, big, this._trash?.full);
+        icon.set_pivot_point(0.5, 0.5);
+
+        // Badge and progress bar live next to the button, see _placeExtras.
+        const font = Math.max(10, Math.round(size / 3));
+        const badge = new St.Label({
+            style_class: 'silver-dock-badge',
+            style: `font-size: ${font}px; min-width: ${Math.round(font * 1.1)}px; border-radius: ${font}px;`,
+            visible: false,
+        });
+        const progress = new St.Widget({
+            style_class: 'silver-dock-progress',
+            height: Math.max(3, Math.round(size * 0.1)),
+            visible: false,
+        });
+        const fill = new St.Widget({style_class: 'silver-dock-progress-fill'});
+        progress.add_child(fill);
+
+        const button = new St.Button({
+            child: icon,
+            accessible_name: name,
+            can_focus: true,
+            button_mask: St.ButtonMask.ONE | St.ButtonMask.TWO | St.ButtonMask.THREE,
+            width: big,
+            height: big,
+        });
+        // Grows from the edge side of the icon, away from the screen edge.
+        button.set_pivot_point(...this._xy(0.5, this._edgeFirst ? 0 : 1));
+
+        const dots = new St.BoxLayout({
+            style_class: 'silver-dock-dots',
+            orientation: this._vertical ? Clutter.Orientation.VERTICAL : Clutter.Orientation.HORIZONTAL,
+            x_align: Clutter.ActorAlign.CENTER,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        const indicator = new St.Bin({child: dots});
+        indicator.set_size(...this._xy(slot, -1));
+
+        const item = {key, app, name, icon, badge, progress, fill, fraction: 0, button, indicator, dots, menu: null};
+        button.connect('clicked', (b, mouseButton) => {
+            this._hideLabel(item);
+            this._previews.hide();
+            if (mouseButton === 3)
+                this._openMenu(item);
+            else if (app)
+                this._activate(app, mouseButton);
+            else
+                openPlace(key);
+        });
+        button.connect('notify::hover', () => {
+            if (button.hover) {
+                if (app && this._settings.get_boolean('previews') && !this._dragging && !this._menuOpen())
+                    this._previews.hoverIcon(app, button, this._side);
+                this._showLabel(item);
+            } else {
+                this._hideLabel(item);
+                this._previews.leaveIcon();
+            }
+        });
+        app?.connectObject('windows-changed', () => {
+            this._updateDots();
+            this._previews.refresh(app);
+        }, button);
+        if (app && this._settings.get_boolean('dnd'))
+            this._makeDraggable(item);
+
+        [button, indicator, progress, badge].forEach(actor => this._row.add_child(actor));
+        return item;
+    }
+
+    _destroyItem(item) {
+        this._hideLabel(item);
+        if (item.app && this._previews?.app === item.app)
+            this._previews.hide();
+        item.menu?.destroy();
+        [item.button, item.indicator, item.progress, item.badge].forEach(actor => actor.destroy());
+    }
+
+    // Resting positions. Icons hug the side away from the screen edge, the dots sit
+    // at the edge. Fixed gaps at the row ends, around the separators and where a
+    // dragged app would land.
+    _layout(animate = false) {
+        const {icon, big, slot, thick} = this._geom;
+        const n = this._items.length;
+        const sepGap = Math.round(slot * 0.4);
+        const gaps = new Array(n + 1).fill(0);
+        gaps[0] += EDGE;
+        gaps[n] += EDGE;
+        this._rowSeps.forEach((sep, i) => {
+            if (sep.visible)
+                gaps[this._bounds[i]] += sepGap;
+        });
+        this._restNoDrop = rest(n, slot, gaps);
+        if (this._dropIndex !== null)
+            gaps[this._dropIndex] += slot;
+        this._gaps = gaps;
+        const {centers, width} = rest(n, slot, gaps);
+        this._centers = centers;
+        this._restWidth = width;
+
+        const move = (actor, along, across) => {
+            const [x, y] = this._xy(Math.round(along), Math.round(across));
+            if (animate) {
+                actor.ease({x, y, duration: MOVE_TIME, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+            } else {
+                // A running ease would carry on to its old target.
+                actor.remove_transition('x');
+                actor.remove_transition('y');
+                actor.set_position(x, y);
+            }
+        };
+        this._items.forEach((item, i) => {
+            move(item.button, centers[i] - big / 2, this._edgeFirst ? OUTER : INNER + icon - big);
+            move(item.indicator, centers[i] - slot / 2, this._edgeFirst ? OUTER - 7 : INNER + icon + 2);
+        });
+        // A separator sits in the front part of its gap, a drop gap follows it.
+        this._rowSeps.forEach((sep, i) => {
+            const at = this._bounds[i];
+            if (at > 0 && at < n)
+                move(sep, centers[at] - slot / 2 - gaps[at] + sepGap / 2, (this._edgeFirst ? OUTER : INNER) + icon * 0.2);
+        });
+        this._row.set_size(...this._xy(width, thick));
+        this._animate();
+    }
+
+    // One dot per window, the focused app's dots stand out.
+    _updateDots() {
+        const focused = Shell.WindowTracker.get_default().focus_app;
+        for (const {app, dots} of this._items) {
+            const n = app?.state === Shell.AppState.RUNNING
+                ? Math.min(Math.max(app.get_n_windows(), 1), MAX_DOTS) : 0;
+            while (dots.get_n_children() > n)
+                dots.get_last_child().destroy();
+            while (dots.get_n_children() < n)
+                dots.add_child(new St.Widget({style_class: 'silver-dock-dot'}));
+            dots.style_class = app === focused ? 'silver-dock-dots focused' : 'silver-dock-dots';
+        }
+    }
+
+    _onAppState(app) {
+        this._sync();
+        if (app.state === Shell.AppState.STARTING && this._settings.get_boolean('bounce'))
+            this._bounce(this._items.find(item => item.app === app));
+    }
+
+    // Numbers and progress that apps publish, urgency counts as attention too.
+    _updateBadges() {
+        const shown = this._settings.get_boolean('badges');
+        for (const item of this._items) {
+            const entry = shown && item.app ? this._launcher.get(item.app.get_id()) : null;
+            const text = badgeOf(entry);
+            item.badge.visible = text !== null;
+            item.badge.text = text ?? '';
+            const fraction = progressOf(entry);
+            item.progress.visible = fraction !== null;
+            item.fraction = fraction ?? 0;
+        }
+        this._updateAttention();
+        this._animate();
+    }
+
+    // Badge and progress bar are drawn at their real size next to the scaled button:
+    // text scaled down from the big rendering turns small and blurry. Whole pixels
+    // keep them sharp. center and scale describe the icon as it is shown right now,
+    // the badge goes on its top right corner, the progress bar along its bottom.
+    _placeExtras(item, center, scale) {
+        const {icon} = this._geom;
+        const size = icon * scale;
+        const across = this._edgeFirst ? OUTER : INNER + icon - size; // lift aside
+        const [x, y] = this._xy(center - size / 2, across);
+        const {badge, progress, fill} = item;
+        if (badge.visible)
+            badge.set_position(Math.round(x + size - badge.width * 0.8), Math.round(y - badge.height * 0.2));
+        if (progress.visible) {
+            const inset = Math.round(size * 0.12);
+            const width = Math.round(size - 2 * inset);
+            progress.set_position(Math.round(x + inset), Math.round(y + size - progress.height - inset / 2));
+            progress.width = width;
+            fill.set_size(Math.round(item.fraction * width), progress.height);
+        }
+    }
+
+    _updateTrash() {
+        const item = this._items.find(i => i.key === TRASH);
+        if (item)
+            item.icon.icon_name = this._trash.full ? 'user-trash-full' : 'user-trash';
+    }
+
+    // Moves the icon inside the button, the button itself carries the hover transform.
+    _bounce(item) {
+        const icon = item?.icon;
+        if (!icon || icon.get_transition(this._across.replace('_', '-')))
+            return;
+        icon.ease({
+            [this._across]: this._dir * Math.round(this._geom.big * 0.4),
+            duration: 300,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            repeatCount: 5, // out and back three times, ends at rest
+            autoReverse: true,
+        });
+    }
+
+    // An ease disables direct scanout while it runs, so the wiggle comes in short
+    // bursts and pauses while the bar is out of sight (fullscreen games).
+    _updateAttention() {
+        const enabled = this._settings.get_boolean('attention');
+        for (const item of this._items) {
+            item.attention = enabled && Boolean(item.app) &&
+                (Boolean(this._launcher.get(item.app.get_id())?.urgent) ||
+                 item.app.get_windows().some(win => win.demands_attention || win.urgent));
+        }
+        const wanted = this._items.some(item => item.attention);
+        if (wanted && !this._wiggleTimer) {
+            this._wiggle();
+            this._wiggleTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, WIGGLE_EVERY, () => {
+                this._wiggle();
+                return GLib.SOURCE_CONTINUE;
+            });
+        } else if (!wanted && this._wiggleTimer) {
+            GLib.source_remove(this._wiggleTimer);
+            this._wiggleTimer = 0;
+        }
+    }
+
+    // Tilts the icon inside the button, the button carries the hover transform.
+    _wiggle() {
+        if (!this._bar.visible || this._hidden)
+            return;
+        const mode = Clutter.AnimationMode.EASE_IN_OUT_SINE;
+        for (const {attention, icon} of this._items) {
+            if (!attention || icon.get_transition('rotation-angle-z'))
+                continue;
+            icon.ease({
+                rotation_angle_z: -8, duration: 60, mode, onComplete: () => icon.ease({
+                    rotation_angle_z: 8, duration: 120, mode, repeatCount: 4, autoReverse: true,
+                    onComplete: () => icon.ease({rotation_angle_z: 0, duration: 60, mode}),
+                }),
+            });
+        }
+    }
+
+    _showLabel(item) {
+        if (!this._settings.get_boolean('tooltips') || this._hidden || this._dragging || this._menuOpen() ||
+            this._previews.shown)
+            return;
+        this._labelItem = item;
+        this._label.text = item.name;
+        this._label.show();
+        this._placeLabel();
+    }
+
+    _hideLabel(item) {
+        if (item && item !== this._labelItem)
+            return;
+        this._labelItem = null;
+        this._label.hide();
+    }
+
+    // Next to the icon on its screen side.
+    _placeLabel() {
+        const button = this._labelItem?.button;
+        if (!button)
+            return;
+        const [x, y] = button.get_transformed_position();
+        const [w, h] = button.get_transformed_size();
+        // An eased lift is still on its way, place the label where the icon ends up.
+        const lift = this._labelItem.lift;
+        const pending = lift === undefined ? 0 : this._dir * lift - button[this._across];
+        const [dx, dy] = this._xy(0, pending);
+        const {width: lw, height: lh} = this._label;
+        const [lx, ly] = {
+            [St.Side.BOTTOM]: [x + (w - lw) / 2, y + dy - lh - 6],
+            [St.Side.TOP]: [x + (w - lw) / 2, y + dy + h + 6],
+            [St.Side.LEFT]: [x + dx + w + 6, y + (h - lh) / 2],
+            [St.Side.RIGHT]: [x + dx - lw - 6, y + (h - lh) / 2],
+        }[this._side];
+        this._label.set_position(Math.round(lx), Math.round(ly));
+    }
+
+    _openMenu(item) {
+        this._previews.hide();
+        if (!item.menu) {
+            if (item.app) {
+                item.menu = new AppMenu(item.button, this._side, {favoritesSection: true, showSingleWindows: true});
+                item.menu.setApp(item.app);
+            } else {
+                item.menu = new PopupMenu.PopupMenu(item.button, 0.5, this._side);
+                placeActions(item.key).forEach(([label, action]) => item.menu.addAction(label, action));
+            }
+            Main.uiGroup.add_child(item.menu.actor);
+            this._menuManager.addMenu(item.menu);
+        }
+        item.menu.open(BoxPointer.PopupAnimation.FULL);
+    }
+
+    // Focused app: one window minimizes, several cycle (the oldest comes up each click).
+    _activate(app, mouseButton) {
+        if (mouseButton === 2) {
+            app.open_new_window(-1);
+            return;
+        }
+        const windows = app.get_windows();
+        if (!windows.length || Shell.WindowTracker.get_default().focus_app !== app)
+            app.activate();
+        else if (windows.length === 1)
+            windows[0].minimize();
+        else
+            Main.activateWindow(windows[windows.length - 1]);
+    }
+
+    // Runs fn once before the next frame, however often it is queued until then.
+    _queue(key, fn) {
+        this._laters[key] ||= global.compositor.get_laters().add(Meta.LaterType.BEFORE_REDRAW, () => {
+            this._laters[key] = 0;
+            fn();
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _queuePlace() {
+        this._queue('place', () => this._place());
+    }
+
+    _queueCheck() {
+        this._queue('check', () => {
+            this._updateOpacity();
+            this._updateAutohide();
+        });
+    }
+
+    _watchWindow(win) {
+        this._watched.add(win);
+        const check = () => this._queueCheck();
+        const attention = () => this._queue('attention', () => this._updateAttention());
+        win.connectObject(
+            'position-changed', check,
+            'size-changed', check,
+            'notify::minimized', check,
+            'notify::demands-attention', attention,
+            'notify::urgent', attention,
+            // Meta.Window is no actor, its signal tracker entry would outlive the window.
+            'unmanaged', () => {
+                win.disconnectObject(this);
+                this._watched.delete(win);
+                check();
+                attention();
+            }, this);
+        check();
+    }
+
+    // ponytail: primary monitor only, like the top bar it replaces
+    _place() {
+        const m = Main.layoutManager.primaryMonitor;
+        if (!m)
+            return;
+
+        // A side bar centres in the work area, below GNOME's top bar.
+        const area = this._vertical
+            ? Main.layoutManager.getWorkAreaForMonitor(Main.layoutManager.primaryIndex) : m;
+        const [w, h] = this._bar.get_size();
+        if (this._fit(this._vertical ? h : w, this._vertical ? area.height : m.width))
+            return;
+        const centerX = m.x + Math.round((m.width - w) / 2);
+        const centerY = area.y + Math.round((area.height - h) / 2);
+        this._bar.set_position(...{
+            bottom: [centerX, m.y + m.height - h],
+            top: [centerX, m.y],
+            left: [m.x, centerY],
+            right: [m.x + m.width - w, centerY],
+        }[this._position] ?? [centerX, m.y + m.height - h]);
+        this._animate();
+        this._updateOpacity();
+        this._updateAutohide();
+    }
+
+    // A bar longer than the screen shrinks its icons until it fits, and grows back to
+    // the set size once there is room again. Returns true when a rebuild is on its way.
+    _fit(length, room) {
+        // Rebuilding mid drag would destroy the dragged icon.
+        if (this._dragging)
+            return false;
+        const {icon} = this._geom;
+        const wanted = this._settings.get_int('icon-size');
+        // px of bar per px of icon size: a slot is 1.2 icons, a separator gap 0.4 slots.
+        const seps = this._rowSeps.filter(sep => sep.visible).length;
+        const perIcon = (this._items.length + 0.4 * seps) * 1.2;
+        if (!perIcon)
+            return false;
+        let fit = this._fitIcon;
+        if (length > room && icon > MIN_ICON)
+            fit = Math.max(MIN_ICON, Math.floor(icon - (length - room) / perIcon) - 1);
+        // Grow back only with a slot to spare, rounding must not make it swing.
+        else if (fit !== null && fit !== undefined && length + (wanted - icon) * perIcon + wanted * 1.2 <= room)
+            fit = null;
+        if (fit === this._fitIcon)
+            return false;
+        this._fitIcon = fit;
+        this._queue('refit', () => this._refresh());
+        return true;
+    }
+
+    // The bar's resting geometry: [along start, along size, across start, thickness].
+    _barAxes() {
+        const {x, y, width, height} = this._bar;
+        return this._vertical ? [y, height, x, width] : [x, width, y, height];
+    }
+
+    _animate() {
+        const {zoom, slot, margin} = this._geom;
+        const n = this._items.length;
+        const eased = STYLES[this._style]?.eased;
+        const hovered = eased ? Number(this._row.hover) : this._amount.value;
+        const {scales, shifts, lifts, left, right} = hover(
+            this._style, n, slot, this._pointer, zoom, this._dragging ? 0 : hovered, this._gaps);
+
+        this._items.forEach((item, i) => {
+            const {button, indicator} = item;
+            button.set_scale(scales[i] / zoom, scales[i] / zoom);
+            button[this._along] = shifts[i];
+            indicator[this._along] = shifts[i];
+            this._placeExtras(item, this._centers[i] + shifts[i], scales[i]);
+            const lifted = [button, item.badge, item.progress];
+            if (!eased) {
+                lifted.forEach(actor => (actor[this._across] = this._dir * lifts[i]));
+            } else if (item.lift !== lifts[i]) {
+                item.lift = lifts[i];
+                lifted.forEach(actor => actor.ease({
+                    [this._across]: this._dir * lifts[i],
+                    duration: LIFT_TIME,
+                    mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
+                }));
+            }
+        });
+        this._rowSeps.forEach((sep, i) => {
+            const at = this._bounds[i];
+            sep[this._along] = at > 0 && at < n ? (shifts[at - 1] + shifts[at]) / 2 : 0;
+        });
+
+        // Spread the neighbours and the background visually only, the bar (and
+        // so the strut) keeps its size and windows never resize on hover.
+        const startShift = Math.min(0, Math.round(left));
+        const endShift = Math.max(0, Math.round(right - this._restWidth));
+        const [firstBox, ...otherBoxes] = this._boxes;
+        const [firstSep, secondSep] = this._seps;
+        [firstBox, firstSep].forEach(actor => actor && (actor[this._along] = startShift));
+        [secondSep, ...otherBoxes].forEach(actor => actor && (actor[this._along] = endShift));
+
+        const [along, length, across, thick] = this._barAxes();
+        this._bg.set_position(...this._xy(along + startShift, across + (this._edgeFirst ? margin : 0)));
+        this._bg.set_size(...this._xy(length - startShift + endShift, thick - margin));
+        this._placeLabel();
+    }
+
+    _makeDraggable(item) {
+        const {app, button, icon} = item;
+        const delegate = {
+            app,
+            getDragActor: () => app.create_icon_texture(this._geom.icon),
+            getDragActorSource: () => icon,
+        };
+        button._delegate = delegate;
+        // GNOME's drag carries on when its source is destroyed mid drag (the app
+        // quit, the dock rebuilt), the button must not be touched after that.
+        let alive = true;
+        button.connect('destroy', () => (alive = false));
+        const draggable = DND.makeDraggable(button);
+        draggable.connect('drag-begin', () => {
+            button.opacity = 80;
+            Main.overview.beginItemDrag(delegate);
+        });
+        draggable.connect('drag-cancelled', () => Main.overview.cancelledItemDrag(delegate));
+        draggable.connect('drag-end', (d, time, success) => {
+            if (alive)
+                button.opacity = 255;
+            Main.overview.endItemDrag(delegate);
+            // Let go well away from the bar: unpin. GNOME offers an undo for it.
+            if (!success && this._farFromBar())
+                AppFavorites.getAppFavorites().removeFavorite(app.get_id());
+        });
+    }
+
+    _farFromBar() {
+        const [x, y] = global.get_pointer();
+        const [, , across, thick] = this._barAxes();
+        const p = this._vertical ? x : y;
+        return p < across - thick || p > across + 2 * thick;
+    }
+
+    // Also runs for drags that start elsewhere (overview, menus): shows a hidden
+    // bar and stops the hover effect, so icons hold still under the pointer.
+    _startDrag() {
+        if (this._dragging)
+            return;
+        this._dragging = true;
+        this._hideLabel();
+        this._previews.hide();
+        this._dragMonitor = {
+            dragMotion: event => {
+                if (!this._row.contains(event.targetActor))
+                    this._setDropIndex(null);
+                return DND.DragMotionResult.CONTINUE;
+            },
+            // The drop itself still has to reach acceptDrop, so end afterwards.
+            dragDrop: () => {
+                this._queue('drop', () => this._endDrag());
+                return DND.DragDropResult.CONTINUE;
+            },
+        };
+        DND.addDragMonitor(this._dragMonitor);
+        this._updateAutohide();
+        this._animate();
+    }
+
+    _endDrag() {
+        if (!this._dragging)
+            return;
+        this._dragging = false;
+        DND.removeDragMonitor(this._dragMonitor);
+        this._dragMonitor = null;
+        this._setDropIndex(null);
+        this._queueCheck();
+    }
+
+    _setDropIndex(index) {
+        if (index === this._dropIndex)
+            return;
+        this._dropIndex = index;
+        this._layout(true);
+    }
+
+    _dragOver(source, along) {
+        const app = source?.app;
+        if (!this._settings.get_boolean('dnd') || !(app instanceof Shell.App))
+            return DND.DragMotionResult.NO_DROP;
+        this._startDrag();
+        this._setDropIndex(this._dropIndexAt(app, along));
+        return this._dropIndex === null ? DND.DragMotionResult.NO_DROP : DND.DragMotionResult.MOVE_DROP;
+    }
+
+    // Where among the favorites the app would land.
+    _dropIndexAt(app, along) {
+        const from = AppFavorites.getAppFavorites().getFavorites().indexOf(app);
+        return dropIndex(this._restNoDrop.centers, this._geom.slot, along, this._dropIndex, this._bounds[0], from);
+    }
+
+    _acceptDrop(source) {
+        const app = source?.app;
+        const pos = this._dropIndex;
+        if (!(app instanceof Shell.App) || pos === null)
+            return false;
+        this._endDrag();
+        const favorites = AppFavorites.getAppFavorites();
+        const from = favorites.getFavorites().indexOf(app);
+        // moveFavoriteToPos counts positions with the app already taken out.
+        if (from >= 0)
+            favorites.moveFavoriteToPos(app.get_id(), pos > from ? pos - 1 : pos);
+        else
+            favorites.addFavoriteAtPos(app.get_id(), pos);
+        return true;
+    }
+
+    // Top bar menus count while the top bar's content sits in the dock.
+    _menuOpen() {
+        return Boolean(this._menuManager?.activeMenu ||
+            (this._boxes?.length && Main.panel.menuManager.activeMenu));
+    }
+
+    // grow: px added on the screen side of the bar, to catch windows that only touch it.
+    _windowsOverlap(grow = 0) {
+        const [along, length, across, thick] = this._barAxes();
+        const [x, y] = this._xy(along, this._edgeFirst ? across : across - grow);
+        const [width, height] = this._xy(length, thick + grow);
+        const rect = new Mtk.Rectangle({x, y, width, height});
+        // Skip-taskbar windows are desktop icons, docks and the like, never covered.
+        return global.workspace_manager.get_active_workspace().list_windows().some(win =>
+            win.showing_on_its_workspace() && !win.is_skip_taskbar() && win.get_frame_rect().overlap(rect));
+    }
+
+    // Opaque while a window touches the bar, like a maximized one right next to it.
+    _updateOpacity() {
+        const {opacity} = this._geom;
+        const touched = this._settings.get_boolean('dynamic-opacity') && this._windowsOverlap(4);
+        const target = Math.round(255 * (touched ? Math.max(opacity, 0.95) : opacity));
+        if (target === this._bgOpacity)
+            return;
+        this._bgOpacity = target;
+        this._bg.ease({opacity: target, duration: 250, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+    }
+
+    _shouldHide() {
+        return this._settings.get_boolean('autohide') && !this._bar.hover && !this._dragging && !this._menuOpen() &&
+            !this._previews.shown &&
+            !Main.overview.visible && this._windowsOverlap();
+    }
+
+    _updateAutohide() {
+        if (!this._shouldHide()) {
+            if (this._hideTimer)
+                GLib.source_remove(this._hideTimer);
+            this._hideTimer = 0;
+            this._slide(false);
+            return;
+        }
+        if (this._hidden || this._hideTimer)
+            return;
+        this._hideTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, HIDE_DELAY, () => {
+            this._hideTimer = 0;
+            if (this._shouldHide())
+                this._slide(true);
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _slide(hidden) {
+        if (this._hidden === hidden)
+            return;
+        this._hidden = hidden;
+        if (hidden) {
+            this._hideLabel();
+            this._previews.hide();
+        }
+        const params = {duration: SLIDE_TIME, mode: Clutter.AnimationMode.EASE_OUT_QUAD};
+        const out = -this._dir;
+        const [, , , thick] = this._barAxes();
+        // A 1 px strip of the (transparent) bar stays on screen and catches the pointer.
+        this._bar.ease({...params, [this._across]: hidden ? out * (thick - 1) : 0});
+        this._bg.ease({...params, [this._across]: hidden ? out * thick : 0});
+    }
+}

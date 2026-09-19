@@ -6,6 +6,8 @@
 #         in, to try the dock by hand (needs mutter-dev-bin).
 # --show --clean: the window with Ubuntu's defaults, nothing of your setup but
 #         ArcMenu (with its own defaults), for the dock's menu button.
+# --x11: an X11 session on a virtual X server instead of headless Wayland, for
+#         GNOME before 50 (see test/gnome46.sh, needs Xvfb).
 
 # One block, read whole before it runs: bash reads a running script piece by piece
 # from disk, and an edit during a --show session would otherwise run fragments.
@@ -17,11 +19,13 @@ uuid=$(sed -n 's/.*"uuid": *"\([^"]*\)".*/\1/p' "$root/metadata.json")
 schema=org.gnome.shell.extensions.silver-dock
 show=
 clean=
+x11=
 for arg in "$@"; do
     case $arg in
     --show) show=1 ;;
     --clean) clean=1 ;;
-    *) echo "usage: $0 [--show [--clean]]" >&2; exit 2 ;;
+    --x11) x11=1 ;;
+    *) echo "usage: $0 [--x11 | --show [--clean]]" >&2; exit 2 ;;
     esac
 done
 work=$(mktemp -d)
@@ -89,6 +93,12 @@ fi
 if [[ ! $show ]]; then
     unset WAYLAND_DISPLAY DISPLAY
 fi
+if [[ $x11 ]]; then
+    Xvfb -displayfd 3 -screen 0 1280x800x24 3>"$work/display" >"$work/xvfb.log" 2>&1 &
+    xvfb=$!
+    for _ in $(seq 50); do [[ -s $work/display ]] && break; sleep 0.1; done
+    export DISPLAY=:$(cat "$work/display")
+fi
 # Something in the test trash (under the test XDG_DATA_HOME) for the full trash icon.
 # Written by hand, gio refuses to trash on /tmp.
 mkdir -p "$XDG_DATA_HOME/Trash/files" "$XDG_DATA_HOME/Trash/info"
@@ -131,21 +141,38 @@ had_marker=
 
 # Own socket name, so demo windows land in the test shell and parallel runs do not collide.
 wl=silverdocktest-$$
+if [[ $x11 ]]; then
+    shell_args=(--x11 --replace)
+    client=(GDK_BACKEND=x11)
+else
+    shell_args=("${mode[@]}" --no-x11 --wayland-display "$wl")
+    client=(WAYLAND_DISPLAY="$wl")
+fi
 # Line buffered, or the last messages are lost when the shell is killed.
-setsid stdbuf -oL gnome-shell "${mode[@]}" --no-x11 --wayland-display "$wl" >"$work/shell.log" 2>&1 &
+setsid stdbuf -oL gnome-shell "${shell_args[@]}" >"$work/shell.log" 2>&1 &
 shell=$!
 
 cleanup() {
     # setsid made the shell a session leader, so this only hits the test shell and its helpers
     [[ $(ps -o sid= -p "$shell" | tr -d ' ') == "$shell" ]] && pkill -s "$shell" || true
-    kill "${bus[1]}" "${sysbus[1]}" ${tray:-} ${viewer:-} ${wp:-} ${pw:-} 2>/dev/null || true
+    kill "${bus[1]}" "${sysbus[1]}" ${tray:-} ${viewer:-} ${wp:-} ${pw:-} ${xvfb:-} 2>/dev/null || true
     rm -f "${XDG_RUNTIME_DIR:-/run/user/$UID}"/{dconf/"$db","$wl","$wl.lock"}
     [[ $had_marker ]] || rm -f "$marker"
     echo "log: $work/shell.log"
 }
 trap cleanup EXIT
 
-state() { LC_ALL=C gnome-extensions info "$uuid" 2>/dev/null | sed -n 's/^ *State: //p'; }
+# The shell's own D-Bus interface: the gnome-extensions tool gives nothing in the
+# GNOME 46 container. States are numbers, the same from GNOME 46 to 50.
+shell_call() {
+    gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell \
+        --method "org.gnome.Shell.Extensions.$1" "${@:2}"
+}
+switch() { shell_call "$1Extension" "$2" >/dev/null 2>&1 || true; }
+state() {
+    shell_call GetExtensionInfo "$uuid" 2>/dev/null | sed -n "s/.*'state': <\([0-9]*\)\.0>.*/\1/p" |
+        sed 's/^1$/ACTIVE/; s/^2$/INACTIVE/; s/^3$/ERROR/; s/^4$/OUT OF DATE/'
+}
 expect() {
     for _ in $(seq 50); do [[ $(state) == "$1" ]] && return; sleep 0.2; done
     echo "FAIL: expected state $1, got '$(state)'"
@@ -160,10 +187,12 @@ set_key() { gsettings --schemadir "$root/schemas" set "$schema" "$@"; }
 for _ in $(seq 150); do [[ -n $(state) ]] && break; sleep 0.2; done
 if [[ -z $(state) ]]; then
     echo "FAIL: extension not found in the test shell"
-    gnome-extensions list || true
-    gnome-extensions info "$uuid" || true
+    shell_call GetExtensionInfo "$uuid" || true
     exit 1
 fi
+# GNOME starts with the overview open, a session starts on the desktop.
+gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell --method \
+    org.freedesktop.DBus.Properties.Set org.gnome.Shell OverviewActive '<false>' >/dev/null || true
 
 if [[ $show ]]; then
     # The devkit window runs in its own session and would stay frozen after the shell is gone.
@@ -172,14 +201,14 @@ if [[ $show ]]; then
     dbus-update-activation-environment WAYLAND_DISPLAY="$wl"
     # Silver Dock replaces these, the preview shows the result.
     for other in dash-to-panel@jderose9.github.com dash-to-dock@micxgx.gmail.com ubuntu-dock@ubuntu.com; do
-        gnome-extensions disable "$other" 2>/dev/null || true
+        switch Disable "$other"
     done
 fi
 
-gnome-extensions enable ubuntu-appindicators@ubuntu.com 2>/dev/null || true
-gnome-extensions enable "$uuid"; expect ACTIVE
+switch Enable ubuntu-appindicators@ubuntu.com
+switch Enable "$uuid"; expect ACTIVE
 # Tray icons and a window arriving while the dock is up, like apps starting after login.
-WAYLAND_DISPLAY=$wl python3 "$root/test/demo-apps.py" >"$work/demo.log" 2>&1 &
+env "${client[@]}" python3 "$root/test/demo-apps.py" >"$work/demo.log" 2>&1 &
 tray=$!
 for _ in $(seq 50); do [[ $(tray_items) == 3 ]] && break; sleep 0.2; done
 if [[ $(tray_items) != 3 ]]; then
@@ -187,13 +216,13 @@ if [[ $(tray_items) != 3 ]]; then
     exit 1
 fi
 # The prefs need the Extensions app's private libraries.
-if ! GI_TYPELIB_PATH=/usr/lib/gnome-shell/girepository-1.0 LD_LIBRARY_PATH=/usr/lib/gnome-shell \
-    WAYLAND_DISPLAY=$wl LC_ALL=C gjs -m "$root/test/prefs-test.js" >"$work/prefs.log" 2>&1; then
+if ! env GI_TYPELIB_PATH=/usr/lib/gnome-shell/girepository-1.0 LD_LIBRARY_PATH=/usr/lib/gnome-shell \
+    "${client[@]}" LC_ALL=C gjs -m "$root/test/prefs-test.js" >"$work/prefs.log" 2>&1; then
     echo "FAIL: preferences, see $work/prefs.log"
     exit 1
 fi
-gnome-extensions disable "$uuid"; expect INACTIVE
-gnome-extensions enable "$uuid"; expect ACTIVE
+switch Disable "$uuid"; expect INACTIVE
+switch Enable "$uuid"; expect ACTIVE
 set_key icon-size 48
 set_key zoom 1.0
 set_key margin 0
@@ -231,8 +260,19 @@ gsettings --schemadir "$root/schemas" reset-recursively "$schema"
 sleep 1
 expect ACTIVE
 
-if grep -n -B2 -A8 "$uuid" "$work/shell.log" | grep -iE 'error|warning|critical' ||
-    grep -nE 'Clutter-|St-CRITICAL' "$work/shell.log"; then
+# GNOME before 50 warns about the top bar's own button containers (unnamed StBin)
+# when they move, at its own startup too. The dock's containers carry names. On X11
+# mutter warns about its own window actors when a maximized window shrinks for the
+# space a dock reserves, any dock with a strut does that.
+noise='^$'
+if (( $(gnome-shell --version | sed 's/[^0-9]*\([0-9]*\).*/\1/') < 50 )); then
+    noise="Can't update stage views actor unnamed \[StBin\]"
+fi
+if [[ $x11 ]]; then
+    noise+="|Can't update stage views actor unnamed \[Meta(Window|Surface)ActorX11\]"
+fi
+if grep -n -B2 -A8 "$uuid" "$work/shell.log" | grep -iE 'error|warning|critical' | grep -vE "$noise" ||
+    grep -nE 'Clutter-|St-CRITICAL' "$work/shell.log" | grep -vE "$noise"; then
     echo "FAIL: errors from the extension"
     exit 1
 fi

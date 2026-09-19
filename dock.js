@@ -13,6 +13,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
+import {HAS_ACCENT, setVertical} from './compat.js';
 import {badgeOf, progressOf} from './launcher.js';
 import {dropIndex, hover, rest, STYLES} from './layout.js';
 import {TRASH, driveMounts, openPlace, placeActions, placeIcon, placeName} from './places.js';
@@ -237,7 +238,8 @@ export class Dock {
         const opacity = themed ? colors.alpha : this._settings.get_int('opacity') / 100;
         this._geom.opacity = opacity;
         this._accent = colors.accent ?? null; // null: the stylesheet's colors
-        if (themed)
+        // Before GNOME 47 the stylesheet has no system accent, a GTK accent still applies.
+        if (themed && HAS_ACCENT)
             this._bar.add_style_class_name('themed');
         else
             this._bar.remove_style_class_name('themed');
@@ -342,7 +344,7 @@ export class Dock {
             left: `padding: ${end}px 0 ${end}px ${margin}px;`,
             right: `padding: ${end}px ${margin}px ${end}px 0;`,
         }[this._position] ?? '');
-        this._bar.orientation = this._vertical ? Clutter.Orientation.VERTICAL : Clutter.Orientation.HORIZONTAL;
+        setVertical(this._bar, this._vertical);
         if (this._vertical)
             this._bar.add_style_class_name('vertical');
         else
@@ -564,11 +566,12 @@ export class Dock {
 
         const dots = new St.BoxLayout({
             style_class: 'silver-dock-dots',
-            orientation: this._vertical ? Clutter.Orientation.VERTICAL : Clutter.Orientation.HORIZONTAL,
             x_align: Clutter.ActorAlign.CENTER,
             y_align: Clutter.ActorAlign.CENTER,
         });
-        const indicator = new St.Bin({child: dots});
+        setVertical(dots, this._vertical);
+        // Named so warnings about it can be told from GNOME's own containers, see smoke.sh.
+        const indicator = new St.Bin({name: 'silver-dock-indicator', child: dots});
         indicator.set_size(...this._xy(slot, -1));
 
         const item = {key, app, name, icon, badge, progress, fill, fraction: 0, button, indicator, dots, menu: null, room: 1};

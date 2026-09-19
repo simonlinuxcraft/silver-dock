@@ -3,6 +3,10 @@
   "name": "Silver Dock",
   "description": "A dock on any screen edge. At the bottom or top it also holds the top bar's menu, clock, tray and system menu. Hover and app animations, window previews, badges, drag and drop, trash and drives, theme colors, every feature switchable.",
   "shell-version": [
+    "46",
+    "47",
+    "48",
+    "49",
     "50"
   ],
   "settings-schema": "org.gnome.shell.extensions.silver-dock",

@@ -7,6 +7,8 @@ import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
+import {setVertical} from './compat.js';
+
 const SHOW_DELAY = 400;
 const HIDE_DELAY = 250;
 const THUMB_WIDTH = 220;
@@ -178,7 +180,8 @@ export class WindowPreviews {
     }
 
     _preview(win, width) {
-        const box = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, width});
+        const box = new St.BoxLayout({width});
+        setVertical(box, true);
 
         const header = new St.BoxLayout({style_class: 'silver-dock-preview-header'});
         const title = new St.Label({style_class: 'silver-dock-preview-title', text: win.get_title() ?? '', x_expand: true});

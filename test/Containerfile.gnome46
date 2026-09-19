@@ -1,0 +1,9 @@
+# GNOME Shell 46 as in Ubuntu 24.04 LTS, with what test/smoke.sh needs.
+FROM docker.io/library/ubuntu:24.04
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        gnome-shell gnome-shell-extension-prefs gnome-shell-extension-appindicator \
+        dbus dconf-service dconf-gsettings-backend libglib2.0-bin gettext procps systemd \
+        xvfb libgl1-mesa-dri libegl-mesa0 fonts-dejavu-core \
+        pipewire wireplumber \
+        python3-gi gir1.2-gtk-3.0 gir1.2-ayatanaappindicator3-0.1 \
+    && rm -rf /var/lib/apt/lists/*

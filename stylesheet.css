@@ -1,5 +1,4 @@
-/* The bar carries the top bar's name for the theme's panel button styles,
-   its own background is drawn by .silver-dock-bg, colored in extension.js. */
+/* Named #panel for the theme's button styles, the background is .silver-dock-bg. */
 #panel.silver-dock {
     background-color: transparent;
     background-image: none;
@@ -7,13 +6,12 @@
     box-shadow: none;
 }
 
-/* Even padding for the moved top bar buttons, the row and separators are sized to match. */
 #panel.silver-dock .panel-button {
     -natural-hpadding: 8px;
     -minimum-hpadding: 4px;
 }
 
-/* The theme gives #panel a fixed height, a bar on the left or right grows with its icons. */
+/* Themes give #panel a fixed height. */
 #panel.silver-dock.vertical {
     height: auto;
 }
@@ -75,7 +73,6 @@
     spacing: 3px;
 }
 
-/* Sized in extension.js, the focused app's dots are longer. */
 .silver-dock-dot {
     border-radius: 3px;
     background-color: rgba(235, 237, 242, 0.55);
@@ -89,8 +86,7 @@
     transition-duration: 250ms;
 }
 
-/* Top bar buttons in the dock move on hover instead of lighting up. Open menus keep
-   the theme's look. GNOME themes light up the clock's inner .clock, not its button. */
+/* Themes light up the clock's inner .clock, not its button. */
 #panel.silver-dock.lift-buttons .panel-button:hover,
 #panel.silver-dock.lift-buttons .panel-button:hover .clock,
 #panel.silver-dock.warp .arcmenu-panel-menu:hover {
@@ -98,7 +94,6 @@
     background-color: transparent;
 }
 
-/* Theme colors: window dots and progress in the system accent color. */
 .silver-dock.themed .silver-dock-dot {
     background-color: st-transparentize(-st-accent-color, 0.45);
 }
@@ -108,9 +103,7 @@
     background-color: -st-accent-color;
 }
 
-/* A light own color: dark text and icons, on the dock and a top bar in its look.
-   Extension stylesheets outrank the theme, even its !important rules. Recording,
-   sharing and privacy indicators keep their colors. */
+/* Dark ink on a light color. Extension stylesheets outrank even the theme's !important. */
 #panel.silver-dock-ink {
     text-shadow: none;
 }

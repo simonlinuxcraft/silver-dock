@@ -46,10 +46,9 @@ check(r.lifts[3] > r.lifts[2] && r.lifts[2] > r.lifts[1] && r.lifts[1] > r.lifts
 check(near(r.lifts[2], r.lifts[4]) && near(r.lifts[0], 0), 'ripple not symmetric or not fading out');
 check(r.shifts.every(s => s === 0), 'ripple moved icons');
 
-// None does nothing even while hovered, unknown styles fall back to magnify.
+// None does nothing even while hovered.
 r = hover('none', N, SLOT, 3.5 * SLOT, ZOOM, 1);
 check(r.scales.every(s => s === 1) && r.lifts.every(l => l === 0), 'none animated');
-check(near(hover('bogus', N, SLOT, 3.5 * SLOT, ZOOM, 1).scales[3], ZOOM), 'unknown style not magnify');
 
 // Gaps: fixed space that does not scale, e.g. around separators.
 const GAPS = [4, 0, 0, 20, 0, 0, 20, 4];

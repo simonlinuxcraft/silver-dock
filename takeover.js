@@ -1,10 +1,7 @@
-// The only place that touches GNOME Shell internals (the top bar's private
-// boxes). Check this first when a new GNOME release breaks something.
+// The only use of GNOME Shell internals, check here first when a release breaks.
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-// Moves the top bar's left box into `bar` in front of `before` and its center and
-// right box behind `after`, then hides the empty top bar. Returns the moved boxes.
-// If the internals changed, nothing is touched and it returns an empty list.
+// Returns the moved boxes, none if the internals changed.
 export function takePanel(bar, before, after) {
     const panel = Main.panel;
     const boxes = [panel?._leftBox, panel?._centerBox, panel?._rightBox];

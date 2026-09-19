@@ -1,6 +1,4 @@
-// Run by smoke.sh against the test shell. By hand: GI_TYPELIB_PATH=/usr/lib/gnome-shell/girepository-1.0 LD_LIBRARY_PATH=/usr/lib/gnome-shell gjs -m test/prefs-test.js
-// Builds the preferences window against in-memory settings and checks that
-// every row is bound to its key in both directions.
+// Run by smoke.sh. Checks every row is bound to its key both ways.
 import Adw from 'gi://Adw';
 import Gdk from 'gi://Gdk';
 import Gio from 'gi://Gio';

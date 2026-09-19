@@ -1,5 +1,4 @@
-# Tray icons, windows and a launcher badge for the test shell. Real apps talk to
-# the real session bus and never show up there.
+# Real apps talk to the real session bus and never show up in the test shell.
 import subprocess
 import sys
 
@@ -22,9 +21,7 @@ win = Gtk.Window(title='Silver Dock test window')
 win.maximize()
 win.show_all()
 
-# Another app takes the focus, then this window asks for it back without a valid
-# activation token, which the shell turns into a request for attention.
-# It minimizes itself and quits later: the dock's icon geometry and pop out.
+# Asking for the focus back without an activation token makes the shell flag attention.
 OTHER = ("import gi; gi.require_version('Gtk', '3.0'); from gi.repository import GLib, Gtk; "
          "w = Gtk.Window(title='Silver Dock other app'); w.show_all(); "
          "GLib.timeout_add(2500, lambda: w.iconify() or False); "
@@ -39,8 +36,7 @@ def ask_attention():
 
 GLib.timeout_add(1000, ask_attention)
 
-# A badge that counts 7 to 16 (a step every 3 s) and a running progress bar on the Files icon, sent
-# like libunity does. Repeated, because a dock only hears updates sent while it is enabled.
+# Repeated, a dock only hears updates sent while it is enabled.
 bus = Gio.bus_get_sync(Gio.BusType.SESSION)
 step = 0
 
@@ -56,7 +52,7 @@ def launcher_entry():
 
 
 GLib.timeout_add(1000, launcher_entry)
-# Malformed on purpose: the dock has to ignore it without an error.
+# Malformed on purpose.
 bus.emit_signal(None, '/com/canonical/unity/launcherentry/demo', 'com.canonical.Unity.LauncherEntry', 'Update',
                 GLib.Variant('(s)', ('application://org.gnome.Nautilus.desktop',)))
 Gtk.main()

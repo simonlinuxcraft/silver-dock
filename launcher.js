@@ -1,5 +1,4 @@
-// Badge counts, progress and urgency that apps publish over the Unity
-// LauncherEntry D-Bus API (libunity, Electron, Chromium, Steam and others).
+// Unity LauncherEntry: badges, progress and urgency (libunity, Electron, Chromium, Steam).
 import Gio from 'gi://Gio';
 import Shell from 'gi://Shell';
 
@@ -7,7 +6,7 @@ const KEYS = ['count', 'count-visible', 'progress', 'progress-visible', 'urgent'
 
 export class LauncherEntries {
     constructor(onChange) {
-        this._entries = new Map(); // app id -> {sender, count, progress, ...}
+        this._entries = new Map();
         this._onChange = onChange;
         const bus = Gio.DBus.session;
         this._subscriptions = [
@@ -36,7 +35,7 @@ export class LauncherEntries {
         return this._entries.get(appId);
     }
 
-    // Any client on the bus can send this, so only known keys of installed apps are kept.
+    // Only known keys of installed apps are kept.
     _update(sender, uri, props) {
         const id = String(uri).replace(/^\w+:\/\//, '');
         if (!Shell.AppSystem.get_default().lookup_app(id))
@@ -51,7 +50,6 @@ export class LauncherEntries {
         this._onChange();
     }
 
-    // An app that left the bus takes its badges with it.
     _ownerChanged(name, oldOwner, newOwner) {
         if (newOwner)
             return;
@@ -67,7 +65,6 @@ export class LauncherEntries {
     }
 }
 
-// Badge text and progress fraction to show for an entry, null for nothing.
 export function badgeOf(entry) {
     const count = Math.trunc(Number(entry?.count));
     return entry?.['count-visible'] && count > 0 ? (count > 99 ? '99+' : String(count)) : null;

@@ -1,15 +1,9 @@
 #!/bin/bash
-# Loads the extension in a headless GNOME Shell, cycles enable/disable (like
-# lock/unlock), changes settings and fails on errors. Own D-Bus and dconf
-# database, the running session is not touched. Rerun after every GNOME upgrade.
-# --show: same in a window to try the dock by hand (needs mutter-dev-bin). Ubuntu's
-#         defaults, nothing of your desktop but ArcMenu (with its own defaults), for
-#         the dock's menu button.
-# --x11: an X11 session on a virtual X server instead of headless Wayland, for
-#         GNOME before 50 (see test/gnome.sh, needs Xvfb).
+# Headless GNOME Shell with its own D-Bus and dconf: enable/disable, settings, fails on errors.
+# --show: in a window with Ubuntu's defaults and ArcMenu (needs mutter-dev-bin).
+# --x11: X11 on Xvfb instead of Wayland, for GNOME before 50 (see test/gnome.sh).
 
-# One block, read whole before it runs: bash reads a running script piece by piece
-# from disk, and an edit during a --show session would otherwise run fragments.
+# One block: bash reads a running script piecewise, an edit during --show would run fragments.
 {
 set -euo pipefail
 
@@ -36,14 +30,13 @@ for po in "$root"/po/*.po; do
     msgfmt --check -o "$root/locale/$lang/LC_MESSAGES/silver-dock.mo" "$po"
 done
 
-# Two monitors: the second one gets a dock of its own with all-monitors.
 mode=(--headless --virtual-monitor 1280x800 --virtual-monitor 1024x768)
 if [[ $show ]]; then
     mode=(--devkit)
     if [[ -f /usr/share/gnome-shell/modes/ubuntu.json ]]; then
         mode+=(--mode=ubuntu)
     fi
-    # Desktop Icons gets an empty desktop folder of its own, it restarts in a loop without one.
+    # Desktop Icons restarts in a loop without a desktop folder.
     mkdir -p "$work/config" "$work/desktop"
     printf 'XDG_DESKTOP_DIR="%s"\n' "$work/desktop" >"$work/config/user-dirs.dirs"
     arcmenu=${XDG_DATA_HOME:-$HOME/.local/share}/gnome-shell/extensions/arcmenu@arcmenu.com
@@ -52,14 +45,12 @@ if [[ $show ]]; then
     fi
 fi
 
-# Own name per run: dconf flags changes through a file of that name in the shared runtime
-# dir, and a parallel run removing it leaves the other shell reading stale settings.
-# No hyphen, the name ends up in a D-Bus object path.
+# Per run: a parallel run removing the shared change file leaves the other shell on stale
+# settings. No hyphen, it ends up in a D-Bus object path.
 db=silverdocktest$$
 printf 'user-db:%s\n' "$db" >"$work/dconf-profile"
 export DCONF_PROFILE="$work/dconf-profile" XDG_DATA_HOME="$work/data" XDG_CONFIG_HOME="$work/config" \
     XDG_STATE_HOME="$work/state" XDG_CACHE_HOME="$work/cache"
-# The test window speaks your language, the headless run and parsed output stay plain.
 if [[ ! $show ]]; then
     export LC_ALL=C
 fi
@@ -72,8 +63,7 @@ if [[ $x11 ]]; then
     for _ in $(seq 50); do [[ -s $work/display ]] && break; sleep 0.1; done
     export DISPLAY=:$(cat "$work/display")
 fi
-# Something in the test trash (under the test XDG_DATA_HOME) for the full trash icon.
-# Written by hand, gio refuses to trash on /tmp.
+# By hand, gio refuses to trash on /tmp.
 mkdir -p "$XDG_DATA_HOME/Trash/files" "$XDG_DATA_HOME/Trash/info"
 touch "$XDG_DATA_HOME/Trash/files/demo.txt"
 printf '[Trash Info]\nPath=%s\nDeletionDate=2026-01-01T00:00:00\n' "$work/demo.txt" \
@@ -81,12 +71,11 @@ printf '[Trash Info]\nPath=%s\nDeletionDate=2026-01-01T00:00:00\n' "$work/demo.t
 
 mapfile -t bus < <(dbus-daemon --session --fork --print-address=1 --print-pid=1)
 export DBUS_SESSION_BUS_ADDRESS=${bus[0]}
-# Empty stand-in for the system bus, keeps the test shell away from logind and GDM.
+# Empty system bus, keeps the test shell away from logind and GDM.
 mapfile -t sysbus < <(dbus-daemon --session --fork --print-address=1 --print-pid=1)
 export DBUS_SYSTEM_BUS_ADDRESS=${sysbus[0]}
 
-# Own PipeWire without any devices, it carries the devkit window's picture. The
-# real one stalls for minutes when a USB camera hangs, and the test stays out of it.
+# Own PipeWire without devices for the devkit picture, the real one stalls on a hung USB camera.
 export PIPEWIRE_RUNTIME_DIR=$work/pipewire
 mkdir -p "$PIPEWIRE_RUNTIME_DIR"
 pipewire >"$work/pipewire.log" 2>&1 &
@@ -96,19 +85,17 @@ wireplumber --profile policy >>"$work/pipewire.log" 2>&1 &
 wp=$!
 
 if [[ $show ]]; then
-    # Set before the start, like a login: switched at runtime right after another
-    # extension, GNOME's extension manager enabled ArcMenu twice.
+    # Before the start: switched at runtime GNOME enabled ArcMenu twice.
     dconf write /org/gnome/shell/enabled-extensions "['arcmenu@arcmenu.com']"
     dconf write /org/gnome/shell/disabled-extensions "['ubuntu-dock@ubuntu.com']"
 fi
 
-# The test shell shares the real runtime dir. Killed within 60 s it leaves GNOME's crash
-# marker behind, and a crash of the real shell would then disable its extensions.
+# Killed within 60 s the test shell leaves GNOME's crash marker in the shared runtime dir,
+# a crash of the real shell would then disable its extensions.
 marker=${XDG_RUNTIME_DIR:-/run/user/$UID}/gnome-shell-disable-extensions
 had_marker=
 [[ -e $marker ]] && had_marker=1
 
-# Own socket name, so demo windows land in the test shell and parallel runs do not collide.
 wl=silverdocktest-$$
 if [[ $x11 ]]; then
     shell_args=(--x11 --replace)
@@ -122,7 +109,7 @@ setsid stdbuf -oL gnome-shell "${shell_args[@]}" >"$work/shell.log" 2>&1 &
 shell=$!
 
 cleanup() {
-    # setsid made the shell a session leader, so this only hits the test shell and its helpers
+    # setsid made the shell a session leader, this only hits it and its helpers
     [[ $(ps -o sid= -p "$shell" | tr -d ' ') == "$shell" ]] && pkill -s "$shell" || true
     kill "${bus[1]}" "${sysbus[1]}" ${tray:-} ${viewer:-} ${wp:-} ${pw:-} ${xvfb:-} 2>/dev/null || true
     rm -f "${XDG_RUNTIME_DIR:-/run/user/$UID}"/{dconf/"$db","$wl","$wl.lock"}
@@ -131,8 +118,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# The shell's own D-Bus interface: the gnome-extensions tool gives nothing in the
-# GNOME 46 container. States are numbers, the same from GNOME 46 to 50.
+# The gnome-extensions tool gives nothing in the GNOME 46 container.
 shell_call() {
     gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell \
         --method "org.gnome.Shell.Extensions.$1" "${@:2}"
@@ -159,20 +145,19 @@ if [[ -z $(state) ]]; then
     shell_call GetExtensionInfo "$uuid" || true
     exit 1
 fi
-# GNOME starts with the overview open, a session starts on the desktop.
+# GNOME starts with the overview open, a login on the desktop.
 gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell --method \
     org.freedesktop.DBus.Properties.Set org.gnome.Shell OverviewActive '<false>' >/dev/null || true
 
 if [[ $show ]]; then
-    # The devkit window runs in its own session and would stay frozen after the shell is gone.
+    # The devkit window has its own session and would stay frozen.
     viewer=$(pgrep -P "$shell" -x mutter-devkit || true)
-    # D-Bus started helpers (the prefs, Nautilus for the desktop icons) open in the test window.
+    # D-Bus started helpers (prefs, Nautilus) open in the test window.
     dbus-update-activation-environment WAYLAND_DISPLAY="$wl"
 fi
 
 switch Enable ubuntu-appindicators@ubuntu.com
 switch Enable "$uuid"; expect ACTIVE
-# Tray icons and a window arriving while the dock is up, like apps starting after login.
 env "${client[@]}" python3 "$root/test/demo-apps.py" >"$work/demo.log" 2>&1 &
 tray=$!
 for _ in $(seq 50); do [[ $(tray_items) == 3 ]] && break; sleep 0.2; done
@@ -193,12 +178,11 @@ set_key zoom 1.0
 set_key margin 0
 for style in ripple lift none magnify; do set_key animation "$style"; done
 set_key bounce false
-# From here on a dock on each of the two monitors, given a moment to be placed at the bottom.
+# A moment for both docks to be placed, or the next writes run before a frame.
 set_key all-monitors true
 sleep 1
 for key in pop squash glide intro badge-pop springy minimize-to-icon lift-buttons warp; do set_key "$key" false; done
 set_key separators false
-# The top bar back on its own at the top, in the dock's look and theme colors.
 set_key keep-top-bar true
 set_key colors custom
 set_key color "'rgb(236,1,1)'"
@@ -206,7 +190,7 @@ set_key color "'not a color'"
 set_key colors theme
 set_key tint-icons true
 set_key icon-color "'rgb(227,154,227)'"
-# Only reachable by hand (gsettings), the color picker never writes it.
+# Only by hand, the color picker never writes it.
 set_key icon-color "'rgb(300,0,0)'"
 set_key dynamic-opacity true
 set_key attention false
@@ -223,19 +207,16 @@ set_key scroll false
 set_key previews false
 set_key position right
 set_key style-top-bar false
-# Too long for the screen on the side: the icons have to shrink to fit.
+# Too long for the side: the icons have to shrink.
 set_key icon-size 96
-# No strut now, the maximized demo window grows under the bar and hides it.
 set_key autohide true
 sleep 2
 gsettings --schemadir "$root/schemas" reset-recursively "$schema"
 sleep 1
 expect ACTIVE
 
-# GNOME before 50 warns about the top bar's own button containers (unnamed StBin)
-# when they move, at its own startup too. The dock's containers carry names. On X11
-# mutter warns about its own window actors when a maximized window shrinks for the
-# space a dock reserves, any dock with a strut does that.
+# GNOME's own noise: before 50 about moved top bar containers (at its startup too), on X11
+# about window actors of a maximized window shrinking for any strut.
 noise='^$'
 if (( $(gnome-shell --version | sed 's/[^0-9]*\([0-9]*\).*/\1/') < 50 )); then
     noise="Can't update stage views actor unnamed \[StBin\]"

@@ -1,4 +1,3 @@
-// Trash and removable drives, shown after the apps.
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
@@ -12,7 +11,6 @@ function isRemovable(mount) {
     return mount.can_eject() || Boolean(mount.get_drive()?.is_removable());
 }
 
-// Removable media and, on request, the internal disks. Network shares stay out.
 export function driveMounts(monitor, removable, internal) {
     return monitor.get_mounts().filter(mount => !mount.is_shadowed() &&
         (isRemovable(mount) ? removable : internal && mount.get_root().is_native()));
@@ -37,18 +35,17 @@ export function openPlace(place) {
     }
 }
 
-// [label, action] pairs for the right click menu.
 export function placeActions(place) {
     const actions = [[_('Open'), () => openPlace(place)]];
     if (place === TRASH)
         actions.push([_('Empty Trash'), emptyTrash]);
-    // Internal disks only open, unmounting one from the dock is too easy a slip.
+    // Unmounting an internal disk from the dock is too easy a slip.
     else if (isRemovable(place) && (place.can_eject() || place.can_unmount()))
         actions.push([place.can_eject() ? _('Eject') : _('Unmount'), () => eject(place)]);
     return actions;
 }
 
-// Nautilus asks before deleting. The trash spans every mounted disk, not only the home folder.
+// Through Nautilus: it asks first, and the trash spans every mounted disk.
 function emptyTrash() {
     Gio.DBus.session.call('org.gnome.Nautilus', '/org/gnome/Nautilus/FileOperations2',
         'org.gnome.Nautilus.FileOperations2', 'EmptyTrash', new GLib.Variant('(ba{sv})', [true, {}]),
@@ -74,7 +71,6 @@ function eject(mount) {
     });
 }
 
-// Tells whether the trash holds anything and reports changes.
 export class TrashWatcher {
     constructor(onChange) {
         this.full = false;
@@ -95,7 +91,7 @@ export class TrashWatcher {
         this._monitor?.cancel();
     }
 
-    // Emptying a big trash fires a burst of events, one query at a time is enough.
+    // Emptying a big trash fires a burst of events.
     _query() {
         if (this._busy) {
             this._again = true;
@@ -109,8 +105,8 @@ export class TrashWatcher {
                     full = file.query_info_finish(result).get_attribute_uint32('trash::item-count') > 0;
                 } catch (e) {
                     if (e.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
-                        return; // disabled
-                    // No gvfs yet (early after login): a change that came meanwhile still counts.
+                        return;
+                    // No gvfs yet early after login, a change meanwhile still counts.
                 }
                 this._busy = false;
                 if (this._again) {

@@ -12,16 +12,13 @@ import {LauncherEntries} from './launcher.js';
 import {TrashWatcher} from './places.js';
 import {WindowPreviews} from './previews.js';
 
-// A dock on the primary monitor, on request one on every monitor (see dock.js).
-// The parts all docks share live here: settings, launcher entries, trash, volumes,
-// window previews, theme colors and the watch on every window.
+// What all docks share: settings, launcher entries, trash, previews, window signals.
 export default class SilverDock extends Extension {
     enable() {
         try {
             this._setup();
         } catch (e) {
-            // GNOME does not call disable() after a failed enable, and the top bar
-            // content must never stay stranded in a half built dock.
+            // GNOME skips disable() after a failed enable, the top bar content would stay stranded.
             this.disable();
             throw e;
         }
@@ -35,11 +32,10 @@ export default class SilverDock extends Extension {
         this.previews = new WindowPreviews(() => this._each(dock => dock.previewsChanged()));
         this.trash = null;
         this._docks = [];
-        this._watched = new Set(); // windows with our signals, see _watchWindow
+        this._watched = new Set();
 
         const sync = () => this._each(dock => dock.sync());
         const check = () => this._each(dock => dock.queueCheck());
-        // Theme colors follow a switch of the shell or GTK theme.
         const retheme = () => {
             if (this.settings.get_string('colors') === 'theme')
                 this._each(dock => dock.paint());
@@ -57,12 +53,10 @@ export default class SilverDock extends Extension {
         this._iface.connectObject('changed::gtk-theme', retheme, 'changed::color-scheme', retheme, this);
         this.volumes.connectObject('mount-added', sync, 'mount-removed', sync, 'mount-changed', sync, this);
 
-        // Autohide follows every window that could cover a bar, and shows the bars
-        // for open menus (they take the key focus) and the overview.
+        // Open menus take the key focus.
         global.display.connectObject(
             'window-created', (display, win) => this._watchWindow(win),
             'restacked', check,
-            // A side bar keeps clear of the top bar, which changes the work area.
             'workareas-changed', () => this._each(dock => dock.queuePlace()), this);
         global.workspace_manager.connectObject('active-workspace-changed', check, this);
         global.stage.connectObject('notify::key-focus', check, this);
@@ -78,17 +72,16 @@ export default class SilverDock extends Extension {
         this._build(true);
     }
 
-    // Also runs after a failed enable, so every step tolerates missing parts.
+    // Also after a failed enable, every step tolerates missing parts.
     disable() {
         this._stopListening();
         this._watched?.forEach(win => win.set_icon_geometry(null));
         this._docks?.forEach(dock => dock.destroy());
-        // After the docks, their icons ask whether the previews show their app.
         this.previews?.destroy();
         this.settings = this._iface = this.volumes = this.previews = this._docks = this._watched = null;
     }
 
-    // GNOME tears the stage down at logout without disabling extensions, see Dock.
+    // GNOME tears the stage down at logout without disabling extensions.
     lost() {
         this._stopListening();
         this._each(dock => dock.stopListening());
@@ -117,7 +110,6 @@ export default class SilverDock extends Extension {
         this._docks?.forEach(fn);
     }
 
-    // The shared parts that follow the settings.
     _services() {
         this.previews.peek = this.settings.get_boolean('peek');
         if (this.settings.get_boolean('trash')) {
@@ -133,8 +125,7 @@ export default class SilverDock extends Extension {
         this._each(dock => dock.refresh(true));
     }
 
-    // One dock on the primary monitor, with all-monitors one on each. The primary one
-    // comes first and takes the top bar content. intro: after login or unlock.
+    // The primary monitor's dock first, it takes the top bar content.
     _build(intro) {
         this._docks.forEach(dock => dock.destroy());
         this._docks = [];
@@ -142,7 +133,7 @@ export default class SilverDock extends Extension {
         const others = this.settings.get_boolean('all-monitors')
             ? monitors.map((monitor, i) => i).filter(i => i !== primaryIndex) : [];
         for (const index of [primaryIndex, ...others].filter(i => monitors[i])) {
-            // In the list before it fills itself, so a failure still takes it down.
+            // Listed before it fills itself, so disable() still takes a failed one down.
             const dock = new Dock(this, index, index === primaryIndex, intro);
             this._docks.push(dock);
             dock.refresh(true);
@@ -162,7 +153,7 @@ export default class SilverDock extends Extension {
             },
             'notify::demands-attention', attention,
             'notify::urgent', attention,
-            // Meta.Window is no actor, its signal tracker entry would outlive the window.
+            // Meta.Window is no actor, its signal tracker entry would outlive it.
             'unmanaged', () => {
                 win.disconnectObject(this);
                 this._watched.delete(win);
@@ -172,9 +163,7 @@ export default class SilverDock extends Extension {
         check();
     }
 
-    // GNOME's minimize animation flies into a window's icon geometry, its unminimize
-    // grows out of it. Set right as the state changes, the animation follows later.
-    // The icon in the dock on the window's monitor, else the one on the primary.
+    // GNOME's (un)minimize animation uses it, set before the animation starts.
     _setIconGeometry(win) {
         let rect = null;
         if (this.settings.get_boolean('minimize-to-icon')) {
@@ -185,10 +174,7 @@ export default class SilverDock extends Extension {
         win.set_icon_geometry(rect);
     }
 
-    // The dock takes the place of the top bar, so it wears the shell theme's top bar
-    // colors, read from a hidden stand-in. A see-through top bar leaves the background
-    // to the GTK theme. The accent comes from the GTK theme, else the system accent
-    // color applies (stylesheet.css).
+    // The shell theme's top bar colors from a hidden stand-in, the GTK theme fills in.
     themeColors() {
         const panel = new St.Widget({name: 'panel', visible: false});
         Main.layoutManager.uiGroup.add_child(panel);

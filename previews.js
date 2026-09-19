@@ -1,5 +1,4 @@
-// Thumbnails of an app's windows next to its icon, shown on hover. A plain chrome
-// actor, not a menu: it takes no grab, so moving along the dock keeps working.
+// No menu: a menu grabs the pointer, and moving along the dock would stop working.
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import Pango from 'gi://Pango';
@@ -13,18 +12,17 @@ const SHOW_DELAY = 400;
 const HIDE_DELAY = 250;
 const THUMB_WIDTH = 220;
 const THUMB_HEIGHT = 140;
-const MIN_THUMB = 48; // with very many windows the row runs off the screen instead
-const GAP = 8; // px between the icon and the previews
-const PEEK_DELAY = 250; // ms on a preview before only its window stays visible
+const MIN_THUMB = 48;
+const GAP = 8;
+const PEEK_DELAY = 250;
 const PEEK_TIME = 200;
 
 export class WindowPreviews {
-    // onChange runs whenever the previews appear, vanish or gain or lose the pointer.
     constructor(onChange) {
         this._onChange = onChange;
         this._timers = {};
-        this.peek = false; // set by the dock from its settings
-        this._peeked = new Set(); // faded window actors, see _peekAt
+        this.peek = false;
+        this._peeked = new Set();
         this.actor = new St.BoxLayout({style_class: 'silver-dock-previews', reactive: true, track_hover: true, visible: false});
         this.actor.connect('notify::hover', () => {
             if (this.actor.hover)
@@ -40,15 +38,10 @@ export class WindowPreviews {
         return this.actor.visible;
     }
 
-    get hover() {
-        return this.actor.hover;
-    }
-
     get app() {
         return this.shown ? this._app : null;
     }
 
-    // anchor: the icon's button. side: the dock's screen edge as an St.Side.
     hoverIcon(app, anchor, side) {
         this._stop('hide');
         if (this.shown)
@@ -63,7 +56,6 @@ export class WindowPreviews {
             this._start('hide', HIDE_DELAY, () => this.hide());
     }
 
-    // Follows windows opening and closing while shown.
     refresh(app) {
         if (this.app === app)
             this._open(app, this._anchor, this._side);
@@ -81,18 +73,16 @@ export class WindowPreviews {
         this._onChange();
     }
 
-    // Off the stage before the children go, see SilverDock.disable().
+    // Off the stage before the children go, see Dock.destroy().
     destroy() {
         this._stop('show');
         this._stop('hide');
         this._endPeek(true);
-        this.actor.get_allocation_box(); // pending relayout, see SilverDock.disable()
+        this.actor.get_allocation_box();
         Main.layoutManager.removeChrome(this.actor);
         this.actor.destroy();
     }
 
-    // Only this window stays visible, the others fade out until _endPeek. Desktop
-    // icons and docks (skip taskbar) stay. A minimized window has nothing to show.
     _peekAt(win) {
         if (win.minimized) {
             this._endPeek();
@@ -146,9 +136,9 @@ export class WindowPreviews {
 
     _open(app, anchor, side) {
         const windows = app.get_windows().filter(win => win.get_compositor_private());
-        // The icon's monitor, none while all screens are off.
+        // None while all screens are off.
         const monitor = anchor.get_stage() && Main.layoutManager.findMonitorForActor(anchor);
-        // A freshly built icon has no place yet, previews would land somewhere else.
+        // A freshly built icon has no place yet.
         if (!windows.length || !monitor || !anchor.get_stage() || !anchor.has_allocation()) {
             this.hide();
             return;
@@ -198,7 +188,6 @@ export class WindowPreviews {
         box.add_child(this._thumbnail(win, width));
 
         const button = new St.Button({style_class: 'silver-dock-preview', child: box});
-        // Moving on to the next preview keeps the peek going, only its window changes.
         button.connect('notify::hover', () => {
             if (button.hover && this.peek) {
                 this._stop('unpeek');
@@ -215,8 +204,7 @@ export class WindowPreviews {
         return button;
     }
 
-    // The window actor includes invisible borders and shadows, the clip shows only
-    // the frame, scaled to fit.
+    // Clipped to the frame, the window actor includes shadows and invisible borders.
     _thumbnail(win, width) {
         const actor = win.get_compositor_private();
         const frame = win.get_frame_rect();

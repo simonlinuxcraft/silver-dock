@@ -7,11 +7,10 @@ import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/ex
 
 export default class SilverDockPrefs extends ExtensionPreferences {
     fillPreferencesWindow(window) {
-        // The instance method needs no lookup of the extension by file path.
+        // The module gettext finds the extension by its file path, which fails in the tests.
         const _ = text => this.gettext(text);
         const settings = this.getSettings();
 
-        // Several pages give the window a switcher at the top.
         const page = (title, iconName) => {
             const p = new Adw.PreferencesPage({title, icon_name: iconName});
             window.add(p);
@@ -30,7 +29,6 @@ export default class SilverDockPrefs extends ExtensionPreferences {
             g.add(row);
             return row;
         };
-        // Rows go into a group or into the fold of a switch.
         const put = (g, row) => (g instanceof Adw.ExpanderRow ? g.add_row(row) : g.add(row));
         const toggle = (g, key, title) => {
             const row = new Adw.SwitchRow({title});
@@ -38,7 +36,6 @@ export default class SilverDockPrefs extends ExtensionPreferences {
             put(g, row);
             return row;
         };
-        // A switch that folds out the options that depend on it.
         const fold = (g, key, title) => {
             const row = new Adw.ExpanderRow({title, show_enable_switch: true});
             settings.bind(key, row, 'enable-expansion', Gio.SettingsBindFlags.DEFAULT);
@@ -46,7 +43,6 @@ export default class SilverDockPrefs extends ExtensionPreferences {
             g.add(row);
             return row;
         };
-        // A string key with fixed choices, options are [value, label] pairs.
         const choice = (g, key, title, options) => {
             const row = new Adw.ComboRow({title, model: Gtk.StringList.new(options.map(([, label]) => label))});
             const show = () => {
@@ -58,7 +54,6 @@ export default class SilverDockPrefs extends ExtensionPreferences {
             g.add(row);
             return row;
         };
-        // Shows a row only where its setting has an effect.
         const showIf = (row, test, ...keys) => {
             const update = () => {
                 row.visible = test();
@@ -66,7 +61,6 @@ export default class SilverDockPrefs extends ExtensionPreferences {
             update();
             keys.forEach(key => settings.connect(`changed::${key}`, update));
         };
-        // A CSS color key with a color picker.
         const color = (g, key, title) => {
             const button = new Gtk.ColorDialogButton({dialog: new Gtk.ColorDialog({with_alpha: false}), valign: Gtk.Align.CENTER});
             const row = new Adw.ActionRow({title, activatable_widget: button});
@@ -102,7 +96,6 @@ export default class SilverDockPrefs extends ExtensionPreferences {
         choice(colors, 'colors', _('Colors from'),
             [['dock', _('Silver Dock')], ['theme', _('Shell and GTK theme')], ['custom', _('Own color')]]);
         showIf(color(colors, 'color', _('Color')), () => is('colors', 'custom'), 'colors');
-        // The theme brings its own transparency.
         showIf(spin(colors, 'opacity', _('Background opacity (%)'), 0, 100, 5), () => !is('colors', 'theme'), 'colors');
         toggle(colors, 'dynamic-opacity', _('Opaque while a window touches the bar'));
         color(fold(colors, 'tint-icons', _('Tint app icons')), 'icon-color', _('Icon color'));

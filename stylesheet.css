@@ -107,3 +107,38 @@
 .silver-dock.themed .silver-dock-progress-fill {
     background-color: -st-accent-color;
 }
+
+/* A light own color: dark text and icons, on the dock and a top bar in its look.
+   Extension stylesheets outrank the theme, even its !important rules. Recording,
+   sharing and privacy indicators keep their colors. */
+#panel.silver-dock-ink {
+    text-shadow: none;
+}
+
+#panel.silver-dock-ink StIcon {
+    icon-shadow: none;
+}
+
+#panel.silver-dock-ink .panel-button,
+#panel.silver-dock-ink .system-status-icon {
+    color: #1c1d21;
+}
+
+#panel.silver-dock-ink .screen-recording-indicator,
+#panel.silver-dock-ink .screen-sharing-indicator,
+#panel.silver-dock-ink .screen-recording-indicator .system-status-icon,
+#panel.silver-dock-ink .screen-sharing-indicator .system-status-icon {
+    color: white;
+}
+
+#panel.silver-dock-ink .privacy-indicator {
+    color: #ff7800;
+}
+
+#panel.silver-dock-ink .silver-dock-dot {
+    background-color: rgba(28, 29, 33, 0.55);
+}
+
+#panel.silver-dock-ink .silver-dock-dots.focused .silver-dock-dot {
+    background-color: rgba(28, 29, 33, 0.95);
+}

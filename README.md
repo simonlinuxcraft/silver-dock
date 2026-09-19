@@ -10,7 +10,7 @@ more). The differences between the versions live in `compat.js`. Tested on 46 an
 see Test below.
 
 - On any screen edge, on the primary monitor or on every monitor (the top bar content stays on the primary one). On the left or right the bar holds the apps and GNOME's top bar keeps the menu, clock, tray and system menu, optionally in the dock's look. At the bottom the top bar can stay on its own too
-- Own dark look by default, a background color of your choice, or the shell theme's top bar color with the GTK theme's accent (the system accent when the GTK theme has none)
+- Own dark look by default, a background color of your choice (dark text and icons on light colors), or the shell theme's top bar color with the GTK theme's accent (the system accent when the GTK theme has none)
 - Hover animations: magnify, ripple, lift or none
 - Apps pop in and out, icons squash on click, window dots glide, a wave after login and unlock, badges pop, windows minimize into their icon, the bar springs back in after autohide
 - Top bar buttons in the dock lift on hover instead of lighting up, the ArcMenu button takes off like a rocket

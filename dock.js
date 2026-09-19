@@ -225,6 +225,7 @@ export class Dock {
         if (!this._dressed)
             return;
         Main.panel.set_style(this._panelStyle);
+        Main.panel.remove_style_class_name('silver-dock-ink');
         this._dressed = false;
     }
 
@@ -237,13 +238,18 @@ export class Dock {
         const themed = mode === 'theme';
         const own = mode === 'custom' && parseColor(this._settings.get_string('color'));
         let colors = themed ? this._ext.themeColors() : COLORS;
+        let ink = false;
         if (own) {
             // The background is the color itself. Border and separators take a lighter
             // shade of it, a darker one on a light color, so they keep their contrast.
             const light = own.split(',').reduce((sum, c, i) => sum + c * [0.299, 0.587, 0.114][i], 0) > 150;
             const shade = mix(own, light ? '0, 0, 0' : '255, 255, 255', 0.6);
             colors = {bg: own, fg: shade, border: `1px solid rgba(${shade}, 0.5)`};
+            // Dark text and icons (stylesheet.css) where the color covers what is behind it.
+            ink = light && this._settings.get_int('opacity') >= 50;
         }
+        const mark = actor => (ink ? actor.add_style_class_name('silver-dock-ink') : actor.remove_style_class_name('silver-dock-ink'));
+        mark(this._bar);
         // The theme decides the transparency too, the slider is for the other looks.
         const opacity = themed ? colors.alpha : this._settings.get_int('opacity') / 100;
         this._geom.opacity = opacity;
@@ -264,6 +270,7 @@ export class Dock {
             Main.panel.set_style(`margin: ${margin}px ${margin}px 0; ` +
                 `background-color: rgba(${colors.bg}, ${opacity}); border: ${colors.border}; ` +
                 `border-radius: ${radius}px;`);
+            mark(Main.panel);
         } else {
             this._undress();
         }

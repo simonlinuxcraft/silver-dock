@@ -53,18 +53,18 @@ function themeCss(name, dark) {
         .concat(GLib.build_filenamev([GLib.get_home_dir(), '.themes', name]));
     const variants = ['libadwaita/gtk.css', ...['gtk-3.0', 'gtk-4.0'].flatMap(version =>
         [dark ? `${version}/gtk-dark.css` : null, `${version}/gtk.css`].filter(Boolean))];
+    // Like GTK, each file from the first folder that has it.
     const files = [];
-    for (const base of bases) {
-        for (const variant of variants) {
+    for (const variant of variants) {
+        for (const base of bases) {
             try {
                 const [, bytes] = GLib.file_get_contents(GLib.build_filenamev([base, variant]));
                 files.push(new TextDecoder().decode(bytes));
+                break;
             } catch {
-                // not part of this theme
+                // not in this folder
             }
         }
-        if (files.length)
-            break;
     }
     // ponytail: cached per theme name, an edited theme file needs a theme switch or a restart
     cache = {key, files};

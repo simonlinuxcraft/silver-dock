@@ -104,12 +104,13 @@ export class TrashWatcher {
         this._busy = true;
         this._file.query_info_async('trash::item-count', Gio.FileQueryInfoFlags.NONE,
             GLib.PRIORITY_DEFAULT, this._cancellable, (file, result) => {
-                let full;
+                let full = this.full;
                 try {
                     full = file.query_info_finish(result).get_attribute_uint32('trash::item-count') > 0;
-                } catch {
-                    this._busy = false;
-                    return; // cancelled on disable, or no gvfs
+                } catch (e) {
+                    if (e.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
+                        return; // disabled
+                    // No gvfs yet (early after login): a change that came meanwhile still counts.
                 }
                 this._busy = false;
                 if (this._again) {

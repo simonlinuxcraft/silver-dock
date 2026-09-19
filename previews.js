@@ -99,8 +99,9 @@ export class WindowPreviews {
 
     _open(app, anchor, side) {
         const windows = app.get_windows().filter(win => win.get_compositor_private());
+        const monitor = Main.layoutManager.primaryMonitor; // none while all screens are off
         // A freshly built icon has no place yet, previews would land somewhere else.
-        if (!windows.length || !anchor.get_stage() || !anchor.has_allocation()) {
+        if (!windows.length || !monitor || !anchor.get_stage() || !anchor.has_allocation()) {
             this.hide();
             return;
         }
@@ -109,7 +110,6 @@ export class WindowPreviews {
         this._anchor = anchor;
         this._side = side;
 
-        const monitor = Main.layoutManager.primaryMonitor;
         const width = Math.min(THUMB_WIDTH, Math.floor(monitor.width * 0.9 / windows.length) - 2 * GAP);
         this.actor.destroy_all_children();
         windows.forEach(win => this.actor.add_child(this._preview(win, width)));

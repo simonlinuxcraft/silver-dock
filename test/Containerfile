@@ -1,0 +1,13 @@
+# GNOME Shell of an Ubuntu release (24.04 = 46, 24.10 = 47, 25.04 = 48, 25.10 = 49),
+# with what test/smoke.sh needs.
+ARG RELEASE=24.04
+FROM docker.io/library/ubuntu:${RELEASE}
+# Releases past their support live on old-releases.
+RUN apt-get update || { sed -i 's#[a-z]*\.ubuntu\.com#old-releases.ubuntu.com#' /etc/apt/sources.list.d/ubuntu.sources && apt-get update; }
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        gnome-shell gnome-shell-extension-prefs gnome-shell-extension-appindicator \
+        dbus dconf-service dconf-gsettings-backend libglib2.0-bin gettext procps systemd \
+        xvfb libgl1-mesa-dri libegl-mesa0 fonts-dejavu-core \
+        pipewire wireplumber \
+        python3-gi gir1.2-gtk-3.0 gir1.2-ayatanaappindicator3-0.1 \
+    && rm -rf /var/lib/apt/lists/*

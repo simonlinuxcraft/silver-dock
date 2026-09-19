@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: silver-dock\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-19 19:06+0200\n"
+"POT-Creation-Date: 2026-09-19 19:25+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -50,9 +50,14 @@ msgstr ""
 msgid "Cannot empty the trash"
 msgstr ""
 
-#: places.js:72
+#: places.js:66
 #, javascript-format
 msgid "Cannot eject %s"
+msgstr ""
+
+#: places.js:67
+#, javascript-format
+msgid "Cannot unmount %s"
 msgstr ""
 
 #: prefs.js:87

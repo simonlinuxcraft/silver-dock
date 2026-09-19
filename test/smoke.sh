@@ -6,7 +6,7 @@
 #         defaults, nothing of your desktop but ArcMenu (with its own defaults), for
 #         the dock's menu button.
 # --x11: an X11 session on a virtual X server instead of headless Wayland, for
-#         GNOME before 50 (see test/gnome46.sh, needs Xvfb).
+#         GNOME before 50 (see test/gnome.sh, needs Xvfb).
 
 # One block, read whole before it runs: bash reads a running script piece by piece
 # from disk, and an edit during a --show session would otherwise run fragments.
@@ -206,6 +206,8 @@ set_key color "'not a color'"
 set_key colors theme
 set_key tint-icons true
 set_key icon-color "'rgb(227,154,227)'"
+# Only reachable by hand (gsettings), the color picker never writes it.
+set_key icon-color "'rgb(300,0,0)'"
 set_key dynamic-opacity true
 set_key attention false
 set_key tooltips false

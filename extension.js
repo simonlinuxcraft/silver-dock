@@ -81,8 +81,6 @@ export default class SilverDock extends Extension {
     // Also runs after a failed enable, so every step tolerates missing parts.
     disable() {
         this._stopListening();
-        St.ThemeContext.get_for_stage(global.stage).disconnectObject(this);
-        global.stage.disconnectObject(this);
         this._watched?.forEach(win => win.set_icon_geometry(null));
         this._docks?.forEach(dock => dock.destroy());
         // After the docks, their icons ask whether the previews show their app.
@@ -104,6 +102,8 @@ export default class SilverDock extends Extension {
         Main.overview.disconnectObject(this);
         global.display.disconnectObject(this);
         global.workspace_manager.disconnectObject(this);
+        global.stage.disconnectObject(this);
+        St.ThemeContext.get_for_stage(global.stage).disconnectObject(this);
         this._watched?.forEach(win => win.disconnectObject(this));
         this.volumes?.disconnectObject(this);
         this.launcher?.destroy();

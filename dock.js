@@ -1183,8 +1183,12 @@ export class Dock {
         const away = this._dir * this._bar.height;
         const step = (props, duration, mode, next) => rocket.ease({
             ...props, duration, mode,
-            // Only disable() stops it early, and resets the rocket right after.
-            onStopped: finished => (finished ? next() : (this._flying = false)),
+            onStopped: finished => {
+                if (finished)
+                    return next();
+                this._flying = false;
+                settle(rocket, {opacity: 255}, true);
+            },
         });
         step({scale_x: 0.8, scale_y: 1.3}, 110, Clutter.AnimationMode.EASE_OUT_QUAD, () =>
             step({translation_y: away, scale_x: 0.6, scale_y: 1.6, opacity: 0}, 170,

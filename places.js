@@ -62,14 +62,14 @@ function emptyTrash() {
 }
 
 function eject(mount) {
-    const [start, finish] = mount.can_eject()
-        ? ['eject_with_operation', 'eject_with_operation_finish']
-        : ['unmount_with_operation', 'unmount_with_operation_finish'];
+    const [start, finish, failed] = mount.can_eject()
+        ? ['eject_with_operation', 'eject_with_operation_finish', _('Cannot eject %s')]
+        : ['unmount_with_operation', 'unmount_with_operation_finish', _('Cannot unmount %s')];
     mount[start](Gio.MountUnmountFlags.NONE, null, null, (m, result) => {
         try {
             m[finish](result);
         } catch (e) {
-            Main.notifyError(_('Cannot eject %s').format(m.get_name()), e.message);
+            Main.notifyError(failed.format(m.get_name()), e.message);
         }
     });
 }

@@ -16,7 +16,7 @@ export function parseColor(value) {
         return [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16)).join(', ');
     }
     m = value.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)$/);
-    if (m && (m[4] === undefined || Number(m[4]) > 0))
+    if (m && m.slice(1, 4).every(c => Number(c) <= 255) && (m[4] === undefined || Number(m[4]) > 0))
         return `${m[1]}, ${m[2]}, ${m[3]}`;
     return null;
 }

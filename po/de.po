@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: silver-dock\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-19 19:06+0200\n"
+"POT-Creation-Date: 2026-09-19 19:25+0200\n"
 "PO-Revision-Date: 2026-09-19 10:07+0200\n"
 "Last-Translator: \n"
 "Language-Team: none\n"
@@ -47,10 +47,15 @@ msgstr "Aushängen"
 msgid "Cannot empty the trash"
 msgstr "Der Papierkorb kann nicht geleert werden"
 
-#: places.js:72
+#: places.js:66
 #, javascript-format
 msgid "Cannot eject %s"
 msgstr "%s kann nicht ausgeworfen werden"
+
+#: places.js:67
+#, javascript-format
+msgid "Cannot unmount %s"
+msgstr "%s kann nicht ausgehängt werden"
 
 #: prefs.js:87
 msgid "Appearance"

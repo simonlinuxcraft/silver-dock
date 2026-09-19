@@ -5,9 +5,9 @@ bar's content (menu, clock, tray, system menu) and the app icons together.
 Apart from moving the top bar's boxes (`takeover.js`) it uses its own actors and
 public Shell/St APIs only, which keeps breakage on new GNOME releases small.
 
-Runs on GNOME 46 to 50, on Wayland and on X11 (GNOME 50 has no X11 session any
-more). The differences between the versions live in `compat.js`. Tested on 46 and 50,
-see Test below.
+Runs on GNOME 46 to 50, on Wayland and on X11 (Ubuntu ships GNOME 49 without X11,
+GNOME 50 has none at all). The differences between the versions live in `compat.js`.
+Tested on every version from 46 to 50, see Test below.
 
 - On any screen edge, on the primary monitor or on every monitor (the top bar content stays on the primary one). On the left or right the bar holds the apps and GNOME's top bar keeps the menu, clock, tray and system menu, optionally in the dock's look. At the bottom the top bar can stay on its own too
 - Own dark look by default, a background color of your choice (dark text and icons on light colors), or the shell theme's top bar color with the GTK theme's accent (the system accent when the GTK theme has none)
@@ -27,7 +27,6 @@ see Test below.
 - Autohide while a window overlaps the bar, opaque background while one touches it
 
 Everything beyond the basic bar can be switched off in the preferences.
-Primary monitor only.
 
 ## Test
 
@@ -36,7 +35,7 @@ gjs -m test/layout-test.js   # hover animation math
 gjs -m test/colors-test.js   # reading GTK theme colors
 test/smoke.sh                # headless GNOME Shell: enable/disable, settings, prefs, demo tray icons and window
 test/smoke.sh --show         # same in a window with Ubuntu's defaults and ArcMenu (needs mutter-dev-bin)
-test/gnome46.sh              # smoke.sh against GNOME 46 in a podman container, Wayland and X11
+test/gnome.sh [46..49]       # smoke.sh against GNOME 46 to 49 in podman containers, Wayland and X11 up to 48
 ```
 
 The test shell gets its own D-Bus and in-memory settings, the running session

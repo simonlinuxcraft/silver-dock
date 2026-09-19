@@ -13,6 +13,7 @@ const SHOW_DELAY = 400;
 const HIDE_DELAY = 250;
 const THUMB_WIDTH = 220;
 const THUMB_HEIGHT = 140;
+const MIN_THUMB = 48; // with very many windows the row runs off the screen instead
 const GAP = 8; // px between the icon and the previews
 const PEEK_DELAY = 250; // ms on a preview before only its window stays visible
 const PEEK_TIME = 200;
@@ -157,7 +158,7 @@ export class WindowPreviews {
         this._anchor = anchor;
         this._side = side;
 
-        const width = Math.min(THUMB_WIDTH, Math.floor(monitor.width * 0.9 / windows.length) - 2 * GAP);
+        const width = Math.max(MIN_THUMB, Math.min(THUMB_WIDTH, Math.floor(monitor.width * 0.9 / windows.length) - 2 * GAP));
         this.actor.destroy_all_children();
         windows.forEach(win => this.actor.add_child(this._preview(win, width)));
         this.actor.show();

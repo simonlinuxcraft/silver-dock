@@ -70,13 +70,16 @@ settings.set_boolean('keep-top-bar', true);
 check(rows['Top bar in the dock\'s look'].visible, 'top bar look hidden with a kept top bar');
 settings.set_string('position', 'left');
 check(!rows['Keep the top bar'].visible && rows['Top bar in the dock\'s look'].visible, 'top bar rows wrong on the left');
-rows['Hide when a window overlaps the bar'].active = true;
+rows['Hide when a window overlaps the bar'].enable_expansion = true;
 check(settings.get_boolean('autohide'), 'autohide switch not written');
 rows['Bounce while an app starts'].active = false;
 check(!settings.get_boolean('bounce'), 'bounce switch not written');
 rows['Screen edge'].selected = 3;
 check(settings.get_string('position') === 'right', 'position combo not written');
-for (const [title, key] of [['Separators', 'separators'], ['Shadow', 'shadow'], ['Opaque while a window touches the bar', 'dynamic-opacity'],
+for (const [title, key] of [['Separators', 'separators'], ['Shadow', 'shadow'],
+    ['Only come back when the pointer pushes against the edge', 'edge-pressure'],
+    ['Count notifications of apps without their own badge', 'notification-badges'],
+    ['A little cloud when an app is dragged off', 'poof'], ['Opaque while a window touches the bar', 'dynamic-opacity'],
     ['Wiggle when an app asks for attention', 'attention'], ['Show app names on hover', 'tooltips'],
     ['Badges and progress on app icons', 'badges'], ['Trash', 'trash'], ['Removable drives (USB sticks, SD cards)', 'drives'],
     ['Drag to rearrange, pin and unpin apps', 'dnd'], ['Show window previews on hover', 'previews'],

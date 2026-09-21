@@ -160,6 +160,10 @@ switch Enable ubuntu-appindicators@ubuntu.com
 switch Enable "$uuid"; expect ACTIVE
 env "${client[@]}" python3 "$root/test/demo-apps.py" >"$work/demo.log" 2>&1 &
 tray=$!
+# Mapped to the app by its desktop-entry hint, the sender has no window.
+gdbus call --session --dest org.freedesktop.Notifications --object-path /org/freedesktop/Notifications \
+    --method org.freedesktop.Notifications.Notify demo 0 '' 'Silver Dock test' '' '[]' \
+    "{'desktop-entry': <'org.gnome.Nautilus'>}" 0 >/dev/null
 for _ in $(seq 50); do [[ $(tray_items) == 3 ]] && break; sleep 0.2; done
 if [[ $(tray_items) != 3 ]]; then
     echo "FAIL: demo tray icons not registered, see $work/demo.log"
@@ -184,6 +188,8 @@ sleep 1
 for key in pop squash glide intro badge-pop springy minimize-to-icon lift-buttons warp; do set_key "$key" false; done
 set_key separators false
 set_key shadow false
+set_key notification-badges false
+set_key poof false
 set_key keep-top-bar true
 set_key colors custom
 set_key color "'rgb(236,1,1)'"
@@ -211,7 +217,9 @@ set_key style-top-bar false
 # Too long for the side: the icons have to shrink.
 set_key icon-size 96
 set_key autohide true
-sleep 2
+sleep 1
+set_key edge-pressure false
+sleep 1
 gsettings --schemadir "$root/schemas" reset-recursively "$schema"
 sleep 1
 expect ACTIVE

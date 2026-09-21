@@ -11,10 +11,10 @@ GNOME internals, version differences live in `compat.js`.
 - Window dots, app names on hover, the app menu on right click. A click on the focused app minimizes it or cycles its windows, scrolling switches them
 - Right click on a free spot for the settings. Ctrl+Alt+Tab reaches the icons, the arrow keys move along, the Menu key opens the app menu
 - Window previews on hover, resting on one shows only that window
-- Drag to rearrange, pin and unpin
-- Badges and progress bars (Unity LauncherEntry)
+- Drag to rearrange, pin and unpin, an unpinned app goes up in a little cloud
+- Badges and progress bars (Unity LauncherEntry), the notification count for apps without their own
 - Trash and drives with open, empty and eject
-- Separators, a soft shadow, autohide, opaque while a window touches the bar. A hidden bar comes out when an app asks for attention
+- Separators, a soft shadow, autohide, opaque while a window touches the bar. A hidden bar comes back when the pointer pushes against the edge or an app asks for attention
 
 Every extra can be switched off in the preferences.
 

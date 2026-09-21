@@ -9,13 +9,14 @@ import * as AppFavorites from 'resource:///org/gnome/shell/ui/appFavorites.js';
 import {AppMenu} from 'resource:///org/gnome/shell/ui/appMenu.js';
 import * as BoxPointer from 'resource:///org/gnome/shell/ui/boxpointer.js';
 import * as DND from 'resource:///org/gnome/shell/ui/dnd.js';
+import * as Layout from 'resource:///org/gnome/shell/ui/layout.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {mix, parseColor} from './colors.js';
 import {Color, HAS_ACCENT, setVertical} from './compat.js';
-import {badgeOf, progressOf} from './launcher.js';
+import {badgeOf, countText, progressOf} from './launcher.js';
 import {dropIndex, hover, rest, STYLES} from './layout.js';
 import {TRASH, driveMounts, openPlace, placeActions, placeIcon, placeName} from './places.js';
 import {restorePanel, takePanel} from './takeover.js';
@@ -44,6 +45,11 @@ const FADE_TIME = 120;
 const REVEAL_TIME = 3000;
 // px the hidden background moves beyond the edge, its shadow with it
 const SHADOW = 16;
+// like GNOME's hot corner: px of push within ms
+const PRESSURE = 100;
+const PRESSURE_TIMEOUT = 1000;
+const POOF_TIME = 400;
+const PUFFS = 7;
 
 const SIDES = {bottom: St.Side.BOTTOM, top: St.Side.TOP, left: St.Side.LEFT, right: St.Side.RIGHT};
 // "r, g, b", the opacity setting adds the alpha
@@ -218,6 +224,7 @@ export class Dock {
         if (this._dragMonitor)
             DND.removeDragMonitor(this._dragMonitor);
         this._dragMonitor = null;
+        this._removeBarrier();
     }
 
     _undress() {
@@ -395,6 +402,8 @@ export class Dock {
         this._items = [];
         this.sync();
         this.queueCheck();
+        // The barrier follows settings that leave the bar's size alone.
+        this.queuePlace();
     }
 
     // Keeps existing icons, a rebuild would close their open menus.
@@ -728,7 +737,10 @@ export class Dock {
         const shown = this._settings.get_boolean('badges');
         for (const item of this._items) {
             const entry = shown && item.app ? this._ext.launcher?.get(item.app.get_id()) : null;
-            const text = badgeOf(entry);
+            // An app's own count knows better than its notifications.
+            const notes = shown && item.app && this._settings.get_boolean('notification-badges')
+                ? this._ext.notifications?.get(item.app.get_id()) : 0;
+            const text = badgeOf(entry) ?? countText(notes);
             // Not on the first update, a rebuild would pop every badge.
             if (item.badgeText !== undefined && text !== null && text !== item.badgeText &&
                 this._settings.get_boolean('badge-pop')) {
@@ -1044,9 +1056,61 @@ export class Dock {
             left: [m.x, centerY],
             right: [m.x + m.width - w, centerY],
         }[this._position]);
+        this._updateBarrier();
         this._animate();
         this._updateOpacity();
         this._updateAutohide();
+    }
+
+    // Pushing against the edge shows the hidden bar, passing by does not. Not on an edge
+    // shared with another monitor, the barrier would block the way over.
+    _updateBarrier() {
+        const m = Main.layoutManager.monitors[this.monitorIndex];
+        const [along, length] = this._barAxes();
+        const edge = {bottom: m.y + m.height, top: m.y, left: m.x, right: m.x + m.width}[this._position];
+        const shared = Main.layoutManager.monitors.some(n => n !== m && {
+            bottom: n.y === edge,
+            top: n.y + n.height === edge,
+            left: n.x + n.width === edge,
+            right: n.x === edge,
+        }[this._position] && (this._vertical
+            ? n.y < along + length && n.y + n.height > along
+            : n.x < along + length && n.x + n.width > along));
+        const wanted = this._settings.get_boolean('autohide') && this._settings.get_boolean('edge-pressure') &&
+            !shared && Boolean(global.backend.capabilities & Meta.BackendCapabilities.BARRIERS);
+        const [x1, y1] = this._xy(along, edge);
+        const [x2, y2] = this._xy(along + length, edge);
+        const key = wanted ? `${x1} ${y1} ${x2} ${y2} ${this._position}` : null;
+        if (key === this._barrierKey)
+            return;
+        this._removeBarrier();
+        if (!wanted)
+            return;
+        this._barrierKey = key;
+        this._barrier = new Meta.Barrier({
+            backend: global.backend, x1, y1, x2, y2,
+            directions: {
+                bottom: Meta.BarrierDirection.NEGATIVE_Y,
+                top: Meta.BarrierDirection.POSITIVE_Y,
+                left: Meta.BarrierDirection.POSITIVE_X,
+                right: Meta.BarrierDirection.NEGATIVE_X,
+            }[this._position],
+        });
+        this._pressure = new Layout.PressureBarrier(PRESSURE, PRESSURE_TIMEOUT, Shell.ActionMode.NORMAL);
+        this._pressure.addBarrier(this._barrier);
+        this._pressure.connect('trigger', () => {
+            if (!this._hidden)
+                return;
+            this._slide(false);
+            // The pointer on the edge now holds the bar like any hover.
+            this._updateAutohide();
+        });
+    }
+
+    _removeBarrier() {
+        this._pressure?.destroy();
+        this._barrier?.destroy();
+        this._pressure = this._barrier = this._barrierKey = null;
     }
 
     // Returns true when a rebuild is on its way.
@@ -1225,9 +1289,12 @@ export class Dock {
 
     _makeDraggable(item) {
         const {app, button, icon} = item;
+        let dragActor = null;
+        let unpin = false;
+        let escaped = false;
         const delegate = {
             app,
-            getDragActor: () => this._tintIcon(app.create_icon_texture(this._geom.icon)),
+            getDragActor: () => (dragActor = this._tintIcon(app.create_icon_texture(this._geom.icon))),
             getDragActorSource: () => icon,
         };
         button._delegate = delegate;
@@ -1236,17 +1303,65 @@ export class Dock {
         button.connect('destroy', () => (alive = false));
         const draggable = DND.makeDraggable(button);
         draggable.connect('drag-begin', () => {
+            unpin = escaped = false;
             button.opacity = 80;
             Main.overview.beginItemDrag(delegate);
         });
-        draggable.connect('drag-cancelled', () => Main.overview.cancelledItemDrag(delegate));
+        // Before GNOME flies the icon back. Let go far off the bar unpins, Escape never does:
+        // GNOME cancels once more on the button release after it.
+        draggable.connect('drag-cancelled', () => {
+            Main.overview.cancelledItemDrag(delegate);
+            const type = Clutter.get_current_event()?.type();
+            escaped ||= type === Clutter.EventType.KEY_PRESS;
+            const released = type === Clutter.EventType.BUTTON_RELEASE || type === Clutter.EventType.TOUCH_END;
+            unpin = !escaped && released && this._farFromBar() &&
+                AppFavorites.getAppFavorites().isFavorite(app.get_id());
+            if (unpin && dragActor && this._settings.get_boolean('poof')) {
+                this._poof(app, dragActor);
+                // Hidden, the fly back ends at once and GNOME destroys it. A relayout still
+                // queued for it would then hit an actor off the stage, run it now.
+                dragActor.hide();
+                dragActor.get_allocation_box();
+            }
+        });
         draggable.connect('drag-end', (d, time, success) => {
             if (alive)
                 button.opacity = 255;
             Main.overview.endItemDrag(delegate);
-            if (!success && this._farFromBar())
+            if (!success && unpin)
                 AppFavorites.getAppFavorites().removeFavorite(app.get_id());
         });
+    }
+
+    // A little cloud where the icon was let go.
+    _poof(app, from) {
+        const [x, y] = from.get_transformed_position();
+        const [size] = from.get_transformed_size();
+        const mode = Clutter.AnimationMode.EASE_OUT_QUAD;
+        const ghost = this._tintIcon(app.create_icon_texture(Math.round(size)));
+        ghost.set_position(Math.round(x), Math.round(y));
+        ghost.set_pivot_point(0.5, 0.5);
+        Main.uiGroup.add_child(ghost);
+        ghost.ease({scale_x: 1.5, scale_y: 1.5, opacity: 0, duration: POOF_TIME * 0.6, mode, onComplete: () => ghost.destroy()});
+        const d = Math.round(size * 0.45);
+        for (let i = 0; i < PUFFS; i++) {
+            const puff = new St.Widget({style_class: 'silver-dock-poof', style: `border-radius: ${d}px;`, width: d, height: d});
+            puff.set_position(Math.round(x + (size - d) / 2), Math.round(y + (size - d) / 2));
+            puff.set_pivot_point(0.5, 0.5);
+            puff.set_scale(0.4, 0.4);
+            Main.uiGroup.add_child(puff);
+            const angle = 2 * Math.PI * (i + 0.25) / PUFFS;
+            puff.ease({
+                translation_x: Math.cos(angle) * size * 0.7,
+                translation_y: Math.sin(angle) * size * 0.7,
+                scale_x: 1.8,
+                scale_y: 1.8,
+                opacity: 0,
+                duration: POOF_TIME,
+                mode,
+                onComplete: () => puff.destroy(),
+            });
+        }
     }
 
     _farFromBar() {
@@ -1355,7 +1470,9 @@ export class Dock {
 
     _shouldHide() {
         const focus = global.stage.key_focus;
-        return this._settings.get_boolean('autohide') && !this._bar.hover && !this._dragging && !this._menuOpen() &&
+        // With a barrier up, the pointer on the 1 px strip needs to push first.
+        const hover = this._bar.hover && !(this._hidden && this._barrier);
+        return this._settings.get_boolean('autohide') && !hover && !this._dragging && !this._menuOpen() &&
             !this._previews.shown && !this._revealTimer && !(focus && this._bar.contains(focus)) &&
             !Main.overview.visible && this._windowsOverlap();
     }

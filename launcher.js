@@ -2,6 +2,8 @@
 import Gio from 'gi://Gio';
 import Shell from 'gi://Shell';
 
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+
 const KEYS = ['count', 'count-visible', 'progress', 'progress-visible', 'urgent'];
 
 export class LauncherEntries {
@@ -65,9 +67,51 @@ export class LauncherEntries {
     }
 }
 
+// Notifications in GNOME's message list per app, a badge for apps that publish none.
+export class NotificationCounts {
+    constructor(onChange) {
+        this._onChange = onChange;
+        this._sources = new Set();
+        Main.messageTray.connectObject(
+            'source-added', (tray, source) => this._add(source),
+            'source-removed', (tray, source) => {
+                source.disconnectObject(this);
+                this._sources.delete(source);
+                onChange();
+            }, this);
+        Main.messageTray.getSources().forEach(source => this._add(source));
+    }
+
+    destroy() {
+        Main.messageTray.disconnectObject(this);
+        this._sources.forEach(source => source.disconnectObject(this));
+        this._sources.clear();
+    }
+
+    // The policy id is the app's desktop id without .desktop, system sources have none.
+    get(appId) {
+        let count = 0;
+        for (const source of this._sources) {
+            if (source.policy?.id && `${source.policy.id}.desktop` === appId)
+                count += source.count;
+        }
+        return count;
+    }
+
+    _add(source) {
+        this._sources.add(source);
+        source.connectObject('notify::count', () => this._onChange(), this);
+        this._onChange();
+    }
+}
+
+export function countText(count) {
+    count = Math.trunc(Number(count));
+    return count > 0 ? (count > 99 ? '99+' : String(count)) : null;
+}
+
 export function badgeOf(entry) {
-    const count = Math.trunc(Number(entry?.count));
-    return entry?.['count-visible'] && count > 0 ? (count > 99 ? '99+' : String(count)) : null;
+    return entry?.['count-visible'] ? countText(entry.count) : null;
 }
 
 export function progressOf(entry) {

@@ -103,13 +103,16 @@ export default class SilverDockPrefs extends ExtensionPreferences {
 
         const behavior = page(_('Behavior'), 'preferences-system-symbolic');
         const bar = group(behavior, _('Bar'));
-        toggle(bar, 'autohide', _('Hide when a window overlaps the bar'));
+        toggle(fold(bar, 'autohide', _('Hide when a window overlaps the bar')), 'edge-pressure',
+            _('Only come back when the pointer pushes against the edge'));
         toggle(bar, 'tooltips', _('Show app names on hover'));
         toggle(fold(bar, 'previews', _('Show window previews on hover')), 'peek', _('Show only that window while on its preview'));
         const icons = group(behavior, _('App icons'));
         toggle(icons, 'dnd', _('Drag to rearrange, pin and unpin apps'));
         toggle(icons, 'scroll', _('Scroll over an icon to switch its windows'));
-        toggle(fold(icons, 'badges', _('Badges and progress on app icons')), 'badge-pop', _('Badges pop up'));
+        const badges = fold(icons, 'badges', _('Badges and progress on app icons'));
+        toggle(badges, 'notification-badges', _('Count notifications of apps without their own badge'));
+        toggle(badges, 'badge-pop', _('Badges pop up'));
         const places = group(behavior, _('Places'));
         toggle(places, 'trash', _('Trash'));
         toggle(fold(places, 'drives', _('Removable drives (USB sticks, SD cards)')), 'internal-drives', _('Internal drives too'));
@@ -122,6 +125,7 @@ export default class SilverDockPrefs extends ExtensionPreferences {
         const moving = group(motion, _('Icons'));
         toggle(moving, 'pop', _('Apps pop in and out'));
         toggle(moving, 'squash', _('Squash on click'));
+        toggle(moving, 'poof', _('A little cloud when an app is dragged off'));
         toggle(moving, 'glide', _('Window dots glide'));
         toggle(moving, 'intro', _('Rise in a wave after login and unlock'));
         toggle(moving, 'bounce', _('Bounce while an app starts'));

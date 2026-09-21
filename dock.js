@@ -39,6 +39,11 @@ const DOT_LONG = 12;
 const BUTTON_LIFT = 3;
 const WARP_LIFT = 5;
 const SCROLL_PAUSE = 150;
+const FADE_TIME = 120;
+// longer than WIGGLE_EVERY, so a waiting wiggle still shows
+const REVEAL_TIME = 3000;
+// px the hidden background moves beyond the edge, its shadow with it
+const SHADOW = 16;
 
 const SIDES = {bottom: St.Side.BOTTOM, top: St.Side.TOP, left: St.Side.LEFT, right: St.Side.RIGHT};
 // "r, g, b", the opacity setting adds the alpha
@@ -104,6 +109,7 @@ export class Dock {
         this._dragging = false;
         this._intro = intro;
         this._hovered = null;
+        this._keyFocus = null;
 
         this._bg = new St.Widget({style_class: 'silver-dock-bg'});
         // X11 only sends the pointer to tracked chrome, this covers the magnified icons.
@@ -130,10 +136,7 @@ export class Dock {
 
         this._row.connectObject(
             'notify::hover', () => {
-                this._amount.ease(this._row.hover ? 1 : 0, {
-                    duration: 150,
-                    mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-                });
+                this._easeAmount();
                 // A very short visit may not move the amount at all.
                 this._animate();
             },
@@ -154,6 +157,14 @@ export class Dock {
                 this._updateAutohide();
             },
             'captured-event', (actor, event) => this._barEvent(event),
+            // Only on a free spot, GNOME 46's top bar buttons pass their clicks on.
+            'button-press-event', (actor, event) => {
+                const target = global.stage.get_event_actor(event);
+                if (event.get_button() !== Clutter.BUTTON_SECONDARY || (target !== this._bar && target !== this._row))
+                    return Clutter.EVENT_PROPAGATE;
+                this._openDockMenu(event.get_coords());
+                return Clutter.EVENT_STOP;
+            },
             // Only GNOME's teardown at logout, destroy() disconnects first.
             'destroy', () => ext.lost(), this);
 
@@ -183,6 +194,7 @@ export class Dock {
         actors.forEach(actor => actor.get_stage() && actor.get_allocation_box());
         actors.forEach(actor => actor.get_parent() && Main.layoutManager.removeChrome(actor));
         this._items.forEach(item => this._destroyItem(item));
+        this._dockMenu?.destroy();
         // The panel boxes would die with the bar.
         restorePanel(this._bar, this._boxes);
         this._undress();
@@ -200,7 +212,9 @@ export class Dock {
             GLib.source_remove(this._hideTimer);
         if (this._wiggleTimer)
             GLib.source_remove(this._wiggleTimer);
-        this._hideTimer = this._wiggleTimer = 0;
+        if (this._revealTimer)
+            GLib.source_remove(this._revealTimer);
+        this._hideTimer = this._wiggleTimer = this._revealTimer = 0;
         if (this._dragMonitor)
             DND.removeDragMonitor(this._dragMonitor);
         this._dragMonitor = null;
@@ -211,6 +225,7 @@ export class Dock {
             return;
         Main.panel.set_style(this._panelStyle);
         Main.panel.remove_style_class_name('silver-dock-ink');
+        Main.panel.remove_style_class_name('silver-dock-shadow');
         this._dressed = false;
     }
 
@@ -238,6 +253,8 @@ export class Dock {
         this._accent = colors.accent ?? null;
         // The stylesheet's system accent needs GNOME 47.
         setClass(this._bar, 'themed', themed && HAS_ACCENT);
+        const shadow = this._settings.get_boolean('shadow');
+        setClass(this._bg, 'silver-dock-shadow', shadow);
 
         if (this._primary && this._ownTopBar && this._settings.get_boolean('style-top-bar')) {
             if (!this._dressed) {
@@ -248,6 +265,7 @@ export class Dock {
                 `background-color: rgba(${colors.bg}, ${opacity}); border: ${colors.border}; ` +
                 `border-radius: ${radius}px;`);
             setClass(Main.panel, 'silver-dock-ink', ink);
+            setClass(Main.panel, 'silver-dock-shadow', shadow);
         } else {
             this._undress();
         }
@@ -357,6 +375,9 @@ export class Dock {
         }
         for (const key of ['lift-buttons', 'warp', 'glide'])
             setClass(this._bar, key, this._settings.get_boolean(key));
+        // Opens to the old side otherwise.
+        this._dockMenu?.destroy();
+        this._dockMenu = null;
         this.paint();
         const sepSize = this._xy(1, Math.round(icon * 0.6));
         for (const sep of [...this._seps, ...this._rowSeps])
@@ -536,6 +557,8 @@ export class Dock {
         progress.add_child(fill);
 
         const button = new St.Button({
+            style_class: 'silver-dock-app',
+            style: `border-radius: ${Math.round(big / 4)}px;`,
             child: icon,
             accessible_name: name,
             can_focus: true,
@@ -582,6 +605,10 @@ export class Dock {
                 openPlace(key);
         });
         button.connect('scroll-event', (actor, event) => this._scroll(item, event));
+        // Menu key or Shift+F10
+        button.connect('popup-menu', () => this._openMenu(item));
+        button.connect('key-focus-in', () => this._focusItem(item));
+        button.connect('key-focus-out', () => this._focusItem(null));
         button.connect('notify::hover', () => {
             if (button.hover) {
                 if (app && this._settings.get_boolean('previews') && !this._dragging && !this._menuOpen())
@@ -760,11 +787,17 @@ export class Dock {
     // Bursts and pauses: an ease disables direct scanout (fullscreen games).
     updateAttention() {
         const enabled = this._settings.get_boolean('attention');
+        let fresh = false;
         for (const item of this._items) {
+            const was = item.attention;
             item.attention = enabled && Boolean(item.app) &&
                 (Boolean(this._ext.launcher?.get(item.app.get_id())?.urgent) ||
                  item.app.get_windows().some(win => win.demands_attention || win.urgent));
+            fresh ||= item.attention && !was;
         }
+        // Before the wiggle, which a hidden bar skips.
+        if (fresh && this._settings.get_boolean('autohide'))
+            this._reveal();
         const wanted = this._items.some(item => item.attention);
         if (wanted && !this._wiggleTimer) {
             this._wiggle();
@@ -794,21 +827,43 @@ export class Dock {
         }
     }
 
+    // An autohidden bar shows for a moment.
+    _reveal() {
+        if (this._revealTimer)
+            GLib.source_remove(this._revealTimer);
+        this._revealTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, REVEAL_TIME, () => {
+            this._revealTimer = 0;
+            this._updateAutohide();
+            return GLib.SOURCE_REMOVE;
+        });
+        this._updateAutohide();
+    }
+
+    // Fades in only from hidden, moving between icons it just follows.
     _showLabel(item) {
         if (!this._settings.get_boolean('tooltips') || this._hidden || this._dragging || this._menuOpen() ||
             this._previews.shown)
             return;
         this._labelItem = item;
         this._label.text = item.name;
-        this._label.show();
+        if (!this._label.visible) {
+            this._label.opacity = 0;
+            this._label.show();
+        }
+        settle(this._label, {opacity: 255}, false, {duration: FADE_TIME, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
         this._placeLabel();
     }
 
     _hideLabel(item) {
-        if (item && item !== this._labelItem)
+        if ((item && item !== this._labelItem) || !this._label.visible)
             return;
         this._labelItem = null;
-        this._label.hide();
+        this._label.ease({
+            opacity: 0,
+            duration: FADE_TIME,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            onComplete: () => this._label.hide(),
+        });
     }
 
     _placeLabel() {
@@ -845,6 +900,52 @@ export class Dock {
             this._menuManager.addMenu(item.menu);
         }
         item.menu.open(BoxPointer.PopupAnimation.FULL);
+    }
+
+    // Points at the click.
+    _openDockMenu([x, y]) {
+        if (!this._dockMenu) {
+            this._dockMenu = new PopupMenu.PopupMenu(this._bar, 0.5, this._side);
+            this._dockMenu.addAction(_('Dock Settings'), () => this._ext.openPreferences());
+            Main.uiGroup.add_child(this._dockMenu.actor);
+            this._dockMenu.actor.hide();
+            this._menuManager.addMenu(this._dockMenu);
+        }
+        // Relative to the content box, like the BoxPointer.
+        const box = this._bar.get_theme_node().get_content_box(this._bar.get_allocation_box());
+        const [bx, by] = this._bar.get_transformed_position();
+        this._dockMenu.setSourceAlignment(this._vertical
+            ? (y - by - box.y1) / box.get_height()
+            : (x - bx - box.x1) / box.get_width());
+        this._hideLabel();
+        this._previews.hide();
+        this._dockMenu.open(BoxPointer.PopupAnimation.FULL);
+    }
+
+    // Keyboard focus (Ctrl+Alt+Tab) magnifies like the pointer.
+    _focusItem(item) {
+        const was = this._keyFocus;
+        this._keyFocus = item;
+        if (item) {
+            this._pointer = this._centers[this._items.indexOf(item)] ?? this._pointer;
+            this._updateAutohide();
+            this._showLabel(item);
+        } else {
+            this._hideLabel(was);
+        }
+        // Later: focus also leaves while items are destroyed, and without animations
+        // the ease runs _animate() at once.
+        this._queue('focus', () => {
+            this._easeAmount();
+            this._animate();
+        });
+    }
+
+    _easeAmount() {
+        this._amount.ease(this._row.hover || this._keyFocus ? 1 : 0, {
+            duration: 150,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+        });
     }
 
     // Stable order, so each step goes on from the window the last one raised.
@@ -983,7 +1084,7 @@ export class Dock {
         const {zoom, slot, margin} = this._geom;
         const n = this._items.length;
         const eased = STYLES[this._style].eased;
-        const hovered = eased ? Number(this._row.hover) : this._amount.value;
+        const hovered = eased ? Number(this._row.hover || this._keyFocus !== null) : this._amount.value;
         const {scales, shifts, lifts, left, right} = hover(
             this._style, n, slot, this._pointer, zoom, this._dragging ? 0 : hovered, this._gaps);
 
@@ -1253,8 +1354,9 @@ export class Dock {
     }
 
     _shouldHide() {
+        const focus = global.stage.key_focus;
         return this._settings.get_boolean('autohide') && !this._bar.hover && !this._dragging && !this._menuOpen() &&
-            !this._previews.shown &&
+            !this._previews.shown && !this._revealTimer && !(focus && this._bar.contains(focus)) &&
             !Main.overview.visible && this._windowsOverlap();
     }
 
@@ -1292,6 +1394,6 @@ export class Dock {
         const [, , , thick] = this._barAxes();
         // A 1 px strip stays on screen and catches the pointer.
         this._bar.ease({...params, [this._across]: hidden ? out * (thick - 1) : 0});
-        this._bg.ease({...params, [this._across]: hidden ? out * thick : 0});
+        this._bg.ease({...params, [this._across]: hidden ? out * (thick + SHADOW) : 0});
     }
 }

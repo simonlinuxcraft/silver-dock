@@ -92,6 +92,7 @@ export default class SilverDockPrefs extends ExtensionPreferences {
         spin(size, 'margin', _('Distance from screen edge'), 0, 48, 1);
         spin(size, 'radius', _('Corner radius'), 0, 48, 1);
         toggle(size, 'separators', _('Separators'));
+    toggle(size, 'shadow', _('Shadow'));
         const colors = group(look, _('Colors'));
         choice(colors, 'colors', _('Colors from'),
             [['dock', _('Silver Dock')], ['theme', _('Shell and GTK theme')], ['custom', _('Own color')]]);

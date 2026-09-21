@@ -16,6 +16,10 @@ const MIN_THUMB = 48;
 const GAP = 8;
 const PEEK_DELAY = 250;
 const PEEK_TIME = 200;
+const FADE_TIME = 150;
+const MOVE_TIME = 150;
+// px the previews rise from the icon when they appear
+const RISE = 8;
 
 export class WindowPreviews {
     constructor(onChange) {
@@ -23,6 +27,7 @@ export class WindowPreviews {
         this._timers = {};
         this.peek = false;
         this._peeked = new Set();
+        this._shown = false;
         this.actor = new St.BoxLayout({style_class: 'silver-dock-previews', reactive: true, track_hover: true, visible: false});
         this.actor.connect('notify::hover', () => {
             if (this.actor.hover)
@@ -34,8 +39,9 @@ export class WindowPreviews {
         Main.layoutManager.addChrome(this.actor);
     }
 
+    // False while fading out.
     get shown() {
-        return this.actor.visible;
+        return this._shown;
     }
 
     get app() {
@@ -67,9 +73,18 @@ export class WindowPreviews {
         this._endPeek();
         if (!this.shown)
             return;
-        this.actor.hide();
-        this.actor.destroy_all_children();
+        this._shown = false;
+        this.actor.reactive = false;
         this._app = this._anchor = null;
+        this.actor.ease({
+            opacity: 0,
+            duration: FADE_TIME,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            onComplete: () => {
+                this.actor.hide();
+                this.actor.destroy_all_children();
+            },
+        });
         this._onChange();
     }
 
@@ -144,6 +159,10 @@ export class WindowPreviews {
             return;
         }
         const wasShown = this.shown;
+        // Still there or fading out: glide over instead of popping up again.
+        const onScreen = this.actor.visible;
+        this._shown = true;
+        this.actor.reactive = true;
         this._app = app;
         this._anchor = anchor;
         this._side = side;
@@ -163,9 +182,26 @@ export class WindowPreviews {
             [St.Side.RIGHT]: [x - natWidth - GAP, y + h / 2 - natHeight / 2],
         }[side];
         const clamp = (v, start, length, size) => Math.min(Math.max(v, start + GAP), start + length - size - GAP);
-        this.actor.set_position(
-            Math.round(clamp(left, monitor.x, monitor.width, natWidth)),
-            Math.round(clamp(top, monitor.y, monitor.height, natHeight)));
+        const to = {
+            x: Math.round(clamp(left, monitor.x, monitor.width, natWidth)),
+            y: Math.round(clamp(top, monitor.y, monitor.height, natHeight)),
+        };
+        const mode = Clutter.AnimationMode.EASE_OUT_QUAD;
+        if (onScreen) {
+            if (to.x !== this.actor.x || to.y !== this.actor.y)
+                this.actor.ease({...to, duration: MOVE_TIME, mode});
+        } else {
+            const [dx, dy] = {
+                [St.Side.BOTTOM]: [0, RISE],
+                [St.Side.TOP]: [0, -RISE],
+                [St.Side.LEFT]: [-RISE, 0],
+                [St.Side.RIGHT]: [RISE, 0],
+            }[side];
+            Object.assign(this.actor, {...to, translation_x: dx, translation_y: dy, opacity: 0});
+            this.actor.ease({translation_x: 0, translation_y: 0, duration: FADE_TIME, mode});
+        }
+        if (this.actor.opacity !== 255 || this.actor.get_transition('opacity'))
+            this.actor.ease({opacity: 255, duration: FADE_TIME, mode});
         if (!wasShown)
             this._onChange();
     }

@@ -16,6 +16,15 @@
     height: auto;
 }
 
+.silver-dock-shadow {
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Keyboard focus, the radius is set per icon size. */
+.silver-dock-app:focus {
+    background-color: rgba(255, 255, 255, 0.25);
+}
+
 .silver-dock-badge {
     color: white;
     background-color: #e01b24;
@@ -126,6 +135,10 @@
 
 #panel.silver-dock-ink .privacy-indicator {
     color: #ff7800;
+}
+
+#panel.silver-dock-ink .silver-dock-app:focus {
+    background-color: rgba(28, 29, 33, 0.2);
 }
 
 #panel.silver-dock-ink .silver-dock-dot {

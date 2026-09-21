@@ -9,11 +9,12 @@ GNOME internals, version differences live in `compat.js`.
 - Hover styles magnify, ripple, lift or none
 - Icons pop in and out, squash on click, rise in a wave after login, bounce while an app starts and wiggle when it asks for attention. Window dots glide, badges pop, windows minimize into their icon, top bar buttons lift, the ArcMenu button takes off
 - Window dots, app names on hover, the app menu on right click. A click on the focused app minimizes it or cycles its windows, scrolling switches them
+- Right click on a free spot for the settings. Ctrl+Alt+Tab reaches the icons, the arrow keys move along, the Menu key opens the app menu
 - Window previews on hover, resting on one shows only that window
 - Drag to rearrange, pin and unpin
 - Badges and progress bars (Unity LauncherEntry)
 - Trash and drives with open, empty and eject
-- Separators, autohide, opaque while a window touches the bar
+- Separators, a soft shadow, autohide, opaque while a window touches the bar. A hidden bar comes out when an app asks for attention
 
 Every extra can be switched off in the preferences.
 

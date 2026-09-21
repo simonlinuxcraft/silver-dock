@@ -26,6 +26,10 @@
       <default>16</default>
       <summary>Corner radius in pixels</summary>
     </key>
+    <key name="shadow" type="b">
+      <default>true</default>
+      <summary>A soft shadow under the bar, and under the top bar in the dock's look</summary>
+    </key>
     <key name="animation" type="s">
       <choices>
         <choice value="magnify"/>

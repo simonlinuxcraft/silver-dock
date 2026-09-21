@@ -6,6 +6,7 @@ import Shell from 'gi://Shell';
 import St from 'gi://St';
 
 import * as AppFavorites from 'resource:///org/gnome/shell/ui/appFavorites.js';
+import * as Background from 'resource:///org/gnome/shell/ui/background.js';
 import {AppMenu} from 'resource:///org/gnome/shell/ui/appMenu.js';
 import * as BoxPointer from 'resource:///org/gnome/shell/ui/boxpointer.js';
 import * as DND from 'resource:///org/gnome/shell/ui/dnd.js';
@@ -18,6 +19,7 @@ import {mix, parseColor} from './colors.js';
 import {Color, HAS_ACCENT, setVertical} from './compat.js';
 import {badgeOf, countText, progressOf} from './launcher.js';
 import {dropIndex, hover, rest, STYLES} from './layout.js';
+import {RoundedMask} from './mask.js';
 import {TRASH, driveMounts, openPlace, placeActions, placeIcon, placeName} from './places.js';
 import {restorePanel, takePanel} from './takeover.js';
 
@@ -118,6 +120,7 @@ export class Dock {
         this._keyFocus = null;
 
         this._bg = new St.Widget({style_class: 'silver-dock-bg'});
+        this._blur = null;
         // X11 only sends the pointer to tracked chrome, this covers the magnified icons.
         this._reach = new St.Widget({visible: false});
         // Named like the top bar, the moved panel buttons keep their theme styling.
@@ -171,6 +174,13 @@ export class Dock {
                 this._openDockMenu(event.get_coords());
                 return Clutter.EVENT_STOP;
             },
+            // Icons and top bar buttons (volume) keep their own scrolling.
+            'scroll-event', (actor, event) => {
+                const target = global.stage.get_event_actor(event);
+                if (!this._settings.get_boolean('scroll-workspaces') || (target !== this._bar && target !== this._row))
+                    return Clutter.EVENT_PROPAGATE;
+                return Main.wm.handleWorkspaceScroll(event);
+            },
             // Only GNOME's teardown at logout, destroy() disconnects first.
             'destroy', () => ext.lost(), this);
 
@@ -184,6 +194,7 @@ export class Dock {
 
     destroy() {
         this.stopListening();
+        this._setBlur(false);
         // ArcMenu's actors, left as they were.
         this._hoverButton(null, true);
         this._rocket?.disconnectObject(this);
@@ -262,6 +273,7 @@ export class Dock {
         setClass(this._bar, 'themed', themed && HAS_ACCENT);
         const shadow = this._settings.get_boolean('shadow');
         setClass(this._bg, 'silver-dock-shadow', shadow);
+        this._setBlur(this._settings.get_boolean('blur'));
 
         if (this._primary && this._ownTopBar && this._settings.get_boolean('style-top-bar')) {
             if (!this._dressed) {
@@ -299,6 +311,51 @@ export class Dock {
         });
     }
 
+    // The wallpaper blurred once and cached, a clone shows the part behind the bar.
+    // Only the wallpaper: GNOME's live background blur can't take rounded corners.
+    _setBlur(on) {
+        const m = Main.layoutManager.monitors[this.monitorIndex];
+        if (on && !this._blur && m) {
+            this._wallpaper = new Clutter.Actor({visible: false, x: m.x, y: m.y, width: m.width, height: m.height});
+            Main.uiGroup.add_child(this._wallpaper);
+            this._backgrounds = new Background.BackgroundManager({
+                container: this._wallpaper, monitorIndex: this.monitorIndex, controlPosition: false,
+            });
+            this._blurEffect = new Shell.BlurEffect({mode: Shell.BlurMode.ACTOR});
+            this._wallpaper.add_effect(this._blurEffect);
+            this._clone = new Clutter.Clone({source: this._wallpaper});
+            this._blur = new St.Widget({clip_to_allocation: true});
+            this._blur.add_child(this._clone);
+            this._mask = new RoundedMask();
+            this._blur.add_effect(this._mask);
+            // Below the background, which adds its color on top.
+            Main.layoutManager.addChrome(this._blur, {trackFullscreen: true});
+            Main.layoutManager.uiGroup.set_child_below_sibling(this._blur, this._bg);
+        } else if (!on && this._blur) {
+            this._blur.get_allocation_box();
+            Main.layoutManager.removeChrome(this._blur);
+            this._blur.destroy();
+            this._backgrounds.destroy();
+            this._wallpaper.destroy();
+            this._blur = this._clone = this._mask = this._blurEffect = this._backgrounds = this._wallpaper = null;
+        }
+        if (!this._blur)
+            return;
+        const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+        this._blurEffect.radius = this._settings.get_int('blur-radius') * scale;
+    }
+
+    // Same box as the background, in whole pixels like it.
+    _placeBlur(x, y, width, height) {
+        if (!this._blur)
+            return;
+        this._blur.set_position(x, y);
+        this._blur.set_size(width, height);
+        this._clone.set_position(this._wallpaper.x - x, this._wallpaper.y - y);
+        // St draws no radius beyond half the height.
+        this._mask.setShape(width, height, Math.min(this._settings.get_int('radius'), width / 2, height / 2));
+    }
+
     _xy(along, across) {
         return this._vertical ? [across, along] : [along, across];
     }
@@ -306,7 +363,7 @@ export class Dock {
     // Both axes: after a position change the old offset sits on the other one.
     _resetSlide() {
         this._hidden = false;
-        for (const actor of [this._bar, this._bg]) {
+        for (const actor of [this._bar, this._bg, this._blur].filter(Boolean)) {
             actor.remove_transition('translation-x');
             actor.remove_transition('translation-y');
             actor.translation_x = actor.translation_y = 0;
@@ -354,6 +411,8 @@ export class Dock {
             big: Math.round(icon * zoom), // rendered at full zoom and scaled down, stays sharp
             thick: INNER + icon + OUTER,
         };
+        // Room around the icon for the active and focus tile, at rest as wide as a slot.
+        this._geom.pad = Math.floor((this._geom.slot - icon) / 2 * zoom);
 
         // The strut needs the bar on the screen edge, the gap is padding.
         const end = Math.round(radius / 2) + 4;
@@ -542,7 +601,7 @@ export class Dock {
     }
 
     _createItem(key) {
-        const {icon: size, big, slot} = this._geom;
+        const {icon: size, big, slot, pad} = this._geom;
         const app = key instanceof Shell.App ? key : null;
         const name = app ? app.get_name() : placeName(key);
         const icon = app ? app.create_icon_texture(big) : placeIcon(key, big, this._ext.trash?.full);
@@ -567,15 +626,16 @@ export class Dock {
 
         const button = new St.Button({
             style_class: 'silver-dock-app',
-            style: `border-radius: ${Math.round(big / 4)}px;`,
+            style: `border-radius: ${Math.round(big / 4 + pad)}px; padding: ${pad}px;`,
             child: icon,
             accessible_name: name,
             can_focus: true,
             button_mask: St.ButtonMask.ONE | St.ButtonMask.TWO | St.ButtonMask.THREE,
-            width: big,
-            height: big,
+            width: big + 2 * pad,
+            height: big + 2 * pad,
         });
-        button.set_pivot_point(...this._xy(0.5, this._edgeFirst ? 0 : 1));
+        // On the icon's outer edge, the tile around it grows past the edge.
+        button.set_pivot_point(...this._xy(0.5, (this._edgeFirst ? pad : pad + big) / (big + 2 * pad)));
 
         const dots = new St.BoxLayout({
             style_class: 'silver-dock-dots',
@@ -605,13 +665,14 @@ export class Dock {
             if (this._settings.get_boolean('squash'))
                 this._squash(item);
             this._hideLabel(item);
-            this._previews.hide();
-            if (mouseButton === 3)
+            if (mouseButton === 3) {
                 this._openMenu(item);
-            else if (app)
-                this._activate(app, mouseButton);
-            else
+            } else if (app) {
+                this._activate(item, mouseButton);
+            } else {
+                this._previews.hide();
                 openPlace(key);
+            }
         });
         button.connect('scroll-event', (actor, event) => this._scroll(item, event));
         // Menu key or Shift+F10
@@ -648,7 +709,7 @@ export class Dock {
     }
 
     _layout(animate = false) {
-        const {icon, big, slot, thick} = this._geom;
+        const {icon, big, slot, thick, pad} = this._geom;
         const n = this._items.length;
         const sepGap = Math.round(slot * 0.4);
         const gaps = new Array(n + 1).fill(0);
@@ -681,7 +742,7 @@ export class Dock {
             }
         };
         this._items.forEach((item, i) => {
-            move(item.button, centers[i] - big / 2, this._edgeFirst ? OUTER : INNER + icon - big);
+            move(item.button, centers[i] - big / 2 - pad, (this._edgeFirst ? OUTER : INNER + icon - big) - pad);
             move(item.indicator, centers[i] - slot / 2, this._edgeFirst ? OUTER - 7 : INNER + icon + 2);
         });
         this._rowSeps.forEach((sep, i) => {
@@ -697,7 +758,9 @@ export class Dock {
         const focused = Shell.WindowTracker.get_default().focus_app;
         const glide = this._settings.get_boolean('glide');
         const mode = Clutter.AnimationMode.EASE_OUT_QUAD;
-        for (const {app, dots} of this._items) {
+        const highlight = this._settings.get_boolean('highlight-active');
+        for (const {app, dots, button} of this._items) {
+            button.checked = highlight && Boolean(app) && app === focused;
             const n = app?.state === Shell.AppState.RUNNING
                 ? Math.min(Math.max(app.get_n_windows(), 1), MAX_DOTS) : 0;
             const size = this._xy(app === focused ? DOT_LONG : DOT, DOT);
@@ -984,13 +1047,20 @@ export class Dock {
         return Clutter.EVENT_STOP;
     }
 
-    // Focused app: one window minimizes, several cycle.
-    _activate(app, mouseButton) {
+    // Several windows show their previews, or with that off: the focused app's only
+    // window minimizes, several cycle. Not from the keyboard, the previews take no focus.
+    _activate({app, button}, mouseButton) {
+        const windows = app.get_windows();
+        if (mouseButton === 1 && windows.length > 1 && this._settings.get_boolean('click-previews') &&
+            Clutter.get_current_event()?.type() !== Clutter.EventType.KEY_RELEASE) {
+            this._previews.show(app, button, this._side);
+            return;
+        }
+        this._previews.hide();
         if (mouseButton === 2) {
             app.open_new_window(-1);
             return;
         }
-        const windows = app.get_windows();
         if (!windows.length || Shell.WindowTracker.get_default().focus_app !== app)
             app.activate();
         else if (windows.length === 1)
@@ -1184,8 +1254,11 @@ export class Dock {
         [secondSep, ...otherBoxes].forEach(actor => actor && (actor[this._along] = endShift));
 
         const [along, length, across, thick] = this._barAxes();
-        this._bg.set_position(...this._xy(along + startShift, across + (this._edgeFirst ? margin : 0)));
-        this._bg.set_size(...this._xy(length - startShift + endShift, thick - margin));
+        const bgAt = this._xy(along + startShift, across + (this._edgeFirst ? margin : 0));
+        const bgSize = this._xy(length - startShift + endShift, thick - margin);
+        this._bg.set_position(...bgAt);
+        this._bg.set_size(...bgSize);
+        this._placeBlur(...bgAt, ...bgSize);
         // Growth plus the highest lift (ripple, 0.3 slot) stays below one slot.
         const over = this._geom.big - this._geom.icon + slot;
         this._reach.set_position(...this._xy(along + startShift, this._edgeFirst ? across + thick : across - over));
@@ -1511,6 +1584,7 @@ export class Dock {
         const [, , , thick] = this._barAxes();
         // A 1 px strip stays on screen and catches the pointer.
         this._bar.ease({...params, [this._across]: hidden ? out * (thick - 1) : 0});
-        this._bg.ease({...params, [this._across]: hidden ? out * (thick + SHADOW) : 0});
+        for (const actor of [this._bg, this._blur].filter(Boolean))
+            actor.ease({...params, [this._across]: hidden ? out * (thick + SHADOW) : 0});
     }
 }

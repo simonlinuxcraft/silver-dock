@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: silver-dock\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-22 00:42+0200\n"
+"POT-Creation-Date: 2026-09-22 01:03+0200\n"
 "PO-Revision-Date: 2026-09-19 10:07+0200\n"
 "Last-Translator: \n"
 "Language-Team: none\n"
@@ -14,15 +14,15 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: dock.js:182
+#: dock.js:192
 msgid "Dock"
 msgstr "Dock"
 
-#: dock.js:921
+#: dock.js:984
 msgid "Dock Settings"
 msgstr "Dock-Einstellungen"
 
-#: places.js:20 prefs.js:117
+#: places.js:20 prefs.js:121
 msgid "Trash"
 msgstr "Papierkorb"
 
@@ -158,161 +158,181 @@ msgid "Opaque while a window touches the bar"
 msgstr "Deckend, solange ein Fenster die Leiste berührt"
 
 #: prefs.js:102
+msgid "Highlight the active app"
+msgstr "Aktive App hinterlegen"
+
+#: prefs.js:103
+msgid "Blur the wallpaper behind the bar"
+msgstr "Hintergrundbild hinter der Leiste weichzeichnen"
+
+#: prefs.js:103
+msgid "Strength"
+msgstr "Stärke"
+
+#: prefs.js:104
 msgid "Tint app icons"
 msgstr "App-Icons tönen"
 
-#: prefs.js:102
+#: prefs.js:104
 msgid "Icon color"
 msgstr "Icon-Farbe"
 
-#: prefs.js:104
+#: prefs.js:106
 msgid "Behavior"
 msgstr "Verhalten"
 
-#: prefs.js:105
+#: prefs.js:107
 msgid "Bar"
 msgstr "Leiste"
 
-#: prefs.js:106
+#: prefs.js:108
 msgid "Hide when a window overlaps the bar"
 msgstr "Ausblenden, wenn ein Fenster die Leiste überdeckt"
 
-#: prefs.js:107
+#: prefs.js:109
 msgid "Only come back when the pointer pushes against the edge"
 msgstr "Nur zurückkommen, wenn der Zeiger gegen den Rand drückt"
 
-#: prefs.js:108
+#: prefs.js:110
+msgid "Scroll on a free spot to switch workspaces"
+msgstr "Mausrad auf freier Stelle wechselt die Arbeitsfläche"
+
+#: prefs.js:111
 msgid "Show app names on hover"
 msgstr "App-Namen beim Überfahren zeigen"
 
-#: prefs.js:109
+#: prefs.js:112
 msgid "Show window previews on hover"
 msgstr "Fenstervorschau beim Überfahren zeigen"
 
-#: prefs.js:109
+#: prefs.js:112
 msgid "Show only that window while on its preview"
 msgstr "Nur dieses Fenster zeigen, solange die Maus auf seiner Vorschau liegt"
 
-#: prefs.js:110
+#: prefs.js:113
 msgid "App icons"
 msgstr "App-Icons"
 
-#: prefs.js:111
+#: prefs.js:114
 msgid "Drag to rearrange, pin and unpin apps"
 msgstr "Apps per Ziehen anordnen, anheften und lösen"
 
-#: prefs.js:112
+#: prefs.js:115
+msgid "Click on an app with several windows shows its previews"
+msgstr "Klick auf eine App mit mehreren Fenstern zeigt die Vorschau"
+
+#: prefs.js:116
 msgid "Scroll over an icon to switch its windows"
 msgstr "Mausrad auf einem Icon wechselt zwischen dessen Fenstern"
 
-#: prefs.js:113
+#: prefs.js:117
 msgid "Badges and progress on app icons"
 msgstr "Zähler und Fortschritt auf App-Icons"
 
-#: prefs.js:114
+#: prefs.js:118
 msgid "Count notifications of apps without their own badge"
 msgstr "Benachrichtigungen von Apps ohne eigenes Badge zählen"
 
-#: prefs.js:115
+#: prefs.js:119
 msgid "Badges pop up"
 msgstr "Badges springen auf"
 
-#: prefs.js:116
+#: prefs.js:120
 msgid "Places"
 msgstr "Orte"
 
-#: prefs.js:118
+#: prefs.js:122
 msgid "Removable drives (USB sticks, SD cards)"
 msgstr "Wechseldatenträger (USB-Sticks, SD-Karten)"
 
-#: prefs.js:118
+#: prefs.js:122
 msgid "Internal drives too"
 msgstr "Auch interne Laufwerke"
 
-#: prefs.js:120
+#: prefs.js:124
 msgid "Animation"
 msgstr "Animation"
 
-#: prefs.js:121
+#: prefs.js:125
 msgid "Hover"
 msgstr "Beim Überfahren"
 
-#: prefs.js:122
+#: prefs.js:126
 msgid "Hover animation"
 msgstr "Animation beim Überfahren"
 
-#: prefs.js:123
+#: prefs.js:127
 msgid "Magnify"
 msgstr "Vergrößern"
 
-#: prefs.js:123
+#: prefs.js:127
 msgid "Ripple"
 msgstr "Welle"
 
-#: prefs.js:123
+#: prefs.js:127
 msgid "Lift"
 msgstr "Anheben"
 
-#: prefs.js:123
+#: prefs.js:127
 msgid "None"
 msgstr "Keine"
 
-#: prefs.js:124
+#: prefs.js:128
 msgid "Magnification"
 msgstr "Vergrößerung"
 
-#: prefs.js:125
+#: prefs.js:129
 msgid "Icons"
 msgstr "Icons"
 
-#: prefs.js:126
+#: prefs.js:130
 msgid "Apps pop in and out"
 msgstr "Apps springen herein und schrumpfen weg"
 
-#: prefs.js:127
+#: prefs.js:131
 msgid "Squash on click"
 msgstr "Beim Klick stauchen"
 
-#: prefs.js:128
+#: prefs.js:132
 msgid "A little cloud when an app is dragged off"
 msgstr "Wölkchen, wenn eine App abgezogen wird"
 
-#: prefs.js:129
+#: prefs.js:133
 msgid "Window dots glide"
 msgstr "Fensterpunkte gleiten"
 
-#: prefs.js:130
+#: prefs.js:134
 msgid "Rise in a wave after login and unlock"
 msgstr "Nach Anmelden und Entsperren als Welle aufsteigen"
 
-#: prefs.js:131
+#: prefs.js:135
 msgid "Bounce while an app starts"
 msgstr "Hüpfen, während eine App startet"
 
-#: prefs.js:132
+#: prefs.js:136
 msgid "Wiggle when an app asks for attention"
 msgstr "Wackeln, wenn eine App Aufmerksamkeit anfordert"
 
-#: prefs.js:133
+#: prefs.js:137
 msgid "Bar and windows"
 msgstr "Leiste und Fenster"
 
-#: prefs.js:134
+#: prefs.js:138
 msgid "Bar springs back in after hiding"
 msgstr "Leiste federt beim Wiedereinblenden"
 
-#: prefs.js:135
+#: prefs.js:139
 msgid "Windows minimize into their icon"
 msgstr "Fenster ins Icon minimieren"
 
-#: prefs.js:136
+#: prefs.js:140
 msgid "Top bar content in the dock"
 msgstr "Inhalt der oberen Leiste im Dock"
 
-#: prefs.js:137
+#: prefs.js:141
 msgid "Warp start for the ArcMenu button"
 msgstr "Warp-Start für den ArcMenu-Knopf"
 
-#: prefs.js:138
+#: prefs.js:142
 msgid "Buttons lift on hover instead of lighting up"
 msgstr "Knöpfe heben sich beim Überfahren, statt aufzuleuchten"

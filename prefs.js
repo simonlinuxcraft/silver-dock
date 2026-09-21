@@ -26,7 +26,7 @@ export default class SilverDockPrefs extends ExtensionPreferences {
             row.set_title(title);
             row.set_digits(digits);
             settings.bind(key, row, 'value', Gio.SettingsBindFlags.DEFAULT);
-            g.add(row);
+            put(g, row);
             return row;
         };
         const put = (g, row) => (g instanceof Adw.ExpanderRow ? g.add_row(row) : g.add(row));
@@ -99,16 +99,20 @@ export default class SilverDockPrefs extends ExtensionPreferences {
         showIf(color(colors, 'color', _('Color')), () => is('colors', 'custom'), 'colors');
         showIf(spin(colors, 'opacity', _('Background opacity (%)'), 0, 100, 5), () => !is('colors', 'theme'), 'colors');
         toggle(colors, 'dynamic-opacity', _('Opaque while a window touches the bar'));
+        toggle(colors, 'highlight-active', _('Highlight the active app'));
+        spin(fold(colors, 'blur', _('Blur the wallpaper behind the bar')), 'blur-radius', _('Strength'), 5, 100, 5);
         color(fold(colors, 'tint-icons', _('Tint app icons')), 'icon-color', _('Icon color'));
 
         const behavior = page(_('Behavior'), 'preferences-system-symbolic');
         const bar = group(behavior, _('Bar'));
         toggle(fold(bar, 'autohide', _('Hide when a window overlaps the bar')), 'edge-pressure',
             _('Only come back when the pointer pushes against the edge'));
+        toggle(bar, 'scroll-workspaces', _('Scroll on a free spot to switch workspaces'));
         toggle(bar, 'tooltips', _('Show app names on hover'));
         toggle(fold(bar, 'previews', _('Show window previews on hover')), 'peek', _('Show only that window while on its preview'));
         const icons = group(behavior, _('App icons'));
         toggle(icons, 'dnd', _('Drag to rearrange, pin and unpin apps'));
+        toggle(icons, 'click-previews', _('Click on an app with several windows shows its previews'));
         toggle(icons, 'scroll', _('Scroll over an icon to switch its windows'));
         const badges = fold(icons, 'badges', _('Badges and progress on app icons'));
         toggle(badges, 'notification-badges', _('Count notifications of apps without their own badge'));

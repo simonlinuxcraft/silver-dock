@@ -5,10 +5,10 @@ holds the top bar's menu, clock, tray and system menu. Only `takeover.js` touche
 GNOME internals, version differences live in `compat.js`.
 
 - Any screen edge, on one monitor or all. On the left or right the top bar keeps its content, optionally in the dock's look
-- Dock look, an own color or the shell and GTK theme's colors, optionally tinted app icons
+- Dock look, an own color or the shell and GTK theme's colors, optionally tinted app icons. The wallpaper behind the bar blurred, the app in front on a soft tile
 - Hover styles magnify, ripple, lift or none
 - Icons pop in and out, squash on click, rise in a wave after login, bounce while an app starts and wiggle when it asks for attention. Window dots glide, badges pop, windows minimize into their icon, top bar buttons lift, the ArcMenu button takes off
-- Window dots, app names on hover, the app menu on right click. A click on the focused app minimizes it or cycles its windows, scrolling switches them
+- Window dots, app names on hover, the app menu on right click. A click on an app with several windows shows their previews, or minimizes and cycles them. Scrolling over an icon switches its windows, on a free spot the workspaces
 - Right click on a free spot for the settings. Ctrl+Alt+Tab reaches the icons, the arrow keys move along, the Menu key opens the app menu
 - Window previews on hover, resting on one shows only that window
 - Drag to rearrange, pin and unpin, an unpinned app goes up in a little cloud

@@ -20,9 +20,17 @@
     box-shadow: 0 3px 12px rgba(0, 0, 0, 0.3);
 }
 
-/* Keyboard focus, the radius is set per icon size. */
+/* The app in front and keyboard focus, radius and padding are set per icon size. */
+.silver-dock-app:checked {
+    background-color: rgba(255, 255, 255, 0.12);
+}
+
 .silver-dock-app:focus {
     background-color: rgba(255, 255, 255, 0.25);
+}
+
+.silver-dock.glide .silver-dock-app {
+    transition-duration: 200ms;
 }
 
 .silver-dock-poof {
@@ -140,6 +148,10 @@
 
 #panel.silver-dock-ink .privacy-indicator {
     color: #ff7800;
+}
+
+#panel.silver-dock-ink .silver-dock-app:checked {
+    background-color: rgba(28, 29, 33, 0.1);
 }
 
 #panel.silver-dock-ink .silver-dock-app:focus {

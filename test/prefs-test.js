@@ -35,6 +35,8 @@ rows['Icon size'].value = 40;
 check(settings.get_int('icon-size') === 40, 'icon size row not written to the int key');
 settings.set_int('margin', 20);
 check(rows['Distance from screen edge'].value === 20, 'margin key not shown in its row');
+rows['Strength'].value = 55;
+check(settings.get_int('blur-radius') === 55, 'blur strength row not written');
 rows['Magnification'].value = 2;
 check(settings.get_double('zoom') === 2, 'zoom row not written');
 rows['Hover animation'].selected = 2;
@@ -79,7 +81,9 @@ check(settings.get_string('position') === 'right', 'position combo not written')
 for (const [title, key] of [['Separators', 'separators'], ['Shadow', 'shadow'],
     ['Only come back when the pointer pushes against the edge', 'edge-pressure'],
     ['Count notifications of apps without their own badge', 'notification-badges'],
-    ['A little cloud when an app is dragged off', 'poof'], ['Opaque while a window touches the bar', 'dynamic-opacity'],
+    ['A little cloud when an app is dragged off', 'poof'], ['Highlight the active app', 'highlight-active'],
+    ['Blur the wallpaper behind the bar', 'blur'], ['Scroll on a free spot to switch workspaces', 'scroll-workspaces'],
+    ['Click on an app with several windows shows its previews', 'click-previews'], ['Opaque while a window touches the bar', 'dynamic-opacity'],
     ['Wiggle when an app asks for attention', 'attention'], ['Show app names on hover', 'tooltips'],
     ['Badges and progress on app icons', 'badges'], ['Trash', 'trash'], ['Removable drives (USB sticks, SD cards)', 'drives'],
     ['Drag to rearrange, pin and unpin apps', 'dnd'], ['Show window previews on hover', 'previews'],

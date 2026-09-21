@@ -190,6 +190,10 @@ set_key separators false
 set_key shadow false
 set_key notification-badges false
 set_key poof false
+set_key blur-radius 80
+set_key highlight-active false
+set_key click-previews false
+set_key scroll-workspaces false
 set_key keep-top-bar true
 set_key colors custom
 set_key color "'rgb(236,1,1)'"
@@ -204,6 +208,7 @@ set_key attention false
 set_key tooltips false
 set_key position top
 set_key position left
+set_key blur false
 set_key badges false
 set_key trash false
 set_key drives false
@@ -234,7 +239,7 @@ if [[ $x11 ]]; then
     noise+="|Can't update stage views actor unnamed \[Meta(Window|Surface)ActorX11\]"
 fi
 if grep -n -B2 -A8 "$uuid" "$work/shell.log" | grep -iE 'error|warning|critical' | grep -vE "$noise" ||
-    grep -nE 'Clutter-|St-CRITICAL' "$work/shell.log" | grep -vE "$noise"; then
+    grep -nE 'Clutter-|St-CRITICAL|GLSL' "$work/shell.log" | grep -vE "$noise"; then
     echo "FAIL: errors from the extension"
     exit 1
 fi

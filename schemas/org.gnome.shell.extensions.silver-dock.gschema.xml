@@ -30,6 +30,19 @@
       <default>true</default>
       <summary>A soft shadow under the bar, and under the top bar in the dock's look</summary>
     </key>
+    <key name="highlight-active" type="b">
+      <default>true</default>
+      <summary>A soft tile behind the icon of the app in front</summary>
+    </key>
+    <key name="blur" type="b">
+      <default>true</default>
+      <summary>Blur the wallpaper behind the bar, windows under it are not blurred</summary>
+    </key>
+    <key name="blur-radius" type="i">
+      <range min="5" max="100"/>
+      <default>30</default>
+      <summary>Blur strength in pixels</summary>
+    </key>
     <key name="animation" type="s">
       <choices>
         <choice value="magnify"/>
@@ -170,6 +183,14 @@
     <key name="peek" type="b">
       <default>true</default>
       <summary>While the pointer rests on a window preview, only that window stays visible</summary>
+    </key>
+    <key name="click-previews" type="b">
+      <default>true</default>
+      <summary>A click on an app with several windows shows their previews instead of cycling them</summary>
+    </key>
+    <key name="scroll-workspaces" type="b">
+      <default>true</default>
+      <summary>Scrolling on a free spot of the bar switches workspaces</summary>
     </key>
     <key name="scroll" type="b">
       <default>true</default>

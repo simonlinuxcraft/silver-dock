@@ -56,6 +56,13 @@ export class WindowPreviews {
             this._start('show', SHOW_DELAY, () => this._open(app, anchor, side));
     }
 
+    // At once, for a click.
+    show(app, anchor, side) {
+        this._stop('show');
+        this._stop('hide');
+        this._open(app, anchor, side);
+    }
+
     leaveIcon() {
         this._stop('show');
         if (this.shown && !this.actor.hover)

@@ -192,13 +192,16 @@ set_key notification-badges false
 set_key poof false
 set_key blur-radius 80
 set_key highlight-active false
-set_key click-previews false
+set_key click-action minimize
+set_key middle-click none
 set_key scroll-workspaces false
 set_key media false
 set_key keep-top-bar true
 set_key colors custom
 set_key color "'rgb(236,1,1)'"
 set_key color "'not a color'"
+set_key colors wallpaper
+sleep 1
 set_key colors theme
 set_key tint-icons true
 set_key icon-color "'rgb(227,154,227)'"

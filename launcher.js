@@ -67,7 +67,6 @@ export class LauncherEntries {
     }
 }
 
-// Notifications in GNOME's message list per app, a badge for apps that publish none.
 export class NotificationCounts {
     constructor(onChange) {
         this._onChange = onChange;

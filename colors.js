@@ -1,4 +1,5 @@
 // GTK theme colors from @define-color in its CSS, functions (mix, shade) are skipped.
+import GdkPixbuf from 'gi://GdkPixbuf';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 
@@ -23,6 +24,15 @@ export function parseColor(value) {
 export function mix(base, color, share) {
     const to = color.split(',').map(Number);
     return base.split(',').map((c, i) => Math.round(Number(c) + (to[i] - c) * share)).join(', ');
+}
+
+export function averageColor(pixels, width, height, rowstride, channels) {
+    const sum = [0, 0, 0];
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++)
+            sum.forEach((s, c) => (sum[c] += pixels[y * rowstride + x * channels + c]));
+    }
+    return sum.map(s => Math.round(s / (width * height))).join(', ');
 }
 
 export function definedColor(css, names) {
@@ -79,8 +89,7 @@ function loadThemeCss(name, dark, done) {
     next(0, 0);
 }
 
-// Nulls for a theme seen the first time, onLoaded runs once its files are read.
-// Cached per theme name, an edited theme file needs a theme switch or a new login.
+// Null until the theme's files are read, cached per theme name.
 export function gtkColors(settings, onLoaded) {
     const name = settings.get_string('gtk-theme');
     const dark = settings.get_string('color-scheme') === 'prefer-dark';
@@ -100,4 +109,35 @@ export function gtkColors(settings, onLoaded) {
         bg: first(['window_bg_color', 'theme_bg_color']),
         accent: first(['accent_bg_color', 'theme_selected_bg_color']),
     };
+}
+
+let wallpaper = {key: null, color: null};
+
+// Decoded in a thread, a big photo would stall the shell. Slideshows stay null.
+export function wallpaperColor(settings, dark, onLoaded) {
+    const uri = (dark && settings.get_string('picture-uri-dark')) || settings.get_string('picture-uri');
+    const plain = settings.get_string('picture-options') === 'none' || !uri;
+    const key = plain ? settings.get_string('primary-color') : uri;
+    if (wallpaper.key === key)
+        return wallpaper.color;
+    wallpaper = {key, color: plain ? parseColor(key) : null};
+    if (!plain) {
+        Gio.File.new_for_uri(uri).read_async(GLib.PRIORITY_DEFAULT, null, (file, result) => {
+            try {
+                GdkPixbuf.Pixbuf.new_from_stream_at_scale_async(file.read_finish(result), 16, 16, false, null,
+                    (stream, done) => {
+                        try {
+                            const p = GdkPixbuf.Pixbuf.new_from_stream_finish(done);
+                            if (wallpaper.key !== key)
+                                return;
+                            wallpaper.color = averageColor(p.get_pixels(), p.width, p.height, p.rowstride, p.n_channels);
+                            onLoaded();
+                        } catch {
+                        }
+                    });
+            } catch {
+            }
+        });
+    }
+    return wallpaper.color;
 }

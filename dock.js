@@ -46,13 +46,12 @@ const SCROLL_PAUSE = 150;
 const FADE_TIME = 120;
 // longer than WIGGLE_EVERY, so a waiting wiggle still shows
 const REVEAL_TIME = 3000;
-// px the hidden background moves beyond the edge, its shadow with it
+// the hidden background slides this much further, its shadow with it
 const SHADOW = 16;
 // like GNOME's hot corner: px of push within ms
 const PRESSURE = 100;
 const PRESSURE_TIMEOUT = 1000;
 const POOF_TIME = 400;
-// ms an app may take to show its first window while its icon hops
 const BOUNCE_MAX = 15000;
 const PUFFS = 7;
 
@@ -100,8 +99,7 @@ function resetRocket(rocket) {
     rocket.set_pivot_point(0, 0);
 }
 
-// One bar on one monitor. "along" runs with the icon row, "across" from the bar's
-// inner side to the screen edge, _xy() maps them to x and y.
+// "along" runs with the icon row, "across" from its inner side to the screen edge.
 export class Dock {
     constructor(ext, monitorIndex, primary, intro) {
         this._ext = ext;
@@ -177,7 +175,7 @@ export class Dock {
                 this._openDockMenu(event.get_coords());
                 return Clutter.EVENT_STOP;
             },
-            // Icons and top bar buttons (volume) keep their own scrolling.
+            // Icons and the volume button scroll themselves.
             'scroll-event', (actor, event) => {
                 const target = global.stage.get_event_actor(event);
                 if (!this._settings.get_boolean('scroll-workspaces') || (target !== this._bar && target !== this._row))
@@ -198,7 +196,7 @@ export class Dock {
     destroy() {
         this.stopListening();
         this._setBlur(false);
-        // ArcMenu's actors, left as they were.
+        // ArcMenu's actors go back as they were.
         this._hoverButton(null, true);
         this._rocket?.disconnectObject(this);
         if (this._rocket)
@@ -209,8 +207,7 @@ export class Dock {
         if (this._primary)
             Main.ctrlAltTabManager.removeGroup(this._bar);
         const actors = [this._bar, this._bg, this._label, this._reach];
-        // Clutter may queue a chrome actor twice for relayout but drops one entry on
-        // leaving the stage, asking for the allocation runs that relayout now.
+        // Clutter can hold a chrome actor twice for relayout, flush it while still on stage.
         actors.forEach(actor => actor.get_stage() && actor.get_allocation_box());
         actors.forEach(actor => actor.get_parent() && Main.layoutManager.removeChrome(actor));
         this._items.forEach(item => this._destroyItem(item));
@@ -255,7 +252,8 @@ export class Dock {
         const radius = this._settings.get_int('radius');
         const mode = this._settings.get_string('colors');
         const themed = mode === 'theme';
-        const own = mode === 'custom' && parseColor(this._settings.get_string('color'));
+        const own = (mode === 'custom' && parseColor(this._settings.get_string('color'))) ||
+            (mode === 'wallpaper' && this._ext.wallpaperColor());
         let colors = themed ? this._ext.themeColors() : COLORS;
         let ink = false;
         if (own) {
@@ -314,8 +312,7 @@ export class Dock {
         });
     }
 
-    // The wallpaper blurred once and cached, a clone shows the part behind the bar.
-    // Only the wallpaper: GNOME's live background blur can't take rounded corners.
+    // Only the wallpaper: GNOME's live blur can't take rounded corners.
     _setBlur(on) {
         const m = Main.layoutManager.monitors[this.monitorIndex];
         if (on && !this._blur && m) {
@@ -331,7 +328,6 @@ export class Dock {
             this._blur.add_child(this._clone);
             this._mask = new RoundedMask();
             this._blur.add_effect(this._mask);
-            // Below the background, which adds its color on top.
             Main.layoutManager.addChrome(this._blur, {trackFullscreen: true});
             Main.layoutManager.uiGroup.set_child_below_sibling(this._blur, this._bg);
         } else if (!on && this._blur) {
@@ -348,7 +344,6 @@ export class Dock {
         this._blurEffect.radius = this._settings.get_int('blur-radius') * scale;
     }
 
-    // Same box as the background, in whole pixels like it.
     _placeBlur(x, y, width, height) {
         if (!this._blur)
             return;
@@ -414,7 +409,7 @@ export class Dock {
             big: Math.round(icon * zoom), // rendered at full zoom and scaled down, stays sharp
             thick: INNER + icon + OUTER,
         };
-        // Room around the icon for the active and focus tile, at rest as wide as a slot.
+        // Room for the tile around the icon, at rest as wide as a slot.
         this._geom.pad = Math.floor((this._geom.slot - icon) / 2 * zoom);
 
         // The strut needs the bar on the screen edge, the gap is padding.
@@ -637,7 +632,7 @@ export class Dock {
             width: big + 2 * pad,
             height: big + 2 * pad,
         });
-        // On the icon's outer edge, the tile around it grows past the edge.
+        // On the icon's outer edge, not the tile's.
         button.set_pivot_point(...this._xy(0.5, (this._edgeFirst ? pad : pad + big) / (big + 2 * pad)));
 
         const dots = new St.BoxLayout({
@@ -803,7 +798,6 @@ export class Dock {
         const shown = this._settings.get_boolean('badges');
         for (const item of this._items) {
             const entry = shown && item.app ? this._ext.launcher?.get(item.app.get_id()) : null;
-            // An app's own count knows better than its notifications.
             const notes = shown && item.app && this._settings.get_boolean('notification-badges')
                 ? this._ext.notifications?.get(item.app.get_id()) : 0;
             const text = badgeOf(entry) ?? countText(notes);
@@ -848,8 +842,7 @@ export class Dock {
             item.icon.icon_name = this._ext.trash?.full ? 'user-trash-full' : 'user-trash';
     }
 
-    // The icon inside the button moves, the button carries the hover transform.
-    // Hops until the app shows a window, slow starters (Steam) included.
+    // The icon moves, its button carries the hover transform.
     _bounce(item) {
         const icon = item?.icon;
         if (!icon || icon.get_transition(this._across.replace('_', '-')))
@@ -912,7 +905,6 @@ export class Dock {
         }
     }
 
-    // An autohidden bar shows for a moment.
     _reveal() {
         if (this._revealTimer)
             GLib.source_remove(this._revealTimer);
@@ -924,7 +916,7 @@ export class Dock {
         this._updateAutohide();
     }
 
-    // Fades in only from hidden, moving between icons it just follows.
+    // Fades in only from hidden, between icons it just moves.
     _showLabel(item) {
         if (!this._settings.get_boolean('tooltips') || this._hidden || this._dragging || this._menuOpen() ||
             this._previews.shown)
@@ -990,7 +982,6 @@ export class Dock {
         item.menu.open(BoxPointer.PopupAnimation.FULL);
     }
 
-    // Points at the click.
     _openDockMenu([x, y]) {
         if (!this._dockMenu) {
             this._dockMenu = new PopupMenu.PopupMenu(this._bar, 0.5, this._side);
@@ -1010,7 +1001,6 @@ export class Dock {
         this._dockMenu.open(BoxPointer.PopupAnimation.FULL);
     }
 
-    // Keyboard focus (Ctrl+Alt+Tab) magnifies like the pointer.
     _focusItem(item) {
         const was = this._keyFocus;
         this._keyFocus = item;
@@ -1021,8 +1011,7 @@ export class Dock {
         } else {
             this._hideLabel(was);
         }
-        // Later: focus also leaves while items are destroyed, and without animations
-        // the ease runs _animate() at once.
+        // Later: focus also leaves while items die, and without animations an ease runs at once.
         this._queue('focus', () => {
             this._easeAmount();
             this._animate();
@@ -1060,28 +1049,34 @@ export class Dock {
         return Clutter.EVENT_STOP;
     }
 
-    // Several windows show their previews, or with that off: the focused app's only
-    // window minimizes, several cycle. Not from the keyboard, the previews take no focus.
     _activate(item, mouseButton) {
         const {app, button} = item;
         const windows = app.get_windows();
-        if (mouseButton === 1 && windows.length > 1 && this._settings.get_boolean('click-previews') &&
+        const middle = mouseButton === 2;
+        const action = this._settings.get_string(middle ? 'middle-click' : 'click-action');
+        // The previews take no keyboard focus.
+        if (!middle && action === 'previews' && windows.length > 1 &&
             Clutter.get_current_event()?.type() !== Clutter.EventType.KEY_RELEASE) {
             this._previews.show(app, button, this._side);
             return;
         }
         this._previews.hide();
-        // GNOME only reports a start for apps with StartupNotify, many have none.
-        if (!windows.length && this._settings.get_boolean('bounce'))
-            this._bounce(item);
-        if (mouseButton === 2) {
-            app.open_new_window(-1);
+        if (middle && action !== 'new-window') {
+            if (action === 'minimize')
+                windows.forEach(win => win.minimize());
+            else if (action === 'close')
+                app.request_quit();
             return;
         }
-        if (!windows.length || Shell.WindowTracker.get_default().focus_app !== app)
+        // GNOME only reports a start for apps with StartupNotify.
+        if (!windows.length && this._settings.get_boolean('bounce'))
+            this._bounce(item);
+        if (middle)
+            app.open_new_window(-1);
+        else if (!windows.length || action === 'raise' || Shell.WindowTracker.get_default().focus_app !== app)
             app.activate();
-        else if (windows.length === 1)
-            windows[0].minimize();
+        else if (action === 'minimize' || windows.length === 1)
+            windows.forEach(win => win.minimize());
         else
             Main.activateWindow(windows[windows.length - 1]);
     }
@@ -1149,20 +1144,22 @@ export class Dock {
         this._updateAutohide();
     }
 
-    // Pushing against the edge shows the hidden bar, passing by does not. Not on an edge
-    // shared with another monitor, the barrier would block the way over.
+    // Not on an edge shared with another monitor, the barrier would block the way over.
     _updateBarrier() {
         const m = Main.layoutManager.monitors[this.monitorIndex];
         const [along, length] = this._barAxes();
         const edge = {bottom: m.y + m.height, top: m.y, left: m.x, right: m.x + m.width}[this._position];
-        const shared = Main.layoutManager.monitors.some(n => n !== m && {
-            bottom: n.y === edge,
-            top: n.y + n.height === edge,
-            left: n.x + n.width === edge,
-            right: n.x === edge,
-        }[this._position] && (this._vertical
-            ? n.y < along + length && n.y + n.height > along
-            : n.x < along + length && n.x + n.width > along));
+        const touches = {
+            bottom: n => n.y === edge,
+            top: n => n.y + n.height === edge,
+            left: n => n.x + n.width === edge,
+            right: n => n.x === edge,
+        }[this._position];
+        const beside = n => {
+            const [start, size] = this._vertical ? [n.y, n.height] : [n.x, n.width];
+            return start < along + length && start + size > along;
+        };
+        const shared = Main.layoutManager.monitors.some(n => n !== m && touches(n) && beside(n));
         const wanted = this._settings.get_boolean('autohide') && this._settings.get_boolean('edge-pressure') &&
             !shared && Boolean(global.backend.capabilities & Meta.BackendCapabilities.BARRIERS);
         const [x1, y1] = this._xy(along, edge);
@@ -1189,7 +1186,6 @@ export class Dock {
             if (!this._hidden)
                 return;
             this._slide(false);
-            // The pointer on the edge now holds the bar like any hover.
             this._updateAutohide();
         });
     }
@@ -1397,8 +1393,7 @@ export class Dock {
             button.opacity = 80;
             Main.overview.beginItemDrag(delegate);
         });
-        // Before GNOME flies the icon back. Let go far off the bar unpins, Escape never does:
-        // GNOME cancels once more on the button release after it.
+        // Escape never unpins, though GNOME cancels once more on the release after it.
         draggable.connect('drag-cancelled', () => {
             Main.overview.cancelledItemDrag(delegate);
             const type = Clutter.get_current_event()?.type();
@@ -1408,8 +1403,7 @@ export class Dock {
                 AppFavorites.getAppFavorites().isFavorite(app.get_id());
             if (unpin && dragActor && this._settings.get_boolean('poof')) {
                 this._poof(app, dragActor);
-                // Hidden, the fly back ends at once and GNOME destroys it. A relayout still
-                // queued for it would then hit an actor off the stage, run it now.
+                // Hidden, the fly back ends at once, flush its relayout before GNOME destroys it.
                 dragActor.hide();
                 dragActor.get_allocation_box();
             }
@@ -1423,7 +1417,6 @@ export class Dock {
         });
     }
 
-    // A little cloud where the icon was let go.
     _poof(app, from) {
         const [x, y] = from.get_transformed_position();
         const [size] = from.get_transformed_size();

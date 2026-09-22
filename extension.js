@@ -6,14 +6,13 @@ import * as AppFavorites from 'resource:///org/gnome/shell/ui/appFavorites.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import {gtkColors} from './colors.js';
+import {gtkColors, wallpaperColor} from './colors.js';
 import {COLORS, Dock} from './dock.js';
 import {LauncherEntries, NotificationCounts} from './launcher.js';
 import {TrashWatcher} from './places.js';
 import {MediaPlayers} from './media.js';
 import {WindowPreviews} from './previews.js';
 
-// What all docks share: settings, launcher entries, trash, previews, window signals.
 export default class SilverDock extends Extension {
     enable() {
         try {
@@ -28,6 +27,7 @@ export default class SilverDock extends Extension {
     _setup() {
         this.settings = this.getSettings();
         this._iface = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
+        this._background = new Gio.Settings({schema_id: 'org.gnome.desktop.background'});
         this.volumes = Gio.VolumeMonitor.get();
         this.launcher = new LauncherEntries(() => this._each(dock => dock.updateBadges()));
         this.notifications = new NotificationCounts(() => this._each(dock => dock.updateBadges()));
@@ -39,10 +39,7 @@ export default class SilverDock extends Extension {
 
         const sync = () => this._each(dock => dock.sync());
         const check = () => this._each(dock => dock.queueCheck());
-        const retheme = () => {
-            if (this.settings.get_string('colors') === 'theme')
-                this._each(dock => dock.paint());
-        };
+        const recolor = () => this._recolor();
         Shell.AppSystem.get_default().connectObject(
             'app-state-changed', (appSystem, app) => this._each(dock => dock.onAppState(app)),
             'installed-changed', sync, this);
@@ -52,16 +49,17 @@ export default class SilverDock extends Extension {
             'changed::autohide', () => this._each(dock => dock.trackBar()),
             'changed', (settings, key) => (key === 'all-monitors' ? this._build(false) : this._refresh()), this);
         Main.layoutManager.connectObject('monitors-changed', () => this._build(false), this);
-        St.ThemeContext.get_for_stage(global.stage).connectObject('changed', retheme, this);
-        this._iface.connectObject('changed::gtk-theme', retheme, 'changed::color-scheme', retheme, this);
+        St.ThemeContext.get_for_stage(global.stage).connectObject('changed', recolor, this);
+        this._iface.connectObject('changed::gtk-theme', recolor, 'changed::color-scheme', recolor, this);
+        this._background.connectObject('changed', recolor, this);
         this.volumes.connectObject('mount-added', sync, 'mount-removed', sync, 'mount-changed', sync, this);
 
-        // Open menus take the key focus.
         global.display.connectObject(
             'window-created', (display, win) => this._watchWindow(win),
             'restacked', check,
             'workareas-changed', () => this._each(dock => dock.queuePlace()), this);
         global.workspace_manager.connectObject('active-workspace-changed', check, this);
+        // Open menus and the keyboard in the dock take the key focus.
         global.stage.connectObject('notify::key-focus', check, this);
         Main.overview.connectObject(
             'showing', check,
@@ -81,7 +79,7 @@ export default class SilverDock extends Extension {
         this._watched?.forEach(win => win.set_icon_geometry(null));
         this._docks?.forEach(dock => dock.destroy());
         this.previews?.destroy();
-        this.settings = this._iface = this.volumes = this.previews = this._docks = this._watched = null;
+        this.settings = this._iface = this._background = this.volumes = this.previews = this._docks = this._watched = null;
     }
 
     // GNOME tears the stage down at logout without disabling extensions.
@@ -109,6 +107,7 @@ export default class SilverDock extends Extension {
         this.launcher = this.notifications = this.media = this.trash = null;
         this.settings?.disconnectObject(this);
         this._iface?.disconnectObject(this);
+        this._background?.disconnectObject(this);
     }
 
     _each(fn) {
@@ -179,6 +178,16 @@ export default class SilverDock extends Extension {
         win.set_icon_geometry(rect);
     }
 
+    _recolor() {
+        if (['theme', 'wallpaper'].includes(this.settings?.get_string('colors')))
+            this._each(dock => dock.paint());
+    }
+
+    wallpaperColor() {
+        return wallpaperColor(this._background, this._iface.get_string('color-scheme') === 'prefer-dark',
+            () => this._recolor());
+    }
+
     // The shell theme's top bar colors from a hidden stand-in, the GTK theme fills in.
     themeColors() {
         const panel = new St.Widget({name: 'panel', visible: false});
@@ -188,10 +197,7 @@ export default class SilverDock extends Extension {
         const bg = node.get_background_color();
         const fg = rgb(node.get_foreground_color());
         panel.destroy();
-        const gtk = gtkColors(this._iface, () => {
-            if (this.settings?.get_string('colors') === 'theme')
-                this._each(dock => dock.paint());
-        });
+        const gtk = gtkColors(this._iface, () => this._recolor());
         if (bg.alpha)
             return {bg: rgb(bg), alpha: bg.alpha / 255, fg, border: 'none', accent: gtk.accent};
         return {bg: gtk.bg ?? COLORS.bg, alpha: 1, fg, border: 'none', accent: gtk.accent};

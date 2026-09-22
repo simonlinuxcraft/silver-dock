@@ -1,8 +1,8 @@
-// Rounded corners for an actor with no background of its own to round, like the blur.
+// St rounds only its own background, not a clone inside it.
 import Clutter from 'gi://Clutter';
 import GObject from 'gi://GObject';
 
-// Signed distance to a rounded box, one pixel of soft edge. The texture is premultiplied.
+// Rounded box distance, one pixel of soft edge on premultiplied color.
 const SHADER = `
 uniform sampler2D tex;
 uniform float width;
@@ -25,8 +25,7 @@ export const RoundedMask = GObject.registerClass({
         this.set_uniform_value('tex', 0);
     }
 
-    // Every uniform write repaints, most animation steps change nothing here.
-    // GJS hands whole numbers over as int, the shader takes floats.
+    // Uniform writes repaint, and GJS passes whole numbers as int.
     setShape(width, height, radius) {
         const shape = `${width} ${height} ${radius}`;
         if (shape === this._shape)

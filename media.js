@@ -1,4 +1,3 @@
-// MPRIS players on the session bus, matched to their apps, for the app menus.
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -10,12 +9,6 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
 const MPRIS = 'org.mpris.MediaPlayer2';
 const PATH = '/org/mpris/MediaPlayer2';
-// method, capability, icon (play/pause follows the status)
-const CONTROLS = [
-    ['Previous', 'CanGoPrevious', 'media-skip-backward-symbolic'],
-    ['PlayPause', 'CanPlay', null],
-    ['Next', 'CanGoNext', 'media-skip-forward-symbolic'],
-];
 
 export class MediaPlayers {
     constructor() {
@@ -44,7 +37,6 @@ export class MediaPlayers {
         return [...this._players.values()].filter(player => player?.app === app);
     }
 
-    // The player's own DesktopEntry, else the app owning its process.
     async _add(name) {
         const token = {};
         this._players.set(name, token);
@@ -89,7 +81,7 @@ export class MediaPlayers {
     }
 }
 
-// At the top of an app menu, returns the function that fills it before each opening.
+// Returns the function that refills it before each opening.
 export function mediaSection(menu, media, app) {
     const section = new PopupMenu.PopupMenuSection();
     menu.addMenuItem(section, 0);
@@ -102,23 +94,26 @@ export function mediaSection(menu, media, app) {
     };
 }
 
-// Titles and artists come from the player, plain text only.
+// Player strings are untrusted, never markup.
 function playerItem({proxy}, app) {
     const item = new PopupMenu.PopupBaseMenuItem({activate: false, can_focus: false});
     const box = new St.BoxLayout({style_class: 'silver-dock-media', x_expand: true});
     const title = new St.Label({style_class: 'silver-dock-media-title', x_expand: true, y_align: Clutter.ActorAlign.CENTER});
     title.clutter_text.ellipsize = Pango.EllipsizeMode.END;
     box.add_child(title);
-    const buttons = CONTROLS.map(([method, can, iconName]) => {
-        const button = new St.Button({
+    const button = (method, iconName) => {
+        const b = new St.Button({
             style_class: 'silver-dock-media-button',
             can_focus: true,
-            child: new St.Icon({icon_name: iconName ?? 'media-playback-start-symbolic', icon_size: 16}),
+            child: new St.Icon({icon_name: iconName, icon_size: 16}),
         });
-        button.connect('clicked', () => proxy.call(method, null, Gio.DBusCallFlags.NONE, -1, null, null));
-        box.add_child(button);
-        return {button, can};
-    });
+        b.connect('clicked', () => proxy.call(method, null, Gio.DBusCallFlags.NONE, -1, null, null));
+        box.add_child(b);
+        return b;
+    };
+    const previous = button('Previous', 'media-skip-backward-symbolic');
+    const play = button('PlayPause', 'media-playback-start-symbolic');
+    const next = button('Next', 'media-skip-forward-symbolic');
     item.add_child(box);
 
     const update = () => {
@@ -127,11 +122,10 @@ function playerItem({proxy}, app) {
         const artist = [meta['xesam:artist'] ?? []].flat().join(', ');
         title.text = [meta['xesam:title'], artist].filter(Boolean).join(' · ') || app.get_name();
         const playing = get('PlaybackStatus') === 'Playing';
-        buttons[1].button.child.icon_name = playing ? 'media-playback-pause-symbolic' : 'media-playback-start-symbolic';
-        buttons[1].can = playing ? 'CanPause' : 'CanPlay';
-        for (const {button, can} of buttons) {
-            button.reactive = get(can) !== false;
-            button.opacity = button.reactive ? 255 : 90;
+        play.child.icon_name = playing ? 'media-playback-pause-symbolic' : 'media-playback-start-symbolic';
+        for (const [b, can] of [[previous, 'CanGoPrevious'], [play, playing ? 'CanPause' : 'CanPlay'], [next, 'CanGoNext']]) {
+            b.reactive = get(can) !== false;
+            b.opacity = b.reactive ? 255 : 90;
         }
     };
     proxy.connectObject('g-properties-changed', update, item);

@@ -46,6 +46,13 @@ rows['Hover animation'].selected = 2;
 check(settings.get_string('animation') === 'lift', 'animation combo not written');
 settings.set_string('animation', 'ripple');
 check(rows['Hover animation'].selected === 1, 'animation key not shown in the combo');
+rows['Click on an app'].selected = 2;
+check(settings.get_string('click-action') === 'minimize', 'click combo not written');
+settings.set_string('middle-click', 'close');
+check(rows['Middle click'].selected === 2, 'middle click key not shown in its combo');
+rows['Colors from'].selected = 3;
+check(settings.get_string('colors') === 'wallpaper', 'wallpaper colors not written');
+check(!rows['Color'].visible && rows['Background opacity (%)'].visible, 'wrong color rows for wallpaper colors');
 rows['Colors from'].selected = 2;
 check(settings.get_string('colors') === 'custom', 'colors combo not written');
 check(rows['Color'].visible && rows['Background opacity (%)'].visible, 'color rows hidden with an own color');
@@ -94,7 +101,6 @@ for (const [title, key] of [['Separators', 'separators'], ['Shadow', 'shadow'],
     ['Count notifications of apps without their own badge', 'notification-badges'],
     ['A little cloud when an app is dragged off', 'poof'], ['Highlight the active app', 'highlight-active'],
     ['Blur the wallpaper behind the bar', 'blur'], ['Scroll on a free spot to switch workspaces', 'scroll-workspaces'],
-    ['Click on an app with several windows shows its previews', 'click-previews'],
     ['Media controls in the right click menu', 'media'], ['Opaque while a window touches the bar', 'dynamic-opacity'],
     ['Wiggle when an app asks for attention', 'attention'], ['Show app names on hover', 'tooltips'],
     ['Badges and progress on app icons', 'badges'], ['Trash', 'trash'], ['Removable drives (USB sticks, SD cards)', 'drives'],

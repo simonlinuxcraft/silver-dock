@@ -20,7 +20,7 @@
     box-shadow: 0 3px 12px rgba(0, 0, 0, 0.3);
 }
 
-/* The app in front and keyboard focus, radius and padding are set per icon size. */
+/* Radius and padding are set per icon size. */
 .silver-dock-app:checked {
     background-color: rgba(255, 255, 255, 0.12);
 }

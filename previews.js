@@ -18,7 +18,6 @@ const PEEK_DELAY = 250;
 const PEEK_TIME = 200;
 const FADE_TIME = 150;
 const MOVE_TIME = 150;
-// px the previews rise from the icon when they appear
 const RISE = 8;
 
 export class WindowPreviews {
@@ -56,7 +55,6 @@ export class WindowPreviews {
             this._start('show', SHOW_DELAY, () => this._open(app, anchor, side));
     }
 
-    // At once, for a click.
     show(app, anchor, side) {
         this._stop('show');
         this._stop('hide');
@@ -166,7 +164,7 @@ export class WindowPreviews {
             return;
         }
         const wasShown = this.shown;
-        // Still there or fading out: glide over instead of popping up again.
+        // Still there or fading out: glide over.
         const onScreen = this.actor.visible;
         this._shown = true;
         this.actor.reactive = true;

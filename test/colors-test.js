@@ -1,5 +1,8 @@
 // gjs -m test/colors-test.js
-import {definedColor, mix, parseColor} from '../colors.js';
+import GdkPixbuf from 'gi://GdkPixbuf';
+import GLib from 'gi://GLib';
+
+import {averageColor, definedColor, mix, parseColor, wallpaperColor} from '../colors.js';
 
 const check = (ok, msg) => {
     if (!ok)
@@ -30,5 +33,29 @@ check(definedColor(css, ['theme_bg_color']) === '8, 8, 8', 'references are follo
 check(definedColor(css, ['missing', 'window_bg_color']) === '8, 8, 8', 'first name that resolves');
 check(definedColor(css, ['loop_a']) === null, 'reference loops end');
 check(definedColor(css, ['shaded']) === null, 'function values are skipped');
+
+// 2x2 RGBA with 4 bytes of row padding: red, blue / red, blue
+const pixels = [255, 0, 0, 255, 0, 0, 255, 255, 9, 9, 9, 9, 255, 0, 0, 255, 0, 0, 255, 255, 9, 9, 9, 9];
+check(averageColor(pixels, 2, 2, 12, 4) === '128, 0, 128', 'mean skips alpha and row padding');
+
+const settings = values => ({get_string: key => values[key] ?? ''});
+check(wallpaperColor(settings({'picture-options': 'none', 'primary-color': '#204a87'}), false, () => {}) === '32, 74, 135',
+    'a plain background gives its color');
+
+const pixbuf = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, false, 8, 64, 64);
+pixbuf.fill(0x40a0e0ff);
+const [fd, path] = GLib.file_open_tmp('silver-dock-XXXXXX.png');
+GLib.close(fd);
+pixbuf.savev(path, 'png', [], []);
+const uri = `file://${path}`;
+const loaded = new Promise(resolve => {
+    const first = wallpaperColor(settings({'picture-uri': uri, 'picture-options': 'zoom'}), true, resolve);
+    check(first === null, 'an image is read in the background first');
+});
+const timeout = new Promise((resolve, reject) => GLib.timeout_add(GLib.PRIORITY_DEFAULT, 3000, () => reject(new Error('wallpaper never loaded'))));
+await Promise.race([loaded, timeout]);
+check(wallpaperColor(settings({'picture-uri': uri, 'picture-options': 'zoom'}), true, () => {}) === '64, 160, 224',
+    'the image mean, dark falls back to the light picture');
+GLib.unlink(path);
 
 print('colors ok');

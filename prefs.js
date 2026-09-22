@@ -80,7 +80,6 @@ export default class SilverDockPrefs extends ExtensionPreferences {
 
         const topBarInDock = () => is('position', 'top') || is('position', 'bottom') && !settings.get_boolean('keep-top-bar');
 
-        // What most people change, the rest sits on the pages after it.
         const general = page(_('General'), 'preferences-system-symbolic');
         const where = group(general, _('Position'));
         choice(where, 'position', _('Screen edge'),
@@ -92,7 +91,8 @@ export default class SilverDockPrefs extends ExtensionPreferences {
             [['magnify', _('Magnify')], ['ripple', _('Ripple')], ['lift', _('Lift')], ['none', _('None')]]);
         showIf(spin(look, 'zoom', _('Magnification'), 1, 2.5, 0.1, 1), () => is('animation', 'magnify', 'ripple'), 'animation');
         choice(look, 'colors', _('Colors from'),
-            [['dock', _('Silver Dock')], ['theme', _('Shell and GTK theme')], ['custom', _('Own color')]]);
+            [['dock', _('Silver Dock')], ['theme', _('Shell and GTK theme')], ['custom', _('Own color')],
+                ['wallpaper', _('Wallpaper')]]);
         showIf(color(look, 'color', _('Color')), () => is('colors', 'custom'), 'colors');
         showIf(spin(look, 'opacity', _('Background opacity (%)'), 0, 100, 5), () => !is('colors', 'theme'), 'colors');
         spin(fold(look, 'blur', _('Blur the wallpaper behind the bar')), 'blur-radius', _('Strength'), 5, 100, 5);
@@ -119,7 +119,11 @@ export default class SilverDockPrefs extends ExtensionPreferences {
 
         const behavior = page(_('Behavior'), 'input-mouse-symbolic');
         const clicks = group(behavior, _('Clicks and scrolling'));
-        toggle(clicks, 'click-previews', _('Click on an app with several windows shows its previews'));
+        const minimizeAll = _('Minimize all its windows');
+        choice(clicks, 'click-action', _('Click on an app'), [['previews', _('Previews if it has several windows')],
+            ['cycle', _('Minimize or switch windows')], ['minimize', minimizeAll], ['raise', _('Only bring to the front')]]);
+        choice(clicks, 'middle-click', _('Middle click'), [['new-window', _('New window')], ['minimize', minimizeAll],
+            ['close', _('Close the app')], ['none', _('Nothing')]]);
         toggle(clicks, 'scroll', _('Scroll over an icon to switch its windows'));
         toggle(clicks, 'scroll-workspaces', _('Scroll on a free spot to switch workspaces'));
         toggle(clicks, 'dnd', _('Drag to rearrange, pin and unpin apps'));

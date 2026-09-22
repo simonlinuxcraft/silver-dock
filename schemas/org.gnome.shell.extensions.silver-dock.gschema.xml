@@ -124,9 +124,10 @@
         <choice value="dock"/>
         <choice value="theme"/>
         <choice value="custom"/>
+        <choice value="wallpaper"/>
       </choices>
       <default>'dock'</default>
-      <summary>Colors of the bar: its own, from the themes (background and transparency from the shell theme's top bar, the accent from the GTK theme, else the system accent), or the color below with a border in a shade of it</summary>
+      <summary>Bar colors: the dock's own, the shell and GTK theme's, the color below, or the wallpaper's mean color</summary>
     </key>
     <key name="color" type="s">
       <default>'#1c1d21'</default>
@@ -184,9 +185,25 @@
       <default>true</default>
       <summary>While the pointer rests on a window preview, only that window stays visible</summary>
     </key>
-    <key name="click-previews" type="b">
-      <default>true</default>
-      <summary>A click on an app with several windows shows their previews instead of cycling them</summary>
+    <key name="click-action" type="s">
+      <choices>
+        <choice value="previews"/>
+        <choice value="cycle"/>
+        <choice value="minimize"/>
+        <choice value="raise"/>
+      </choices>
+      <default>'previews'</default>
+      <summary>Click on the app in front: previews of several windows, minimize or cycle, minimize all, or nothing</summary>
+    </key>
+    <key name="middle-click" type="s">
+      <choices>
+        <choice value="new-window"/>
+        <choice value="minimize"/>
+        <choice value="close"/>
+        <choice value="none"/>
+      </choices>
+      <default>'new-window'</default>
+      <summary>Middle click on an app: open a new window, minimize all its windows, close the app, or nothing</summary>
     </key>
     <key name="media" type="b">
       <default>true</default>

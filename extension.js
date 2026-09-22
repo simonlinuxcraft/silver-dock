@@ -10,6 +10,7 @@ import {gtkColors} from './colors.js';
 import {COLORS, Dock} from './dock.js';
 import {LauncherEntries, NotificationCounts} from './launcher.js';
 import {TrashWatcher} from './places.js';
+import {MediaPlayers} from './media.js';
 import {WindowPreviews} from './previews.js';
 
 // What all docks share: settings, launcher entries, trash, previews, window signals.
@@ -30,6 +31,7 @@ export default class SilverDock extends Extension {
         this.volumes = Gio.VolumeMonitor.get();
         this.launcher = new LauncherEntries(() => this._each(dock => dock.updateBadges()));
         this.notifications = new NotificationCounts(() => this._each(dock => dock.updateBadges()));
+        this.media = new MediaPlayers();
         this.previews = new WindowPreviews(() => this._each(dock => dock.previewsChanged()));
         this.trash = null;
         this._docks = [];
@@ -102,8 +104,9 @@ export default class SilverDock extends Extension {
         this.volumes?.disconnectObject(this);
         this.launcher?.destroy();
         this.notifications?.destroy();
+        this.media?.destroy();
         this.trash?.destroy();
-        this.launcher = this.notifications = this.trash = null;
+        this.launcher = this.notifications = this.media = this.trash = null;
         this.settings?.disconnectObject(this);
         this._iface?.disconnectObject(this);
     }

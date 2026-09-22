@@ -188,6 +188,10 @@
       <default>true</default>
       <summary>A click on an app with several windows shows their previews instead of cycling them</summary>
     </key>
+    <key name="media" type="b">
+      <default>true</default>
+      <summary>Title and play, pause, next in the right click menu of apps that play media (MPRIS)</summary>
+    </key>
     <key name="scroll-workspaces" type="b">
       <default>true</default>
       <summary>Scrolling on a free spot of the bar switches workspaces</summary>

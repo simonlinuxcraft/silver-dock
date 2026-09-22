@@ -52,6 +52,51 @@ def launcher_entry():
 
 
 GLib.timeout_add(1000, launcher_entry)
+
+MPRIS = '''<node>
+<interface name="org.mpris.MediaPlayer2">
+  <property name="DesktopEntry" type="s" access="read"/>
+</interface>
+<interface name="org.mpris.MediaPlayer2.Player">
+  <method name="PlayPause"/><method name="Next"/><method name="Previous"/>
+  <property name="PlaybackStatus" type="s" access="read"/>
+  <property name="Metadata" type="a{sv}" access="read"/>
+  <property name="CanGoNext" type="b" access="read"/>
+  <property name="CanGoPrevious" type="b" access="read"/>
+  <property name="CanPlay" type="b" access="read"/>
+  <property name="CanPause" type="b" access="read"/>
+</interface>
+</node>'''
+player = {'status': 'Playing', 'track': 1}
+
+
+def player_props():
+    return {'PlaybackStatus': GLib.Variant('s', player['status']),
+            'Metadata': GLib.Variant('a{sv}', {'xesam:title': GLib.Variant('s', f"Test Song {player['track']}"),
+                                               'xesam:artist': GLib.Variant('as', ['Silver Band'])}),
+            'CanGoNext': GLib.Variant('b', True), 'CanGoPrevious': GLib.Variant('b', False),
+            'CanPlay': GLib.Variant('b', True), 'CanPause': GLib.Variant('b', True)}
+
+
+def player_call(conn, sender, path, iface, method, params, invocation):
+    if method == 'PlayPause':
+        player['status'] = 'Paused' if player['status'] == 'Playing' else 'Playing'
+    elif method == 'Next':
+        player['track'] += 1
+    invocation.return_value(None)
+    conn.emit_signal(None, '/org/mpris/MediaPlayer2', 'org.freedesktop.DBus.Properties', 'PropertiesChanged',
+                     GLib.Variant('(sa{sv}as)', ('org.mpris.MediaPlayer2.Player', player_props(), [])))
+
+
+def player_get(conn, sender, path, iface, prop):
+    if iface == 'org.mpris.MediaPlayer2':
+        return GLib.Variant('s', 'org.gnome.Nautilus')
+    return player_props()[prop]
+
+
+for info in Gio.DBusNodeInfo.new_for_xml(MPRIS).interfaces:
+    bus.register_object('/org/mpris/MediaPlayer2', info, player_call, player_get, None)
+Gio.bus_own_name_on_connection(bus, 'org.mpris.MediaPlayer2.silverdockdemo', Gio.BusNameOwnerFlags.NONE, None, None)
 # Malformed on purpose.
 bus.emit_signal(None, '/com/canonical/unity/launcherentry/demo', 'com.canonical.Unity.LauncherEntry', 'Update',
                 GLib.Variant('(s)', ('application://org.gnome.Nautilus.desktop',)))

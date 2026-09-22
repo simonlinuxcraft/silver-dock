@@ -78,67 +78,77 @@ export default class SilverDockPrefs extends ExtensionPreferences {
         };
         const is = (key, ...values) => values.includes(settings.get_string(key));
 
-        const look = page(_('Appearance'), 'applications-graphics-symbolic');
-        const where = group(look, _('Position'));
+        const topBarInDock = () => is('position', 'top') || is('position', 'bottom') && !settings.get_boolean('keep-top-bar');
+
+        // What most people change, the rest sits on the pages after it.
+        const general = page(_('General'), 'preferences-system-symbolic');
+        const where = group(general, _('Position'));
         choice(where, 'position', _('Screen edge'),
             [['bottom', _('Bottom')], ['top', _('Top')], ['left', _('Left')], ['right', _('Right')]]);
         toggle(where, 'all-monitors', _('A dock on every monitor'));
-        showIf(toggle(where, 'keep-top-bar', _('Keep the top bar')), () => is('position', 'bottom'), 'position');
-        showIf(toggle(where, 'style-top-bar', _('Top bar in the dock\'s look')),
-            () => is('position', 'left', 'right') || is('position', 'bottom') && settings.get_boolean('keep-top-bar'),
-            'position', 'keep-top-bar');
-        const size = group(look, _('Size and layout'));
-        spin(size, 'icon-size', _('Icon size'), 24, 96, 2);
-        spin(size, 'margin', _('Distance from screen edge'), 0, 48, 1);
-        spin(size, 'radius', _('Corner radius'), 0, 48, 1);
-        toggle(size, 'separators', _('Separators'));
-    toggle(size, 'shadow', _('Shadow'));
-        const colors = group(look, _('Colors'));
-        choice(colors, 'colors', _('Colors from'),
+        const look = group(general, _('Look'));
+        spin(look, 'icon-size', _('Icon size'), 24, 96, 2);
+        choice(look, 'animation', _('Hover animation'),
+            [['magnify', _('Magnify')], ['ripple', _('Ripple')], ['lift', _('Lift')], ['none', _('None')]]);
+        showIf(spin(look, 'zoom', _('Magnification'), 1, 2.5, 0.1, 1), () => is('animation', 'magnify', 'ripple'), 'animation');
+        choice(look, 'colors', _('Colors from'),
             [['dock', _('Silver Dock')], ['theme', _('Shell and GTK theme')], ['custom', _('Own color')]]);
-        showIf(color(colors, 'color', _('Color')), () => is('colors', 'custom'), 'colors');
-        showIf(spin(colors, 'opacity', _('Background opacity (%)'), 0, 100, 5), () => !is('colors', 'theme'), 'colors');
-        toggle(colors, 'dynamic-opacity', _('Opaque while a window touches the bar'));
-        toggle(colors, 'highlight-active', _('Highlight the active app'));
-        spin(fold(colors, 'blur', _('Blur the wallpaper behind the bar')), 'blur-radius', _('Strength'), 5, 100, 5);
-        color(fold(colors, 'tint-icons', _('Tint app icons')), 'icon-color', _('Icon color'));
-
-        const behavior = page(_('Behavior'), 'preferences-system-symbolic');
-        const bar = group(behavior, _('Bar'));
-        toggle(fold(bar, 'autohide', _('Hide when a window overlaps the bar')), 'edge-pressure',
+        showIf(color(look, 'color', _('Color')), () => is('colors', 'custom'), 'colors');
+        showIf(spin(look, 'opacity', _('Background opacity (%)'), 0, 100, 5), () => !is('colors', 'theme'), 'colors');
+        spin(fold(look, 'blur', _('Blur the wallpaper behind the bar')), 'blur-radius', _('Strength'), 5, 100, 5);
+        const hiding = group(general, _('Behavior'));
+        toggle(fold(hiding, 'autohide', _('Hide when a window overlaps the bar')), 'edge-pressure',
             _('Only come back when the pointer pushes against the edge'));
-        toggle(bar, 'scroll-workspaces', _('Scroll on a free spot to switch workspaces'));
-        toggle(bar, 'tooltips', _('Show app names on hover'));
-        toggle(fold(bar, 'previews', _('Show window previews on hover')), 'peek', _('Show only that window while on its preview'));
-        const icons = group(behavior, _('App icons'));
-        toggle(icons, 'dnd', _('Drag to rearrange, pin and unpin apps'));
-        toggle(icons, 'click-previews', _('Click on an app with several windows shows its previews'));
-        toggle(icons, 'scroll', _('Scroll over an icon to switch its windows'));
-        const badges = fold(icons, 'badges', _('Badges and progress on app icons'));
+
+        const appearance = page(_('Appearance'), 'applications-graphics-symbolic');
+        const shape = group(appearance, _('Shape'));
+        spin(shape, 'margin', _('Distance from screen edge'), 0, 48, 1);
+        spin(shape, 'radius', _('Corner radius'), 0, 48, 1);
+        toggle(shape, 'shadow', _('Shadow'));
+        toggle(shape, 'separators', _('Separators'));
+        const colors = group(appearance, _('Colors'));
+        toggle(colors, 'highlight-active', _('Highlight the active app'));
+        toggle(colors, 'dynamic-opacity', _('Opaque while a window touches the bar'));
+        color(fold(colors, 'tint-icons', _('Tint app icons')), 'icon-color', _('Icon color'));
+        // At the top the top bar content always moves into the dock.
+        const topBar = group(appearance, _('Top bar'));
+        showIf(topBar, () => !is('position', 'top'), 'position');
+        showIf(toggle(topBar, 'keep-top-bar', _('Keep the top bar')), () => is('position', 'bottom'), 'position');
+        showIf(toggle(topBar, 'style-top-bar', _('Top bar in the dock\'s look')), () => !topBarInDock(),
+            'position', 'keep-top-bar');
+
+        const behavior = page(_('Behavior'), 'input-mouse-symbolic');
+        const clicks = group(behavior, _('Clicks and scrolling'));
+        toggle(clicks, 'click-previews', _('Click on an app with several windows shows its previews'));
+        toggle(clicks, 'scroll', _('Scroll over an icon to switch its windows'));
+        toggle(clicks, 'scroll-workspaces', _('Scroll on a free spot to switch workspaces'));
+        toggle(clicks, 'dnd', _('Drag to rearrange, pin and unpin apps'));
+        const info = group(behavior, _('Information'));
+        toggle(info, 'tooltips', _('Show app names on hover'));
+        toggle(fold(info, 'previews', _('Show window previews on hover')), 'peek', _('Show only that window while on its preview'));
+        const badges = fold(info, 'badges', _('Badges and progress on app icons'));
         toggle(badges, 'notification-badges', _('Count notifications of apps without their own badge'));
         toggle(badges, 'badge-pop', _('Badges pop up'));
+        toggle(info, 'media', _('Media controls in the right click menu'));
         const places = group(behavior, _('Places'));
         toggle(places, 'trash', _('Trash'));
         toggle(fold(places, 'drives', _('Removable drives (USB sticks, SD cards)')), 'internal-drives', _('Internal drives too'));
 
         const motion = page(_('Animation'), 'media-playback-start-symbolic');
-        const hovering = group(motion, _('Hover'));
-        choice(hovering, 'animation', _('Hover animation'),
-            [['magnify', _('Magnify')], ['ripple', _('Ripple')], ['lift', _('Lift')], ['none', _('None')]]);
-        showIf(spin(hovering, 'zoom', _('Magnification'), 1, 2.5, 0.1, 1), () => is('animation', 'magnify', 'ripple'), 'animation');
         const moving = group(motion, _('Icons'));
         toggle(moving, 'pop', _('Apps pop in and out'));
+        toggle(moving, 'bounce', _('Bounce while an app starts'));
+        toggle(moving, 'attention', _('Wiggle when an app asks for attention'));
         toggle(moving, 'squash', _('Squash on click'));
         toggle(moving, 'poof', _('A little cloud when an app is dragged off'));
         toggle(moving, 'glide', _('Window dots glide'));
         toggle(moving, 'intro', _('Rise in a wave after login and unlock'));
-        toggle(moving, 'bounce', _('Bounce while an app starts'));
-        toggle(moving, 'attention', _('Wiggle when an app asks for attention'));
         const windows = group(motion, _('Bar and windows'));
         toggle(windows, 'springy', _('Bar springs back in after hiding'));
         toggle(windows, 'minimize-to-icon', _('Windows minimize into their icon'));
-        const topBar = group(motion, _('Top bar content in the dock'));
-        toggle(topBar, 'warp', _('Warp start for the ArcMenu button'));
-        toggle(topBar, 'lift-buttons', _('Buttons lift on hover instead of lighting up'));
+        const inDock = group(motion, _('Top bar content in the dock'));
+        showIf(inDock, topBarInDock, 'position', 'keep-top-bar');
+        toggle(inDock, 'warp', _('Warp start for the ArcMenu button'));
+        toggle(inDock, 'lift-buttons', _('Buttons lift on hover instead of lighting up'));
     }
 }

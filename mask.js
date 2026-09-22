@@ -25,8 +25,13 @@ export const RoundedMask = GObject.registerClass({
         this.set_uniform_value('tex', 0);
     }
 
+    // Every uniform write repaints, most animation steps change nothing here.
     // GJS hands whole numbers over as int, the shader takes floats.
     setShape(width, height, radius) {
+        const shape = `${width} ${height} ${radius}`;
+        if (shape === this._shape)
+            return;
+        this._shape = shape;
         for (const [name, value] of Object.entries({width, height, radius}))
             this.set_uniform_value(name, value + 1e-3);
     }

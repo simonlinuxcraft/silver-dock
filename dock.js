@@ -20,6 +20,7 @@ import {Color, HAS_ACCENT, setVertical} from './compat.js';
 import {badgeOf, countText, progressOf} from './launcher.js';
 import {dropIndex, hover, rest, STYLES} from './layout.js';
 import {RoundedMask} from './mask.js';
+import {mediaSection} from './media.js';
 import {TRASH, driveMounts, openPlace, placeActions, placeIcon, placeName} from './places.js';
 import {restorePanel, takePanel} from './takeover.js';
 
@@ -51,6 +52,8 @@ const SHADOW = 16;
 const PRESSURE = 100;
 const PRESSURE_TIMEOUT = 1000;
 const POOF_TIME = 400;
+// ms an app may take to show its first window while its icon hops
+const BOUNCE_MAX = 15000;
 const PUFFS = 7;
 
 const SIDES = {bottom: St.Side.BOTTOM, top: St.Side.TOP, left: St.Side.LEFT, right: St.Side.RIGHT};
@@ -846,17 +849,24 @@ export class Dock {
     }
 
     // The icon inside the button moves, the button carries the hover transform.
+    // Hops until the app shows a window, slow starters (Steam) included.
     _bounce(item) {
         const icon = item?.icon;
         if (!icon || icon.get_transition(this._across.replace('_', '-')))
             return;
-        icon.ease({
+        const until = GLib.get_monotonic_time() + BOUNCE_MAX * 1000;
+        const hop = () => icon.ease({
             [this._across]: this._dir * Math.round(this._geom.big * 0.4),
             duration: 300,
             mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-            repeatCount: 5,
+            repeatCount: 1,
             autoReverse: true,
+            onComplete: () => {
+                if (!item.leaving && !item.app.get_n_windows() && GLib.get_monotonic_time() < until)
+                    hop();
+            },
         });
+        hop();
     }
 
     // Bursts and pauses: an ease disables direct scanout (fullscreen games).
@@ -967,6 +977,8 @@ export class Dock {
             if (item.app) {
                 item.menu = new AppMenu(item.button, this._side, {favoritesSection: true, showSingleWindows: true});
                 item.menu.setApp(item.app);
+                if (this._settings.get_boolean('media'))
+                    item.fillMedia = mediaSection(item.menu, this._ext.media, item.app);
             } else {
                 item.menu = new PopupMenu.PopupMenu(item.button, 0.5, this._side);
                 placeActions(item.key).forEach(([label, action]) => item.menu.addAction(label, action));
@@ -974,6 +986,7 @@ export class Dock {
             Main.uiGroup.add_child(item.menu.actor);
             this._menuManager.addMenu(item.menu);
         }
+        item.fillMedia?.();
         item.menu.open(BoxPointer.PopupAnimation.FULL);
     }
 
@@ -1049,7 +1062,8 @@ export class Dock {
 
     // Several windows show their previews, or with that off: the focused app's only
     // window minimizes, several cycle. Not from the keyboard, the previews take no focus.
-    _activate({app, button}, mouseButton) {
+    _activate(item, mouseButton) {
+        const {app, button} = item;
         const windows = app.get_windows();
         if (mouseButton === 1 && windows.length > 1 && this._settings.get_boolean('click-previews') &&
             Clutter.get_current_event()?.type() !== Clutter.EventType.KEY_RELEASE) {
@@ -1057,6 +1071,9 @@ export class Dock {
             return;
         }
         this._previews.hide();
+        // GNOME only reports a start for apps with StartupNotify, many have none.
+        if (!windows.length && this._settings.get_boolean('bounce'))
+            this._bounce(item);
         if (mouseButton === 2) {
             app.open_new_window(-1);
             return;

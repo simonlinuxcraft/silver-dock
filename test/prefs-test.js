@@ -18,10 +18,13 @@ const window = new Adw.PreferencesWindow();
 await prefs.fillPreferencesWindow(window);
 
 const rows = {};
+const groups = {};
 const walk = widget => {
     for (let child = widget.get_first_child(); child; child = child.get_next_sibling()) {
         if (child instanceof Adw.PreferencesRow)
             rows[child.title] ??= child; // an expander holds a header row of the same title
+        if (child instanceof Adw.PreferencesGroup)
+            groups[child.title] = child;
         walk(child);
     }
 };
@@ -72,6 +75,14 @@ settings.set_boolean('keep-top-bar', true);
 check(rows['Top bar in the dock\'s look'].visible, 'top bar look hidden with a kept top bar');
 settings.set_string('position', 'left');
 check(!rows['Keep the top bar'].visible && rows['Top bar in the dock\'s look'].visible, 'top bar rows wrong on the left');
+settings.set_string('position', 'top');
+check(!groups['Top bar'].visible && groups['Top bar content in the dock'].visible, 'top bar groups wrong at the top');
+settings.set_string('position', 'bottom');
+check(groups['Top bar'].visible && !groups['Top bar content in the dock'].visible, 'top bar groups wrong with a kept top bar');
+settings.set_boolean('keep-top-bar', false);
+check(groups['Top bar content in the dock'].visible, 'top bar effects hidden with the top bar in the dock');
+settings.set_string('position', 'left');
+check(groups['Top bar'].visible && !groups['Top bar content in the dock'].visible, 'top bar groups wrong on the left');
 rows['Hide when a window overlaps the bar'].enable_expansion = true;
 check(settings.get_boolean('autohide'), 'autohide switch not written');
 rows['Bounce while an app starts'].active = false;
@@ -83,7 +94,8 @@ for (const [title, key] of [['Separators', 'separators'], ['Shadow', 'shadow'],
     ['Count notifications of apps without their own badge', 'notification-badges'],
     ['A little cloud when an app is dragged off', 'poof'], ['Highlight the active app', 'highlight-active'],
     ['Blur the wallpaper behind the bar', 'blur'], ['Scroll on a free spot to switch workspaces', 'scroll-workspaces'],
-    ['Click on an app with several windows shows its previews', 'click-previews'], ['Opaque while a window touches the bar', 'dynamic-opacity'],
+    ['Click on an app with several windows shows its previews', 'click-previews'],
+    ['Media controls in the right click menu', 'media'], ['Opaque while a window touches the bar', 'dynamic-opacity'],
     ['Wiggle when an app asks for attention', 'attention'], ['Show app names on hover', 'tooltips'],
     ['Badges and progress on app icons', 'badges'], ['Trash', 'trash'], ['Removable drives (USB sticks, SD cards)', 'drives'],
     ['Drag to rearrange, pin and unpin apps', 'dnd'], ['Show window previews on hover', 'previews'],

@@ -194,6 +194,7 @@ set_key blur-radius 80
 set_key highlight-active false
 set_key click-previews false
 set_key scroll-workspaces false
+set_key media false
 set_key keep-top-bar true
 set_key colors custom
 set_key color "'rgb(236,1,1)'"

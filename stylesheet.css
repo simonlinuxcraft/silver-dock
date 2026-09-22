@@ -38,6 +38,24 @@
     box-shadow: 0 0 6px rgba(235, 237, 242, 0.6);
 }
 
+.silver-dock-media {
+    spacing: 4px;
+}
+
+.silver-dock-media-title {
+    max-width: 16em;
+    padding-right: 8px;
+}
+
+.silver-dock-media-button {
+    padding: 6px;
+    border-radius: 99px;
+}
+
+.silver-dock-media-button:hover {
+    background-color: rgba(127, 127, 127, 0.25);
+}
+
 .silver-dock-badge {
     color: white;
     background-color: #e01b24;

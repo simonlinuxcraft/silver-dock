@@ -42,16 +42,11 @@ export function hover(style, n, slot, px, zoom, amount, gaps = []) {
     if (!s.spread)
         return {scales, lifts, shifts: scales.map(() => 0), left: 0, right: width};
 
-    // The point under the pointer stays fixed.
+    // The point under the pointer stays fixed. Only slots grow, gaps can be negative (popping icons).
     const p = Math.min(Math.max(px, 0), width);
-    let mapped = 0;
-    for (let i = 0; i < n; i++) {
-        const start = centers[i] - slot / 2;
-        const gap = gaps[i] ?? 0;
-        mapped += Math.min(Math.max(p - (start - gap), 0), gap);
-        mapped += slot * scales[i] * Math.min(Math.max((p - start) / slot, 0), 1);
-    }
-    mapped += Math.min(Math.max(p - (width - (gaps[n] ?? 0)), 0), gaps[n] ?? 0);
+    let mapped = p;
+    for (let i = 0; i < n; i++)
+        mapped += slot * (scales[i] - 1) * Math.min(Math.max((p - centers[i] + slot / 2) / slot, 0), 1);
     const left = p - mapped;
 
     const shifts = [];

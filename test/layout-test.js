@@ -71,6 +71,18 @@ const inGap = base.centers[3] - SLOT / 2 - 10;
 r = hover('magnify', N, SLOT, inGap, ZOOM, 1, GAPS);
 check(r.shifts[2] < 0 && r.shifts[3] > 0, 'gaps: neighbours of a hovered gap do not move apart');
 
+// A popping icon shrinks its gaps below zero: at rest still nothing moves, hovered no jump.
+const POP = [4, 0, 0, 0, 0, 0, -SLOT / 2, 4 - SLOT / 2];
+const popped = rest(N, SLOT, POP);
+for (const px of [0, popped.centers[2], popped.width]) {
+    r = hover('magnify', N, SLOT, px, ZOOM, 0, POP);
+    check(r.shifts.every(s => near(s, 0)) && near(r.left, 0) && near(r.right, popped.width), `pop: rest state not neutral at px=${px}`);
+}
+// The popping icon is right of the pointer, the icons around it move as without it.
+r = hover('magnify', N, SLOT, popped.centers[2], ZOOM, 1, POP);
+const calm = hover('magnify', N, SLOT, popped.centers[2], ZOOM, 1, [4, 0, 0, 0, 0, 0, 0, 4]);
+check(r.shifts.slice(0, 6).every((s, i) => near(s, calm.shifts[i])), 'pop: icons jump for an icon right of the pointer');
+
 // Drop index: left or right half of a slot, clamped to the favorites.
 const drop = rest(5, SLOT, [4, 0, 0, 0, 0, 4]).centers;
 check(dropIndex(drop, SLOT, drop[2] - 5, null, 5, -1) === 2, 'drop left of centre not before the icon');

@@ -21,11 +21,17 @@ Every extra can be switched off in the preferences.
 
 ## Install
 
-Pack in this folder, install on the target machine:
+Pack in this folder, the ZIP is named after `version-name` in `metadata.json`:
 
 ```
 gnome-extensions pack --force --podir=po $(ls *.js | grep -vE '^(extension|prefs)\.js$' | sed 's/^/--extra-source=/') .
-gnome-extensions install --force silver-dock@simonlinuxcraft.github.io.shell-extension.zip
+mv silver-dock@simonlinuxcraft.github.io.shell-extension.zip silverdock-v$(sed -n 's/.*"version-name": "\(.*\)".*/\1/p' metadata.json).zip
+```
+
+Install it on the target machine:
+
+```
+gnome-extensions install --force silverdock-v*.zip
 ```
 
 Log out and back in, then `gnome-extensions enable silver-dock@simonlinuxcraft.github.io`.

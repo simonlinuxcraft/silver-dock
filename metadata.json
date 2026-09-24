@@ -1,6 +1,7 @@
 {
   "uuid": "silver-dock@simonlinuxcraft.github.io",
   "name": "Silver Dock",
+  "version-name": "0.3",
   "description": "A dock on any screen edge. At the bottom or top it also holds the top bar's menu, clock, tray and system menu. Hover and app animations, window previews, badges, drag and drop, trash and drives, theme or custom colors, every feature switchable.",
   "shell-version": [
     "46",

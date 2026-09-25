@@ -6,7 +6,7 @@ import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import {setVertical} from './compat.js';
+import {setVertical, trustHover} from './compat.js';
 
 const SHOW_DELAY = 400;
 const HIDE_DELAY = 250;
@@ -28,6 +28,7 @@ export class WindowPreviews {
         this._peeked = new Set();
         this._shown = false;
         this.actor = new St.BoxLayout({style_class: 'silver-dock-previews', reactive: true, track_hover: true, visible: false});
+        trustHover(this.actor);
         this.actor.connect('notify::hover', () => {
             if (this.actor.hover)
                 this._stop('hide');
@@ -45,6 +46,11 @@ export class WindowPreviews {
 
     get app() {
         return this.shown ? this._app : null;
+    }
+
+    // The icon it opened from, each dock only answers for its own.
+    get anchor() {
+        return this.shown ? this._anchor : null;
     }
 
     hoverIcon(app, anchor, side) {
@@ -229,6 +235,7 @@ export class WindowPreviews {
         box.add_child(this._thumbnail(win, width));
 
         const button = new St.Button({style_class: 'silver-dock-preview', child: box});
+        trustHover(button);
         button.connect('notify::hover', () => {
             if (button.hover && this.peek) {
                 this._stop('unpeek');

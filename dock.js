@@ -16,7 +16,7 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {mix, parseColor} from './colors.js';
-import {Color, HAS_ACCENT, setVertical} from './compat.js';
+import {Color, HAS_ACCENT, setVertical, trustHover} from './compat.js';
 import {badgeOf, countText, progressOf} from './launcher.js';
 import {dropIndex, hover, rest, STYLES} from './layout.js';
 import {RoundedMask} from './mask.js';
@@ -127,6 +127,7 @@ export class Dock {
         // Named like the top bar, the moved panel buttons keep their theme styling.
         this._bar = new St.BoxLayout({name: 'panel', style_class: 'silver-dock', reactive: true, track_hover: true});
         this._row = new St.Widget({reactive: true, track_hover: true});
+        [this._bar, this._row].forEach(trustHover);
         this._label = new St.Label({style_class: 'dash-label', visible: false});
         this._seps = [this._separator(), this._separator()];
         [this._seps[0], this._row, this._seps[1]].forEach(actor => this._bar.add_child(actor));
@@ -549,7 +550,7 @@ export class Dock {
     _popOut(item) {
         item.button.reactive = false;
         this._hideLabel(item);
-        if (item.app && this._previews.app === item.app)
+        if (this._previews.anchor === item.button)
             this._previews.hide();
         item.icon.ease({
             scale_x: 0,
@@ -677,6 +678,7 @@ export class Dock {
         button.connect('popup-menu', () => this._openMenu(item));
         button.connect('key-focus-in', () => this._focusItem(item));
         button.connect('key-focus-out', () => this._focusItem(null));
+        trustHover(button);
         button.connect('notify::hover', () => {
             if (button.hover) {
                 if (app && this._settings.get_boolean('previews') && !this._dragging && !this._menuOpen())
@@ -700,7 +702,7 @@ export class Dock {
 
     _destroyItem(item) {
         this._hideLabel(item);
-        if (item.app && this._previews.app === item.app)
+        if (this._previews.anchor === item.button)
             this._previews.hide();
         item.menu?.destroy();
         [item.button, item.indicator, item.progress, item.badge].forEach(actor => actor.destroy());
@@ -1525,6 +1527,11 @@ export class Dock {
         return true;
     }
 
+    _ownsPreviews() {
+        const anchor = this._previews.anchor;
+        return Boolean(anchor) && this._bar.contains(anchor);
+    }
+
     _menuOpen() {
         return Boolean(this._menuManager.activeMenu ||
             (this._boxes.length && Main.panel.menuManager.activeMenu));
@@ -1556,7 +1563,7 @@ export class Dock {
         // With a barrier up, the pointer on the 1 px strip needs to push first.
         const hover = this._bar.hover && !(this._hidden && this._barrier);
         return this._settings.get_boolean('autohide') && !hover && !this._dragging && !this._menuOpen() &&
-            !this._previews.shown && !this._revealTimer && !(focus && this._bar.contains(focus)) &&
+            !this._ownsPreviews() && !this._revealTimer && !(focus && this._bar.contains(focus)) &&
             !Main.overview.visible && this._windowsOverlap();
     }
 
@@ -1584,7 +1591,8 @@ export class Dock {
         this._hidden = hidden;
         if (hidden) {
             this._hideLabel();
-            this._previews.hide();
+            if (this._ownsPreviews())
+                this._previews.hide();
         }
         const spring = !hidden && this._settings.get_boolean('springy');
         const params = spring

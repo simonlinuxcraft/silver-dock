@@ -52,6 +52,9 @@ const SHADOW = 16;
 const PRESSURE = 100;
 const PRESSURE_TIMEOUT = 1000;
 const POOF_TIME = 400;
+// Launchers, Wine above all, close and reopen their window while starting.
+const STARTUP = 10000;
+const SETTLE = 3000;
 const BOUNCE_MAX = 15000;
 const PUFFS = 7;
 
@@ -111,6 +114,7 @@ export class Dock {
         this._laters = {};
         this._pointer = 0;
         this._hidden = false;
+        this._fullscreen = false;
         this._gaps = [];
         this._restWidth = 0;
         this._centers = [];
@@ -162,10 +166,10 @@ export class Dock {
             'notify::width', () => this.queuePlace(),
             'notify::height', () => this.queuePlace(),
             'notify::hover', () => {
-                this._reach.visible = this._bar.hover;
-                if (!this._bar.hover)
-                    this._hoverButton(null);
-                this._updateAutohide();
+                // A springy slide overshoots and leaves the pointer behind for a moment, _slide syncs at the end.
+                if (!this._bar.hover && this._bar.get_transition(this._across.replace('_', '-')))
+                    return;
+                this._syncHover();
             },
             'captured-event', (actor, event) => this._barEvent(event),
             // Only on a free spot, GNOME 46's top bar buttons pass their clicks on.
@@ -186,7 +190,7 @@ export class Dock {
             // Only GNOME's teardown at logout, destroy() disconnects first.
             'destroy', () => ext.lost(), this);
 
-        Main.layoutManager.addChrome(this._bg, {trackFullscreen: true});
+        Main.layoutManager.addChrome(this._bg);
         this.trackBar();
         Main.layoutManager.addChrome(this._label);
         Main.layoutManager.addChrome(this._reach);
@@ -232,7 +236,9 @@ export class Dock {
             GLib.source_remove(this._wiggleTimer);
         if (this._revealTimer)
             GLib.source_remove(this._revealTimer);
-        this._hideTimer = this._wiggleTimer = this._revealTimer = 0;
+        if (this._settleTimer)
+            GLib.source_remove(this._settleTimer);
+        this._hideTimer = this._wiggleTimer = this._revealTimer = this._settleTimer = 0;
         if (this._dragMonitor)
             DND.removeDragMonitor(this._dragMonitor);
         this._dragMonitor = null;
@@ -329,7 +335,8 @@ export class Dock {
             this._blur.add_child(this._clone);
             this._mask = new RoundedMask();
             this._blur.add_effect(this._mask);
-            Main.layoutManager.addChrome(this._blur, {trackFullscreen: true});
+            this._blur.visible = !this._fullscreen;
+            Main.layoutManager.addChrome(this._blur);
             Main.layoutManager.uiGroup.set_child_below_sibling(this._blur, this._bg);
         } else if (!on && this._blur) {
             this._blur.get_allocation_box();
@@ -372,7 +379,7 @@ export class Dock {
     trackBar() {
         // Struts follow the transformed position, a slid out bar would reserve 1 px.
         this._resetSlide();
-        const params = {affectsStruts: !this._settings.get_boolean('autohide'), trackFullscreen: true};
+        const params = {affectsStruts: !this._settings.get_boolean('autohide')};
         // Taking the bar off stage would reset hover and menus.
         if (this._bar.get_parent()) {
             Main.layoutManager.untrackChrome(this._bar);
@@ -470,7 +477,9 @@ export class Dock {
         const favIds = new Set(favorites.map(app => app.get_id()));
         const pos = new Map(this._items.map((item, i) => [item.key, i]));
         const last = this._items.length;
-        const running = Shell.AppSystem.get_default().get_running()
+        const live = new Set(Shell.AppSystem.get_default().get_running());
+        const settling = this._settling(live);
+        const running = [...live, ...settling.map(item => item.app)]
             .filter(app => !favIds.has(app.get_id()))
             .sort((a, b) => (pos.get(a) ?? last) - (pos.get(b) ?? last));
         const places = [
@@ -486,6 +495,7 @@ export class Dock {
         const old = new Map([...prev.filter(item => item.leaving), ...prev.filter(item => !item.leaving)]
             .map(item => [item.key, item]));
         const sections = [favorites, running, places];
+        const created = [];
         const items = sections.flatMap((keys, section) => keys.map(key => {
             let item = old.get(key);
             if (item?.leaving) {
@@ -495,6 +505,7 @@ export class Dock {
                 this._popIn(item, false);
             } else if (!item) {
                 item = this._createItem(key);
+                created.push(item);
                 if (pop)
                     this._popIn(item);
             }
@@ -516,6 +527,23 @@ export class Dock {
             const before = prev.slice(0, i).reverse().find(other => items.includes(other));
             items.splice(before ? items.indexOf(before) + 1 : 0, 0, item);
         });
+        // Windows without a desktop file get a new app when they remap, a window matched late turns
+        // one icon into another. Popping out and in at once, the bar would widen and shrink back.
+        for (const item of pop ? created.filter(({section}) => section === 1) : []) {
+            const leaving = items.filter(other => other.leaving && other.section === 1);
+            const i = items.indexOf(item);
+            const twin = leaving.find(other => other.name === item.name) ??
+                [items[i - 1], items[i + 1]].find(other => leaving.includes(other));
+            if (!twin)
+                continue;
+            item.icon.set_scale(twin.icon.scale_x, twin.icon.scale_y);
+            this._popIn(item, false);
+            items.splice(i, 1);
+            items.splice(items.indexOf(twin), 1, item);
+            if (gone.includes(twin))
+                gone.splice(gone.indexOf(twin), 1);
+            this._destroyItem(twin);
+        }
         this._items = items;
 
         const separators = this._settings.get_boolean('separators');
@@ -539,6 +567,33 @@ export class Dock {
         // Last: without animations the ease ends at once and syncs again.
         if (pop)
             gone.forEach(item => this._popOut(item));
+    }
+
+    // A young app that just lost its window keeps its icon a moment, it may come right back.
+    _settling(live) {
+        const now = GLib.get_monotonic_time() / 1000;
+        const settling = this._items.filter(item => {
+            if (!item.app || live.has(item.app)) {
+                item.goneAt = null;
+                return false;
+            }
+            item.goneAt ??= now;
+            // A window-backed app never comes back, its window gets a new one.
+            return item.section === 1 && !item.leaving && !item.app.is_window_backed() &&
+                now - item.born < STARTUP && now - item.goneAt < SETTLE;
+        });
+        if (this._settleTimer)
+            GLib.source_remove(this._settleTimer);
+        this._settleTimer = 0;
+        if (settling.length) {
+            const wait = Math.min(...settling.map(item => item.goneAt + SETTLE - now));
+            this._settleTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, Math.ceil(wait) + 1, () => {
+                this._settleTimer = 0;
+                this.sync();
+                return GLib.SOURCE_REMOVE;
+            });
+        }
+        return settling;
     }
 
     _popIn({icon}, fromNothing = true) {
@@ -646,7 +701,8 @@ export class Dock {
         const indicator = new St.Bin({name: 'silver-dock-indicator', child: dots});
         indicator.set_size(...this._xy(slot, -1));
 
-        const item = {key, app, name, icon, badge, progress, fill, fraction: 0, button, indicator, dots, menu: null, room: 1};
+        const item = {key, app, name, icon, badge, progress, fill, fraction: 0, button, indicator, dots, menu: null, room: 1,
+            born: GLib.get_monotonic_time() / 1000};
         badge.set_pivot_point(0.5, 0.5);
         // room: share of its slot the icon takes, a popping icon pushes its neighbours aside.
         const along = this._vertical ? 'scale_y' : 'scale_x';
@@ -1097,9 +1153,25 @@ export class Dock {
 
     queueCheck() {
         this._queue('check', () => {
+            this._updateFullscreen();
             this._updateOpacity();
             this._updateAutohide();
         });
+    }
+
+    // Only a fullscreen window turns the dock off. GNOME's trackFullscreen also counts a maximized
+    // window, which covers the whole monitor once the top bar is in an autohiding dock.
+    _updateFullscreen() {
+        const windows = global.workspace_manager.get_active_workspace().list_windows()
+            .filter(win => win.get_monitor() === this.monitorIndex && win.showing_on_its_workspace());
+        const fullscreen = !Main.overview.visible &&
+            Boolean(global.display.sort_windows_by_stacking(windows).at(-1)?.is_fullscreen());
+        if (fullscreen === this._fullscreen)
+            return;
+        this._fullscreen = fullscreen;
+        for (const actor of [this._bar, this._bg, this._blur].filter(Boolean))
+            actor.visible = !fullscreen;
+        this._updateBarrier();
     }
 
     queueAttention() {
@@ -1134,12 +1206,30 @@ export class Dock {
             return;
         const centerX = m.x + Math.round((m.width - w) / 2);
         const centerY = area.y + Math.round((area.height - h) / 2);
-        this._bar.set_position(...{
+        const [x, y] = {
             bottom: [centerX, m.y + m.height - h],
             top: [centerX, m.y],
             left: [m.x, centerY],
             right: [m.x + m.width - w, centerY],
-        }[this._position]);
+        }[this._position];
+        // A tray icon coming or going resizes the bar at once, it glides to its new centre.
+        // A running glide only takes the new target, restarted every frame it would never move.
+        const [prop, along, across] = this._vertical ? ['y', y, x] : ['x', x, y];
+        const glide = this._bar.get_transition(prop);
+        if (this._placedAcross !== across || !this._bar.mapped) {
+            this._bar.remove_transition(prop);
+            this._bar.set_position(x, y);
+        } else if (glide) {
+            glide.set_to(along);
+        } else if (this._bar[prop] !== along) {
+            this._bar.ease({
+                [prop]: along, duration: MOVE_TIME, mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                onComplete: () => this._updateBarrier(),
+            });
+            // Before the layout pass, notify::x also comes during it.
+            this._bar.get_transition(prop)?.connect_after('new-frame', () => this._animate());
+        }
+        this._placedAcross = across;
         this._updateBarrier();
         this._animate();
         this._updateOpacity();
@@ -1162,8 +1252,10 @@ export class Dock {
             return start < along + length && start + size > along;
         };
         const shared = Main.layoutManager.monitors.some(n => n !== m && touches(n) && beside(n));
+        // A fullscreen app keeps the edge, a push would slide the dock in and break direct scanout.
         const wanted = this._settings.get_boolean('autohide') && this._settings.get_boolean('edge-pressure') &&
-            !shared && Boolean(global.backend.capabilities & Meta.BackendCapabilities.BARRIERS);
+            !shared && !this._fullscreen &&
+            Boolean(global.backend.capabilities & Meta.BackendCapabilities.BARRIERS);
         const [x1, y1] = this._xy(along, edge);
         const [x2, y2] = this._xy(along + length, edge);
         const key = wanted ? `${x1} ${y1} ${x2} ${y2} ${this._position}` : null;
@@ -1585,6 +1677,13 @@ export class Dock {
         });
     }
 
+    _syncHover() {
+        this._reach.visible = this._bar.hover;
+        if (!this._bar.hover)
+            this._hoverButton(null);
+        this._updateAutohide();
+    }
+
     _slide(hidden) {
         if (this._hidden === hidden)
             return;
@@ -1601,7 +1700,7 @@ export class Dock {
         const out = -this._dir;
         const [, , , thick] = this._barAxes();
         // A 1 px strip stays on screen and catches the pointer.
-        this._bar.ease({...params, [this._across]: hidden ? out * (thick - 1) : 0});
+        this._bar.ease({...params, [this._across]: hidden ? out * (thick - 1) : 0, onComplete: () => this._syncHover()});
         for (const actor of [this._bg, this._blur].filter(Boolean))
             actor.ease({...params, [this._across]: hidden ? out * (thick + SHADOW) : 0});
     }

@@ -57,7 +57,8 @@ export default class SilverDock extends Extension {
         global.display.connectObject(
             'window-created', (display, win) => this._watchWindow(win),
             'restacked', check,
-            'workareas-changed', () => this._each(dock => dock.queuePlace()), this);
+            'workareas-changed', () => this._each(dock => dock.queuePlace()),
+            'in-fullscreen-changed', check, this);
         global.workspace_manager.connectObject('active-workspace-changed', check, this);
         // Open menus and the keyboard in the dock take the key focus.
         global.stage.connectObject('notify::key-focus', check, this);

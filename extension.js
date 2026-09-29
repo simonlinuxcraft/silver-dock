@@ -199,8 +199,6 @@ export default class SilverDock extends Extension {
         const fg = rgb(node.get_foreground_color());
         panel.destroy();
         const gtk = gtkColors(this._iface, () => this._recolor());
-        if (bg.alpha)
-            return {bg: rgb(bg), alpha: bg.alpha / 255, fg, border: 'none', accent: gtk.accent};
-        return {bg: gtk.bg ?? COLORS.bg, alpha: 1, fg, border: 'none', accent: gtk.accent};
+        return {bg: bg.alpha ? rgb(bg) : gtk.bg ?? COLORS.bg, alpha: bg.alpha / 255 || 1, fg, border: 'none', accent: gtk.accent};
     }
 }

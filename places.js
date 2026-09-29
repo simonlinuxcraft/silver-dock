@@ -11,9 +11,10 @@ function isRemovable(mount) {
     return mount.can_eject() || Boolean(mount.get_drive()?.is_removable());
 }
 
+// Internal drives are a sub-switch of drives in the prefs.
 export function driveMounts(monitor, removable, internal) {
-    return monitor.get_mounts().filter(mount => !mount.is_shadowed() &&
-        (isRemovable(mount) ? removable : internal && mount.get_root().is_native()));
+    return removable ? monitor.get_mounts().filter(mount => !mount.is_shadowed() &&
+        (isRemovable(mount) || internal && mount.get_root().is_native())) : [];
 }
 
 export function placeName(place) {

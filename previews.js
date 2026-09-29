@@ -26,7 +26,11 @@ export class WindowPreviews {
         this._timers = {};
         this.peek = false;
         this._peeked = new Set();
-        this._shown = false;
+        // False while fading out.
+        this.shown = false;
+        this.app = null;
+        // The icon it opened from, each dock only answers for its own.
+        this.anchor = null;
         this.actor = new St.BoxLayout({style_class: 'silver-dock-previews', reactive: true, track_hover: true, visible: false});
         trustHover(this.actor);
         this.actor.connect('notify::hover', () => {
@@ -37,20 +41,6 @@ export class WindowPreviews {
             this._onChange();
         });
         Main.layoutManager.addChrome(this.actor);
-    }
-
-    // False while fading out.
-    get shown() {
-        return this._shown;
-    }
-
-    get app() {
-        return this.shown ? this._app : null;
-    }
-
-    // The icon it opened from, each dock only answers for its own.
-    get anchor() {
-        return this.shown ? this._anchor : null;
     }
 
     hoverIcon(app, anchor, side) {
@@ -75,7 +65,7 @@ export class WindowPreviews {
 
     refresh(app) {
         if (this.app === app)
-            this._open(app, this._anchor, this._side);
+            this._open(app, this.anchor, this._side);
     }
 
     hide() {
@@ -84,9 +74,9 @@ export class WindowPreviews {
         this._endPeek();
         if (!this.shown)
             return;
-        this._shown = false;
+        this.shown = false;
         this.actor.reactive = false;
-        this._app = this._anchor = null;
+        this.app = this.anchor = null;
         this.actor.ease({
             opacity: 0,
             duration: FADE_TIME,
@@ -165,17 +155,17 @@ export class WindowPreviews {
         // None while all screens are off.
         const monitor = anchor.get_stage() && Main.layoutManager.findMonitorForActor(anchor);
         // A freshly built icon has no place yet.
-        if (!windows.length || !monitor || !anchor.get_stage() || !anchor.has_allocation()) {
+        if (!windows.length || !monitor || !anchor.has_allocation()) {
             this.hide();
             return;
         }
         const wasShown = this.shown;
         // Still there or fading out: glide over.
         const onScreen = this.actor.visible;
-        this._shown = true;
+        this.shown = true;
         this.actor.reactive = true;
-        this._app = app;
-        this._anchor = anchor;
+        this.app = app;
+        this.anchor = anchor;
         this._side = side;
 
         const width = Math.max(MIN_THUMB, Math.min(THUMB_WIDTH, Math.floor(monitor.width * 0.9 / windows.length) - 2 * GAP));

@@ -59,7 +59,7 @@ const BOUNCE_MAX = 15000;
 const PUFFS = 7;
 
 const SIDES = {bottom: St.Side.BOTTOM, top: St.Side.TOP, left: St.Side.LEFT, right: St.Side.RIGHT};
-// "r, g, b", the opacity setting adds the alpha
+// bg and fg as "r, g, b", the opacity setting adds the alpha
 export const COLORS = {bg: '28, 29, 33', fg: '235, 237, 242', border: '1px solid rgba(214, 218, 226, 0.3)'};
 
 // No ease for values already there: every ease keeps the compositor busy.
@@ -95,11 +95,6 @@ function rocketOf(button) {
     return button?.has_style_class_name('arcmenu-panel-menu')
         ? findActor(button, actor => actor instanceof St.Icon && actor.has_style_class_name('arcmenu-menu-button'))
         : null;
-}
-
-function resetRocket(rocket) {
-    settle(rocket, {translation_y: 0, scale_x: 1, scale_y: 1, opacity: 255}, true);
-    rocket.set_pivot_point(0, 0);
 }
 
 // "along" runs with the icon row, "across" from its inner side to the screen edge.
@@ -203,14 +198,12 @@ export class Dock {
         this._setBlur(false);
         // ArcMenu's actors go back as they were.
         this._hoverButton(null, true);
-        this._rocket?.disconnectObject(this);
-        if (this._rocket)
-            resetRocket(this._rocket);
+        this._useRocket(null);
         this._amount.remove_transition('value');
 
-        // Off the stage before any child changes, or Clutter relayouts the destroyed bar.
         if (this._primary)
             Main.ctrlAltTabManager.removeGroup(this._bar);
+        // Off the stage before any child changes, or Clutter relayouts the destroyed bar.
         const actors = [this._bar, this._bg, this._label, this._reach];
         // Clutter can hold a chrome actor twice for relayout, flush it while still on stage.
         actors.forEach(actor => actor.get_stage() && actor.get_allocation_box());
@@ -230,15 +223,11 @@ export class Dock {
         this._amount.disconnectObject(this);
         Object.values(this._laters).forEach(id => id && global.compositor.get_laters().remove(id));
         this._laters = {};
-        if (this._hideTimer)
-            GLib.source_remove(this._hideTimer);
-        if (this._wiggleTimer)
-            GLib.source_remove(this._wiggleTimer);
-        if (this._revealTimer)
-            GLib.source_remove(this._revealTimer);
-        if (this._settleTimer)
-            GLib.source_remove(this._settleTimer);
-        this._hideTimer = this._wiggleTimer = this._revealTimer = this._settleTimer = 0;
+        for (const timer of ['_hideTimer', '_wiggleTimer', '_revealTimer', '_settleTimer']) {
+            if (this[timer])
+                GLib.source_remove(this[timer]);
+            this[timer] = 0;
+        }
         if (this._dragMonitor)
             DND.removeDragMonitor(this._dragMonitor);
         this._dragMonitor = null;
@@ -412,7 +401,6 @@ export class Dock {
             icon,
             zoom,
             margin,
-            opacity: 1,
             slot: icon + Math.round(icon / 5),
             big: Math.round(icon * zoom), // rendered at full zoom and scaled down, stays sharp
             thick: INNER + icon + OUTER,
@@ -466,7 +454,6 @@ export class Dock {
         this._items.forEach(item => this._destroyItem(item));
         this._items = [];
         this.sync();
-        this.queueCheck();
         // The barrier follows settings that leave the bar's size alone.
         this.queuePlace();
     }
@@ -527,8 +514,7 @@ export class Dock {
             const before = prev.slice(0, i).reverse().find(other => items.includes(other));
             items.splice(before ? items.indexOf(before) + 1 : 0, 0, item);
         });
-        // Windows without a desktop file get a new app when they remap, a window matched late turns
-        // one icon into another. Popping out and in at once, the bar would widen and shrink back.
+        // A window that remaps or matches late swaps its app, popping out and in would widen the bar.
         for (const item of pop ? created.filter(({section}) => section === 1) : []) {
             const leaving = items.filter(other => other.leaving && other.section === 1);
             const i = items.indexOf(item);
@@ -563,7 +549,6 @@ export class Dock {
         this._intro = false;
         this.updateDots();
         this.updateBadges();
-        this._animate();
         // Last: without animations the ease ends at once and syncs again.
         if (pop)
             gone.forEach(item => this._popOut(item));
@@ -903,7 +888,8 @@ export class Dock {
     // The icon moves, its button carries the hover transform.
     _bounce(item) {
         const icon = item?.icon;
-        if (!icon || icon.get_transition(this._across.replace('_', '-')))
+        // Unmapped (fullscreen), an ease jumps to its end: the icon stays up and the hops recurse.
+        if (!icon?.mapped || icon.get_transition(this._across.replace('_', '-')))
             return;
         const until = GLib.get_monotonic_time() + BOUNCE_MAX * 1000;
         const hop = () => icon.ease({
@@ -913,7 +899,7 @@ export class Dock {
             repeatCount: 1,
             autoReverse: true,
             onComplete: () => {
-                if (!item.leaving && !item.app.get_n_windows() && GLib.get_monotonic_time() < until)
+                if (icon.mapped && !item.leaving && !item.app.get_n_windows() && GLib.get_monotonic_time() < until)
                     hop();
             },
         });
@@ -1159,8 +1145,7 @@ export class Dock {
         });
     }
 
-    // Only a fullscreen window turns the dock off. GNOME's trackFullscreen also counts a maximized
-    // window, which covers the whole monitor once the top bar is in an autohiding dock.
+    // Not trackFullscreen: it also counts a maximized window once the top bar sits in an autohiding dock.
     _updateFullscreen() {
         const windows = global.workspace_manager.get_active_workspace().list_windows()
             .filter(win => win.get_monitor() === this.monitorIndex && win.showing_on_its_workspace());
@@ -1427,12 +1412,14 @@ export class Dock {
     _useRocket(rocket) {
         if (rocket === this._rocket)
             return;
-        this._rocket?.disconnectObject(this);
-        if (this._rocket)
-            resetRocket(this._rocket);
+        if (this._rocket) {
+            this._rocket.disconnectObject(this);
+            settle(this._rocket, {translation_y: 0, scale_x: 1, scale_y: 1, opacity: 255}, true);
+            this._rocket.set_pivot_point(0, 0);
+        }
         this._rocket = rocket;
-        rocket.set_pivot_point(0.5, 0.5);
-        rocket.connectObject('destroy', () => (this._rocket = null), this);
+        rocket?.set_pivot_point(0.5, 0.5);
+        rocket?.connectObject('destroy', () => (this._rocket = null), this);
     }
 
     _launch(rocket) {

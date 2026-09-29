@@ -53,8 +53,6 @@ export DCONF_PROFILE="$work/dconf-profile" XDG_DATA_HOME="$work/data" XDG_CONFIG
     XDG_STATE_HOME="$work/state" XDG_CACHE_HOME="$work/cache"
 if [[ ! $show ]]; then
     export LC_ALL=C
-fi
-if [[ ! $show ]]; then
     unset WAYLAND_DISPLAY DISPLAY
 fi
 if [[ $x11 ]]; then

@@ -49,7 +49,9 @@ export default class SilverDock extends Extension {
             'changed::autohide', () => this._each(dock => dock.trackBar()),
             'changed', (settings, key) => (key === 'all-monitors' ? this._build(false) : this._refresh()), this);
         Main.layoutManager.connectObject('monitors-changed', () => this._build(false), this);
-        St.ThemeContext.get_for_stage(global.stage).connectObject('changed', recolor, this);
+        St.ThemeContext.get_for_stage(global.stage).connectObject(
+            'changed', recolor,
+            'notify::scale-factor', () => this._refresh(), this);
         this._iface.connectObject('changed::gtk-theme', recolor, 'changed::color-scheme', recolor, this);
         this._background.connectObject('changed', recolor, this);
         this.volumes.connectObject('mount-added', sync, 'mount-removed', sync, 'mount-changed', sync, this);

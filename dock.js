@@ -24,6 +24,7 @@ import {mediaSection} from './media.js';
 import {TRASH, driveMounts, openPlace, placeActions, placeIcon, placeName} from './places.js';
 import {restorePanel, takePanel} from './takeover.js';
 
+// Logical px, times the shell's scale factor on actors. CSS and icon sizes stay logical.
 // px from the icons to the bar's inner side and to the screen edge (window dots)
 const INNER = 6;
 const OUTER = 8;
@@ -43,6 +44,7 @@ const DOT_LONG = 12;
 const BUTTON_LIFT = 3;
 const WARP_LIFT = 5;
 const SCROLL_PAUSE = 150;
+const LABEL_GAP = 6;
 const FADE_TIME = 120;
 // longer than WIGGLE_EVERY, so a waiting wiggle still shows
 const REVEAL_TIME = 3000;
@@ -118,6 +120,7 @@ export class Dock {
         this._intro = intro;
         this._hovered = null;
         this._keyFocus = null;
+        this._scale = 1;
 
         this._bg = new St.Widget({style_class: 'silver-dock-bg'});
         this._blur = null;
@@ -218,6 +221,7 @@ export class Dock {
 
     // Also at logout, when GNOME destroys the bar without disabling the extension.
     stopListening() {
+        this._stopped = true;
         this._row.disconnectObject(this);
         this._bar.disconnectObject(this);
         this._amount.disconnectObject(this);
@@ -348,7 +352,8 @@ export class Dock {
         this._blur.set_size(width, height);
         this._clone.set_position(this._wallpaper.x - x, this._wallpaper.y - y);
         // St draws no radius beyond half the height.
-        this._mask.setShape(width, height, Math.min(this._settings.get_int('radius'), width / 2, height / 2));
+        const radius = this._settings.get_int('radius') * this._scale;
+        this._mask.setShape(width, height, Math.min(radius, width / 2, height / 2));
     }
 
     _xy(along, across) {
@@ -384,7 +389,9 @@ export class Dock {
             this._fitIcon = null;
         // Before the axes change, a lifted button drops on the axis it rose on.
         this._hoverButton(null, true);
-        const icon = Math.min(this._settings.get_int('icon-size'), this._fitIcon ?? Infinity);
+        // Without scale-monitor-framebuffer (GNOME 46 to 49) actors count physical px.
+        const s = this._scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+        const icon = Math.min(this._settings.get_int('icon-size') * s, this._fitIcon ?? Infinity);
         const zoom = this._settings.get_double('zoom');
         const margin = this._settings.get_int('margin');
         const radius = this._settings.get_int('radius');
@@ -397,16 +404,19 @@ export class Dock {
         this._dir = this._edgeFirst ? 1 : -1;
         this._along = this._vertical ? 'translation_y' : 'translation_x';
         this._across = this._vertical ? 'translation_x' : 'translation_y';
+        // big and pad whole logical px, St draws icons and padding in those.
         this._geom = {
             icon,
             zoom,
-            margin,
+            margin: margin * s,
+            inner: INNER * s,
+            outer: OUTER * s,
             slot: icon + Math.round(icon / 5),
-            big: Math.round(icon * zoom), // rendered at full zoom and scaled down, stays sharp
-            thick: INNER + icon + OUTER,
+            big: Math.round(icon * zoom / s) * s, // rendered at full zoom and scaled down, stays sharp
+            thick: (INNER + OUTER) * s + icon,
         };
         // Room for the tile around the icon, at rest as wide as a slot.
-        this._geom.pad = Math.floor((this._geom.slot - icon) / 2 * zoom);
+        this._geom.pad = Math.floor((this._geom.slot - icon) / 2 * zoom / s) * s;
 
         // The strut needs the bar on the screen edge, the gap is padding.
         const end = Math.round(radius / 2) + 4;
@@ -420,9 +430,9 @@ export class Dock {
         setClass(this._bar, 'vertical', this._vertical);
         this._bar.set_size(-1, -1);
         if (this._vertical)
-            this._bar.width = this._geom.thick + margin;
+            this._bar.width = this._geom.thick + this._geom.margin;
         else
-            this._bar.height = this._geom.thick + margin;
+            this._bar.height = this._geom.thick + this._geom.margin;
         this._ownTopBar = this._vertical ||
             (this._position === 'bottom' && this._settings.get_boolean('keep-top-bar'));
         const wantPanel = this._primary && !this._ownTopBar && this._panelOk;
@@ -439,13 +449,13 @@ export class Dock {
         this._dockMenu?.destroy();
         this._dockMenu = null;
         this.paint();
-        const sepSize = this._xy(1, Math.round(icon * 0.6));
+        const sepSize = this._xy(s, Math.round(icon * 0.6));
         for (const sep of [...this._seps, ...this._rowSeps])
             sep.set_size(...sepSize);
         for (const sep of this._seps) {
             sep.visible = this._settings.get_boolean('separators') && this._boxes.length > 0;
             [sep.margin_left, sep.margin_right, sep.margin_top, sep.margin_bottom] = this._vertical
-                ? [0, 0, SEP_MARGIN, SEP_MARGIN] : [SEP_MARGIN, SEP_MARGIN, 0, 0];
+                ? [0, 0, SEP_MARGIN * s, SEP_MARGIN * s] : [SEP_MARGIN * s, SEP_MARGIN * s, 0, 0];
         }
         this._resetSlide();
         for (const actor of [...this._boxes, ...this._seps, ...this._rowSeps])
@@ -453,7 +463,9 @@ export class Dock {
 
         this._items.forEach(item => this._destroyItem(item));
         this._items = [];
+        this._fresh = true;
         this.sync();
+        this._fresh = false;
         // The barrier follows settings that leave the bar's size alone.
         this.queuePlace();
     }
@@ -590,8 +602,7 @@ export class Dock {
     _popOut(item) {
         item.button.reactive = false;
         this._hideLabel(item);
-        if (this._previews.anchor === item.button)
-            this._previews.hide();
+        this._previews.forget(item.button);
         item.icon.ease({
             scale_x: 0,
             scale_y: 0,
@@ -641,13 +652,14 @@ export class Dock {
 
     _createItem(key) {
         const {icon: size, big, slot, pad} = this._geom;
+        const s = this._scale;
         const app = key instanceof Shell.App ? key : null;
         const name = app ? app.get_name() : placeName(key);
-        const icon = app ? app.create_icon_texture(big) : placeIcon(key, big, this._ext.trash?.full);
+        const icon = app ? app.create_icon_texture(big / s) : placeIcon(key, big / s, this._ext.trash?.full);
         icon.set_pivot_point(0.5, 0.5);
         this._tintIcon(icon);
 
-        const font = Math.max(10, Math.round(size / 3));
+        const font = Math.max(10, Math.round(size / s / 3));
         const badge = new St.Label({
             style_class: 'silver-dock-badge',
             style: `font-size: ${font}px; min-width: ${Math.round(font * 1.1)}px; border-radius: ${font}px;`,
@@ -655,7 +667,7 @@ export class Dock {
         });
         const progress = new St.Widget({
             style_class: 'silver-dock-progress',
-            height: Math.max(3, Math.round(size * 0.1)),
+            height: Math.max(3 * s, Math.round(size * 0.1)),
             visible: false,
         });
         const fill = new St.Widget({style_class: 'silver-dock-progress-fill'});
@@ -665,7 +677,7 @@ export class Dock {
 
         const button = new St.Button({
             style_class: 'silver-dock-app',
-            style: `border-radius: ${Math.round(big / 4 + pad)}px; padding: ${pad}px;`,
+            style: `border-radius: ${Math.round((big / 4 + pad) / s)}px; padding: ${pad / s}px;`,
             child: icon,
             accessible_name: name,
             can_focus: true,
@@ -687,7 +699,8 @@ export class Dock {
         indicator.set_size(...this._xy(slot, -1));
 
         const item = {key, app, name, icon, badge, progress, fill, fraction: 0, button, indicator, dots, menu: null, room: 1,
-            born: GLib.get_monotonic_time() / 1000};
+            // After a rebuild (settings, unlock) start times are unknown, the apps count as settled.
+            born: this._fresh ? 0 : GLib.get_monotonic_time() / 1000};
         badge.set_pivot_point(0.5, 0.5);
         // room: share of its slot the icon takes, a popping icon pushes its neighbours aside.
         const along = this._vertical ? 'scale_y' : 'scale_x';
@@ -698,7 +711,8 @@ export class Dock {
             item.room = room;
             this._queue('room', () => {
                 this._layout();
-                this._place();
+                // Already smooth, a glide behind it would overshoot.
+                this._place(true);
             });
         });
         button.connect('clicked', (b, mouseButton) => {
@@ -743,19 +757,19 @@ export class Dock {
 
     _destroyItem(item) {
         this._hideLabel(item);
-        if (this._previews.anchor === item.button)
-            this._previews.hide();
+        this._previews.forget(item.button);
         item.menu?.destroy();
         [item.button, item.indicator, item.progress, item.badge].forEach(actor => actor.destroy());
     }
 
     _layout(animate = false) {
-        const {icon, big, slot, thick, pad} = this._geom;
+        const {icon, big, slot, thick, pad, inner, outer} = this._geom;
+        const s = this._scale;
         const n = this._items.length;
         const sepGap = Math.round(slot * 0.4);
         const gaps = new Array(n + 1).fill(0);
-        gaps[0] += EDGE;
-        gaps[n] += EDGE;
+        gaps[0] += EDGE * s;
+        gaps[n] += EDGE * s;
         this._rowSeps.forEach((sep, i) => {
             if (sep.visible)
                 gaps[this._bounds[i]] += sepGap;
@@ -783,13 +797,13 @@ export class Dock {
             }
         };
         this._items.forEach((item, i) => {
-            move(item.button, centers[i] - big / 2 - pad, (this._edgeFirst ? OUTER : INNER + icon - big) - pad);
-            move(item.indicator, centers[i] - slot / 2, this._edgeFirst ? OUTER - 7 : INNER + icon + 2);
+            move(item.button, centers[i] - big / 2 - pad, (this._edgeFirst ? outer : inner + icon - big) - pad);
+            move(item.indicator, centers[i] - slot / 2, this._edgeFirst ? outer - 7 * s : inner + icon + 2 * s);
         });
         this._rowSeps.forEach((sep, i) => {
             const at = this._bounds[i];
             if (at > 0 && at < n)
-                move(sep, centers[at] - slot / 2 - gaps[at] + sepGap / 2, (this._edgeFirst ? OUTER : INNER) + icon * 0.2);
+                move(sep, centers[at] - slot / 2 - gaps[at] + sepGap / 2, (this._edgeFirst ? outer : inner) + icon * 0.2);
         });
         this._row.set_size(...this._xy(width, thick));
         this._animate();
@@ -804,7 +818,7 @@ export class Dock {
             button.checked = highlight && Boolean(app) && app === focused;
             const n = app?.state === Shell.AppState.RUNNING
                 ? Math.min(Math.max(app.get_n_windows(), 1), MAX_DOTS) : 0;
-            const size = this._xy(app === focused ? DOT_LONG : DOT, DOT);
+            const size = this._xy((app === focused ? DOT_LONG : DOT) * this._scale, DOT * this._scale);
             const changed = dots.has_style_class_name('focused') !== (app === focused);
             while (dots.get_n_children() > n)
                 dots.get_last_child().destroy();
@@ -863,9 +877,9 @@ export class Dock {
 
     // Next to the scaled button, not in it: text scaled down from the big rendering blurs.
     _placeExtras(item, center, scale) {
-        const {icon} = this._geom;
+        const {icon, inner, outer} = this._geom;
         const size = icon * scale;
-        const across = this._edgeFirst ? OUTER : INNER + icon - size;
+        const across = this._edgeFirst ? outer : inner + icon - size;
         const [x, y] = this._xy(center - size / 2, across);
         const {badge, progress, fill} = item;
         if (badge.visible)
@@ -888,8 +902,9 @@ export class Dock {
     // The icon moves, its button carries the hover transform.
     _bounce(item) {
         const icon = item?.icon;
-        // Unmapped (fullscreen), an ease jumps to its end: the icon stays up and the hops recurse.
-        if (!icon?.mapped || icon.get_transition(this._across.replace('_', '-')))
+        // Unmapped (fullscreen) or without animations an ease ends at once: the hops would recurse.
+        const live = () => icon.mapped && St.Settings.get().enable_animations;
+        if (!icon || !live() || icon.get_transition(this._across.replace('_', '-')))
             return;
         const until = GLib.get_monotonic_time() + BOUNCE_MAX * 1000;
         const hop = () => icon.ease({
@@ -899,7 +914,7 @@ export class Dock {
             repeatCount: 1,
             autoReverse: true,
             onComplete: () => {
-                if (icon.mapped && !item.leaving && !item.app.get_n_windows() && GLib.get_monotonic_time() < until)
+                if (live() && !item.leaving && !item.app.get_n_windows() && GLib.get_monotonic_time() < until)
                     hop();
             },
         });
@@ -999,10 +1014,10 @@ export class Dock {
         const [dx, dy] = this._xy(0, pending);
         const {width: lw, height: lh} = this._label;
         const [lx, ly] = {
-            [St.Side.BOTTOM]: [x + (w - lw) / 2, y + dy - lh - 6],
-            [St.Side.TOP]: [x + (w - lw) / 2, y + dy + h + 6],
-            [St.Side.LEFT]: [x + dx + w + 6, y + (h - lh) / 2],
-            [St.Side.RIGHT]: [x + dx - lw - 6, y + (h - lh) / 2],
+            [St.Side.BOTTOM]: [x + (w - lw) / 2, y + dy - lh - LABEL_GAP * this._scale],
+            [St.Side.TOP]: [x + (w - lw) / 2, y + dy + h + LABEL_GAP * this._scale],
+            [St.Side.LEFT]: [x + dx + w + LABEL_GAP * this._scale, y + (h - lh) / 2],
+            [St.Side.RIGHT]: [x + dx - lw - LABEL_GAP * this._scale, y + (h - lh) / 2],
         }[this._side];
         this._label.set_position(Math.round(lx), Math.round(ly));
     }
@@ -1126,6 +1141,9 @@ export class Dock {
     }
 
     _queue(key, fn) {
+        // Focus leaves the icons while destroy() takes them down.
+        if (this._stopped)
+            return;
         this._laters[key] ||= global.compositor.get_laters().add(Meta.LaterType.BEFORE_REDRAW, () => {
             this._laters[key] = 0;
             fn();
@@ -1149,7 +1167,9 @@ export class Dock {
     _updateFullscreen() {
         const windows = global.workspace_manager.get_active_workspace().list_windows()
             .filter(win => win.get_monitor() === this.monitorIndex && win.showing_on_its_workspace());
-        const fullscreen = !Main.overview.visible &&
+        // GNOME places a menu only on a mapped source, ArcMenu's hotkey would open it where it last was.
+        const source = global.stage.get_grab_actor()?._sourceActor;
+        const fullscreen = !Main.overview.visible && !(source && this._bar.contains(source)) &&
             Boolean(global.display.sort_windows_by_stacking(windows).at(-1)?.is_fullscreen());
         if (fullscreen === this._fullscreen)
             return;
@@ -1180,7 +1200,7 @@ export class Dock {
         this._updateAutohide();
     }
 
-    _place() {
+    _place(immediate = false) {
         const m = Main.layoutManager.monitors[this.monitorIndex];
         if (!m)
             return;
@@ -1201,7 +1221,7 @@ export class Dock {
         // A running glide only takes the new target, restarted every frame it would never move.
         const [prop, along, across] = this._vertical ? ['y', y, x] : ['x', x, y];
         const glide = this._bar.get_transition(prop);
-        if (this._placedAcross !== across || !this._bar.mapped) {
+        if (immediate || this._placedAcross !== across || !this._bar.mapped) {
             this._bar.remove_transition(prop);
             this._bar.set_position(x, y);
         } else if (glide) {
@@ -1281,15 +1301,16 @@ export class Dock {
         if (this._dragging)
             return false;
         const {icon} = this._geom;
-        const wanted = this._settings.get_int('icon-size');
+        const wanted = this._settings.get_int('icon-size') * this._scale;
         // px of bar per px of icon size: a slot is 1.2 icons, a separator gap 0.4 slots
         const seps = this._rowSeps.filter(sep => sep.visible).length;
         const perIcon = (this._items.length + 0.4 * seps) * 1.2;
         if (!perIcon)
             return false;
         let fit = this._fitIcon;
-        if (length > room && icon > MIN_ICON)
-            fit = Math.max(MIN_ICON, Math.floor(icon - (length - room) / perIcon) - 1);
+        const min = MIN_ICON * this._scale;
+        if (length > room && icon > min)
+            fit = Math.max(min, Math.floor(icon - (length - room) / perIcon) - 1);
         // A slot to spare, or rounding makes it swing.
         else if (fit != null && length + (wanted - icon) * perIcon + wanted * 1.2 <= room)
             fit = null;
@@ -1371,7 +1392,9 @@ export class Dock {
             button = null;
         if (!press)
             this._hoverButton(button);
-        else if (this._settings.get_boolean('warp'))
+        // A right click opens ArcMenu's context menu, not the menu.
+        else if (this._settings.get_boolean('warp') &&
+            (type === Clutter.EventType.TOUCH_BEGIN || event.get_button() !== Clutter.BUTTON_SECONDARY))
             this._launch(rocketOf(button));
         return Clutter.EVENT_PROPAGATE;
     }
@@ -1399,13 +1422,13 @@ export class Dock {
             : {duration: 200, mode: Clutter.AnimationMode.EASE_OUT_QUAD};
         const content = button.get_first_child();
         if (content)
-            settle(content, {[this._across]: lift ? this._dir * BUTTON_LIFT : 0}, immediate, params);
+            settle(content, {[this._across]: lift ? this._dir * BUTTON_LIFT * this._scale : 0}, immediate, params);
         if (warp)
             this._useRocket(rocket);
         if (rocket && (immediate || !this._flying)) {
             const scale = warp ? 1.12 : 1;
-            settle(rocket, {translation_y: warp ? this._dir * WARP_LIFT : 0, scale_x: scale, scale_y: scale},
-                immediate, params);
+            const y = warp ? this._dir * WARP_LIFT * this._scale : 0;
+            settle(rocket, {translation_y: y, scale_x: scale, scale_y: scale}, immediate, params);
         }
     }
 
@@ -1448,7 +1471,7 @@ export class Dock {
         const scale = up ? 1.12 : 1;
         Object.assign(rocket, {translation_y: from, scale_x: 1, scale_y: 1});
         rocket.ease({
-            translation_y: up ? this._dir * WARP_LIFT : 0, scale_x: scale, scale_y: scale,
+            translation_y: up ? this._dir * WARP_LIFT * this._scale : 0, scale_x: scale, scale_y: scale,
             duration: 380, mode: Clutter.AnimationMode.EASE_OUT_BACK,
         });
         rocket.ease({opacity: 255, duration: 200, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
@@ -1461,7 +1484,7 @@ export class Dock {
         let escaped = false;
         const delegate = {
             app,
-            getDragActor: () => (dragActor = this._tintIcon(app.create_icon_texture(this._geom.icon))),
+            getDragActor: () => (dragActor = this._tintIcon(app.create_icon_texture(Math.round(this._geom.icon / this._scale)))),
             getDragActorSource: () => icon,
         };
         button._delegate = delegate;
@@ -1502,14 +1525,14 @@ export class Dock {
         const [x, y] = from.get_transformed_position();
         const [size] = from.get_transformed_size();
         const mode = Clutter.AnimationMode.EASE_OUT_QUAD;
-        const ghost = this._tintIcon(app.create_icon_texture(Math.round(size)));
+        const ghost = this._tintIcon(app.create_icon_texture(Math.round(size / this._scale)));
         ghost.set_position(Math.round(x), Math.round(y));
         ghost.set_pivot_point(0.5, 0.5);
         Main.uiGroup.add_child(ghost);
         ghost.ease({scale_x: 1.5, scale_y: 1.5, opacity: 0, duration: POOF_TIME * 0.6, mode, onComplete: () => ghost.destroy()});
         const d = Math.round(size * 0.45);
         for (let i = 0; i < PUFFS; i++) {
-            const puff = new St.Widget({style_class: 'silver-dock-poof', style: `border-radius: ${d}px;`, width: d, height: d});
+            const puff = new St.Widget({style_class: 'silver-dock-poof', style: `border-radius: ${d / this._scale}px;`, width: d, height: d});
             puff.set_position(Math.round(x + (size - d) / 2), Math.round(y + (size - d) / 2));
             puff.set_pivot_point(0.5, 0.5);
             puff.set_scale(0.4, 0.4);
@@ -1629,7 +1652,7 @@ export class Dock {
 
     _updateOpacity() {
         const {opacity} = this._geom;
-        const touched = this._settings.get_boolean('dynamic-opacity') && this._windowsOverlap(4);
+        const touched = this._settings.get_boolean('dynamic-opacity') && this._windowsOverlap(4 * this._scale);
         const target = Math.round(255 * (touched ? Math.max(opacity, 0.95) : opacity));
         if (target === this._bgOpacity)
             return;
@@ -1689,6 +1712,6 @@ export class Dock {
         // A 1 px strip stays on screen and catches the pointer.
         this._bar.ease({...params, [this._across]: hidden ? out * (thick - 1) : 0, onComplete: () => this._syncHover()});
         for (const actor of [this._bg, this._blur].filter(Boolean))
-            actor.ease({...params, [this._across]: hidden ? out * (thick + SHADOW) : 0});
+            actor.ease({...params, [this._across]: hidden ? out * (thick + SHADOW * this._scale) : 0});
     }
 }

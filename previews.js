@@ -10,6 +10,7 @@ import {setVertical, trustHover} from './compat.js';
 
 const SHOW_DELAY = 400;
 const HIDE_DELAY = 250;
+// px in logical units, times the scale factor on actors
 const THUMB_WIDTH = 220;
 const THUMB_HEIGHT = 140;
 const MIN_THUMB = 48;
@@ -45,6 +46,7 @@ export class WindowPreviews {
 
     hoverIcon(app, anchor, side) {
         this._stop('hide');
+        this._pending = anchor;
         if (this.shown)
             this._open(app, anchor, side);
         else
@@ -55,6 +57,14 @@ export class WindowPreviews {
         this._stop('show');
         this._stop('hide');
         this._open(app, anchor, side);
+    }
+
+    // For an icon about to go, open or waiting to open.
+    forget(anchor) {
+        if (this._pending === anchor)
+            this._stop('show');
+        if (this.anchor === anchor)
+            this.hide();
     }
 
     leaveIcon() {
@@ -168,7 +178,9 @@ export class WindowPreviews {
         this.anchor = anchor;
         this._side = side;
 
-        const width = Math.max(MIN_THUMB, Math.min(THUMB_WIDTH, Math.floor(monitor.width * 0.9 / windows.length) - 2 * GAP));
+        const s = this._scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+        const gap = GAP * s;
+        const width = Math.max(MIN_THUMB * s, Math.min(THUMB_WIDTH * s, Math.floor(monitor.width * 0.9 / windows.length) - 2 * gap));
         this.actor.destroy_all_children();
         windows.forEach(win => this.actor.add_child(this._preview(win, width)));
         this.actor.show();
@@ -177,12 +189,12 @@ export class WindowPreviews {
         const [x, y] = anchor.get_transformed_position();
         const [w, h] = anchor.get_transformed_size();
         const [left, top] = {
-            [St.Side.BOTTOM]: [x + w / 2 - natWidth / 2, y - natHeight - GAP],
-            [St.Side.TOP]: [x + w / 2 - natWidth / 2, y + h + GAP],
-            [St.Side.LEFT]: [x + w + GAP, y + h / 2 - natHeight / 2],
-            [St.Side.RIGHT]: [x - natWidth - GAP, y + h / 2 - natHeight / 2],
+            [St.Side.BOTTOM]: [x + w / 2 - natWidth / 2, y - natHeight - gap],
+            [St.Side.TOP]: [x + w / 2 - natWidth / 2, y + h + gap],
+            [St.Side.LEFT]: [x + w + gap, y + h / 2 - natHeight / 2],
+            [St.Side.RIGHT]: [x - natWidth - gap, y + h / 2 - natHeight / 2],
         }[side];
-        const clamp = (v, start, length, size) => Math.min(Math.max(v, start + GAP), start + length - size - GAP);
+        const clamp = (v, start, length, size) => Math.min(Math.max(v, start + gap), start + length - size - gap);
         const to = {
             x: Math.round(clamp(left, monitor.x, monitor.width, natWidth)),
             y: Math.round(clamp(top, monitor.y, monitor.height, natHeight)),
@@ -192,11 +204,12 @@ export class WindowPreviews {
             if (to.x !== this.actor.x || to.y !== this.actor.y)
                 this.actor.ease({...to, duration: MOVE_TIME, mode});
         } else {
+            const rise = RISE * s;
             const [dx, dy] = {
-                [St.Side.BOTTOM]: [0, RISE],
-                [St.Side.TOP]: [0, -RISE],
-                [St.Side.LEFT]: [-RISE, 0],
-                [St.Side.RIGHT]: [RISE, 0],
+                [St.Side.BOTTOM]: [0, rise],
+                [St.Side.TOP]: [0, -rise],
+                [St.Side.LEFT]: [-rise, 0],
+                [St.Side.RIGHT]: [rise, 0],
             }[side];
             Object.assign(this.actor, {...to, translation_x: dx, translation_y: dy, opacity: 0});
             this.actor.ease({translation_x: 0, translation_y: 0, duration: FADE_TIME, mode});
@@ -247,7 +260,7 @@ export class WindowPreviews {
         const actor = win.get_compositor_private();
         const frame = win.get_frame_rect();
         const buffer = win.get_buffer_rect();
-        const scale = Math.min(width / frame.width, THUMB_HEIGHT / frame.height, 1);
+        const scale = Math.min(width / frame.width, THUMB_HEIGHT * this._scale / frame.height, 1);
         const clip = new St.Widget({
             width: Math.round(frame.width * scale),
             height: Math.round(frame.height * scale),

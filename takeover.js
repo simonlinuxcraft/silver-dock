@@ -14,6 +14,8 @@ export function takePanel(bar, before, after) {
     bar.insert_child_above(right, after);
     bar.insert_child_above(center, after);
     panel.hide();
+    // Panel menus now open upwards, the stylesheet drops the theme's bottom margin on them.
+    Main.uiGroup.add_style_class_name('silver-dock-panel');
     return boxes;
 }
 
@@ -25,6 +27,8 @@ export function restorePanel(bar, boxes) {
         if (!box.get_parent())
             Main.panel.add_child(box);
     }
-    if (boxes.length)
+    if (boxes.length) {
         Main.panel.show();
+        Main.uiGroup.remove_style_class_name('silver-dock-panel');
+    }
 }

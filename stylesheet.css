@@ -16,6 +16,11 @@
     height: auto;
 }
 
+/* Themes keep top bar menus off the screen bottom, above the dock that pushes them away from it. */
+.silver-dock-panel .popup-menu.panel-menu {
+    margin-bottom: 0;
+}
+
 .silver-dock-shadow {
     box-shadow: 0 3px 12px rgba(0, 0, 0, 0.3);
 }

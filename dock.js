@@ -142,7 +142,6 @@ export class Dock {
             handleDragOver: (source, actor, x, y) => this._dragOver(source, this._vertical ? y : x),
             acceptDrop: source => this._acceptDrop(source),
         };
-        this._menuManager = new PopupMenu.PopupMenuManager(this._bar);
 
         this._amount = new St.Adjustment({actor: this._row, lower: 0, upper: 1});
         this._amount.connectObject('notify::value', () => this._animate(), this);
@@ -543,6 +542,10 @@ export class Dock {
             this._destroyItem(twin);
         }
         this._items = items;
+        // Tab goes by child order, new and moved icons were added at the end.
+        const order = items.flatMap(item => [item.button, item.indicator, item.progress, item.badge]);
+        if (this._row.get_children().filter(actor => order.includes(actor)).some((actor, i) => actor !== order[i]))
+            order.forEach(actor => this._row.set_child_above_sibling(actor, null));
 
         const separators = this._settings.get_boolean('separators');
         const start = section => {
@@ -924,27 +927,32 @@ export class Dock {
     // Bursts and pauses: an ease disables direct scanout (fullscreen games).
     updateAttention() {
         const enabled = this._settings.get_boolean('attention');
+        const now = GLib.get_monotonic_time();
         let fresh = false;
         for (const item of this._items) {
             const was = item.attention;
             item.attention = enabled && Boolean(item.app) &&
                 (Boolean(this._ext.launcher?.get(item.app.get_id())?.urgent) ||
                  item.app.get_windows().some(win => win.demands_attention || win.urgent));
-            fresh ||= item.attention && !was;
+            if (was && !item.attention)
+                item.calm = now;
+            // Steam flashes its urgent flag on and off, that is one request.
+            fresh ||= item.attention && !was && now - (item.calm ?? 0) > WIGGLE_EVERY * 1000;
         }
         // Before the wiggle, which a hidden bar skips.
         if (fresh && this._settings.get_boolean('autohide'))
             this._reveal();
-        const wanted = this._items.some(item => item.attention);
-        if (wanted && !this._wiggleTimer) {
+        // Ends on its own, a flag going off and on must not restart the burst at once.
+        if (this._items.some(item => item.attention) && !this._wiggleTimer) {
             this._wiggle();
             this._wiggleTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, WIGGLE_EVERY, () => {
-                this._wiggle();
-                return GLib.SOURCE_CONTINUE;
+                if (this._items.some(item => item.attention)) {
+                    this._wiggle();
+                    return GLib.SOURCE_CONTINUE;
+                }
+                this._wiggleTimer = 0;
+                return GLib.SOURCE_REMOVE;
             });
-        } else if (!wanted && this._wiggleTimer) {
-            GLib.source_remove(this._wiggleTimer);
-            this._wiggleTimer = 0;
         }
     }
 
@@ -1035,7 +1043,8 @@ export class Dock {
                 placeActions(item.key).forEach(([label, action]) => item.menu.addAction(label, action));
             }
             Main.uiGroup.add_child(item.menu.actor);
-            this._menuManager.addMenu(item.menu);
+            // One manager each: a shared one opens the menu of whatever icon or bar spot the pointer enters.
+            new PopupMenu.PopupMenuManager(item.button).addMenu(item.menu);
         }
         item.fillMedia?.();
         item.menu.open(BoxPointer.PopupAnimation.FULL);
@@ -1047,7 +1056,7 @@ export class Dock {
             this._dockMenu.addAction(_('Dock Settings'), () => this._ext.openPreferences());
             Main.uiGroup.add_child(this._dockMenu.actor);
             this._dockMenu.actor.hide();
-            this._menuManager.addMenu(this._dockMenu);
+            new PopupMenu.PopupMenuManager(this._bar).addMenu(this._dockMenu);
         }
         // Relative to the content box, like the BoxPointer.
         const box = this._bar.get_theme_node().get_content_box(this._bar.get_allocation_box());
@@ -1156,7 +1165,14 @@ export class Dock {
     }
 
     queueCheck() {
+        // Also on key focus changes, as when a grab ends.
         this._queue('check', () => {
+            if (this._dragGrab && global.stage.get_grab_actor() !== this._dragGrab)
+                this.endDrag();
+            if (this._refit) {
+                this._refit = false;
+                this._place();
+            }
             this._updateFullscreen();
             this._updateOpacity();
             this._updateAutohide();
@@ -1184,7 +1200,8 @@ export class Dock {
     }
 
     iconRect(app) {
-        const button = this._items.find(item => item.app === app && !item.leaving)?.button;
+        // Places have no app either.
+        const button = app && this._items.find(item => item.app === app && !item.leaving)?.button;
         if (!button?.get_stage())
             return null;
         const [x, y] = button.get_transformed_position();
@@ -1195,9 +1212,13 @@ export class Dock {
     }
 
     previewsChanged() {
+        // destroy() hides the previews of its icons.
+        if (this._stopped)
+            return;
         if (this._previews.shown)
             this._hideLabel();
         this._updateAutohide();
+        this.queueCheck();
     }
 
     _place(immediate = false) {
@@ -1297,9 +1318,11 @@ export class Dock {
 
     // Returns true when a rebuild is on its way.
     _fit(length, room) {
-        // Rebuilding mid drag would destroy the dragged icon.
-        if (this._dragging)
+        // The rebuild would destroy a dragged icon, open menus and previews. The check redoes it.
+        if (this._dragging || this._menuOpen() || this._ownsPreviews()) {
+            this._refit = true;
             return false;
+        }
         const {icon} = this._geom;
         const wanted = this._settings.get_int('icon-size') * this._scale;
         // px of bar per px of icon size: a slot is 1.2 icons, a separator gap 0.4 slots
@@ -1559,10 +1582,12 @@ export class Dock {
     }
 
     // Also for drags from the overview or menus.
-    startDrag() {
+    startDrag(grab = null) {
         if (this._dragging)
             return;
         this._dragging = true;
+        // Escape on a drag from a menu tells no monitor, only the drag's grab ends.
+        this._dragGrab = grab;
         this._hideLabel();
         this._previews.hide();
         this._dragMonitor = {
@@ -1586,6 +1611,7 @@ export class Dock {
         if (!this._dragging)
             return;
         this._dragging = false;
+        this._dragGrab = null;
         DND.removeDragMonitor(this._dragMonitor);
         this._dragMonitor = null;
         this._setDropIndex(null);
@@ -1603,7 +1629,7 @@ export class Dock {
         const app = source?.app;
         if (!this._settings.get_boolean('dnd') || !(app instanceof Shell.App))
             return DND.DragMotionResult.NO_DROP;
-        this.startDrag();
+        this.startDrag(global.stage.get_grab_actor());
         this._setDropIndex(this._dropIndexAt(app, along));
         return this._dropIndex === null ? DND.DragMotionResult.NO_DROP : DND.DragMotionResult.MOVE_DROP;
     }
@@ -1635,7 +1661,7 @@ export class Dock {
     }
 
     _menuOpen() {
-        return Boolean(this._menuManager.activeMenu ||
+        return Boolean(this._dockMenu?.isOpen || this._items.some(item => item.menu?.isOpen) ||
             (this._boxes.length && Main.panel.menuManager.activeMenu));
     }
 

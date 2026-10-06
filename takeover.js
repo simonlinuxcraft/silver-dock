@@ -29,7 +29,8 @@ export function takePanel(bar, before, after) {
 export function restorePanel(bar, boxes) {
     for (const box of boxes) {
         box.translation_x = box.translation_y = 0;
-        ['silver-dock-leaf', 'silver-dock-field', 'silver-dock-field-start'].forEach(name => box.remove_style_class_name(name));
+        ['silver-dock-leaf', 'silver-dock-field'].forEach(name => box.remove_style_class_name(name));
+        box.set_style(null);
         if (box.get_parent() === bar)
             bar.remove_child(box);
         if (!box.get_parent())

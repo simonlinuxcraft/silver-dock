@@ -89,46 +89,7 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-/* The menu on a yellow leaf, the clock and tray in an inset field, like the Deskbar. */
-.silver-dock.haiku .silver-dock-leaf,
-#panel.silver-dock-haiku .silver-dock-leaf {
-    padding: 0 4px;
-    background-gradient-direction: vertical;
-    background-gradient-start: #fff3b0;
-    background-gradient-end: #ffcb00;
-    box-shadow: inset -1px 0 0 #8a7000;
-}
-
-/* The leaf stays yellow whatever the bar's color, its content dark. */
-.silver-dock.haiku .silver-dock-leaf StIcon,
-#panel.silver-dock-haiku .silver-dock-leaf StIcon {
-    color: #1c1d21;
-}
-
-.silver-dock.haiku .silver-dock-leaf .workspace-dot,
-#panel.silver-dock-haiku .silver-dock-leaf .workspace-dot {
-    background-color: #1c1d21;
-}
-
-.silver-dock.haiku .silver-dock-field,
-#panel.silver-dock-haiku .silver-dock-field {
-    background-color: rgba(0, 0, 0, 0.06);
-}
-
-.silver-dock.haiku .silver-dock-field-start,
-#panel.silver-dock-haiku .silver-dock-field-start {
-    box-shadow: inset 1px 0 0 rgba(0, 0, 0, 0.3);
-}
-
-.silver-dock.haiku.dim .silver-dock-field,
-#panel.silver-dock-haiku.silver-dock-dim .silver-dock-field {
-    background-color: rgba(0, 0, 0, 0.18);
-}
-
-.silver-dock.haiku.dim .silver-dock-field-start,
-#panel.silver-dock-haiku.silver-dock-dim .silver-dock-field-start {
-    box-shadow: inset 1px 0 0 rgba(0, 0, 0, 0.5);
-}
+/* Haiku's leaf and field are painted in code, they fade with the bar. */
 
 /* The app name on a yellow tab, like a Haiku window title. */
 .dash-label.silver-dock-tab {
@@ -408,4 +369,32 @@
     background-color: transparent;
     background-gradient-start: #fff3b0;
     background-gradient-end: #ffcb00;
+}
+
+/* Light text on our dark and colored bars, dark text comes with silver-dock-ink. */
+#panel.silver-dock-bright .panel-button,
+#panel.silver-dock-bright .system-status-icon {
+    color: #f2f3f5;
+    text-shadow: none;
+}
+
+#panel.silver-dock-bright StIcon {
+    icon-shadow: none;
+}
+
+#panel.silver-dock-bright .workspace-dot {
+    background-color: #f2f3f5;
+}
+
+/* Haiku's leaf stays yellow whatever the bar's color, its content dark. Last, it wins over the bar's text color. */
+#panel.silver-dock.haiku .silver-dock-leaf .panel-button,
+#panel.silver-dock.haiku .silver-dock-leaf StIcon,
+#panel.silver-dock-haiku .silver-dock-leaf .panel-button,
+#panel.silver-dock-haiku .silver-dock-leaf StIcon {
+    color: #1c1d21;
+}
+
+#panel.silver-dock.haiku .silver-dock-leaf .workspace-dot,
+#panel.silver-dock-haiku .silver-dock-leaf .workspace-dot {
+    background-color: #1c1d21;
 }

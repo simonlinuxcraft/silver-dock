@@ -250,10 +250,8 @@ export class Dock {
         if (!this._dressed)
             return;
         Main.panel.set_style(this._panelStyle);
-        Main.panel.remove_style_class_name('silver-dock-ink');
-        Main.panel.remove_style_class_name('silver-dock-shadow');
-        Main.panel.remove_style_class_name('silver-dock-haiku');
-        Main.panel.remove_style_class_name('silver-dock-dim');
+        for (const name of ['ink', 'bright', 'shadow', 'haiku', 'dim'])
+            Main.panel.remove_style_class_name(`silver-dock-${name}`);
         this._dressBoxes(panelBoxes(), false);
         this._dressed = false;
     }
@@ -289,13 +287,12 @@ export class Dock {
         setClass(this._bar, 'haiku', haiku);
         setClass(this._bar, 'dim', dim);
         this._previews.dim = dim;
-        // Haiku's highlight runs along the far side, just inside the bar's clear border there.
-        const glow = {bottom: '0 1px', top: '0 -1px', left: '-1px 0', right: '1px 0'}[this._position];
-        this._bar.set_style((this._barStyle ?? '') +
-            (haiku ? ` box-shadow: inset ${glow} 0 rgba(255, 255, 255, ${dim ? 0.12 : 0.8});` : ''));
+        this._surface = {haiku, dim, fg: colors.fg};
         setClass(this._label, 'silver-dock-tab', haiku);
-        this._dressBoxes(this._boxes, haiku);
+        // Text in the bar dark on a light color, light on any other of ours. Themes may write either.
+        const bright = !themed && !ink;
         setClass(this._bar, 'silver-dock-ink', ink);
+        setClass(this._bar, 'silver-dock-bright', bright);
         const opacity = themed ? colors.alpha : this._settings.get_int('opacity') / 100;
         this._geom.opacity = opacity;
         this._accent = colors.accent ?? null;
@@ -315,10 +312,11 @@ export class Dock {
                 `background-color: rgba(${colors.bg}, ${opacity}); ${this._borderCss(colors.border, 'top', true)} ` +
                 `border-radius: ${radius}px;`);
             setClass(Main.panel, 'silver-dock-ink', ink);
+            setClass(Main.panel, 'silver-dock-bright', bright);
             setClass(Main.panel, 'silver-dock-shadow', shadow);
             setClass(Main.panel, 'silver-dock-haiku', haiku);
             setClass(Main.panel, 'silver-dock-dim', dim);
-            this._dressBoxes(panelBoxes(), haiku, 2);
+            this._dressBoxes(panelBoxes(), haiku, 2, opacity);
         } else {
             this._undress();
         }
@@ -327,11 +325,7 @@ export class Dock {
         this._bg.set_style(`border-radius: ${radius}px; background-color: rgb(${colors.bg}); ${this._borderCss(colors.border)}`);
         this._bg.remove_transition('opacity');
         this._bg.opacity = this._bgOpacity = Math.round(255 * opacity);
-        // Haiku's separators are grooves, a dark line with a light one beside it.
-        const groove = `${this._vertical ? '0 1px' : '1px 0'} 0 rgba(255, 255, 255, ${dim ? 0.12 : 0.7})`;
-        for (const sep of [...this._seps, ...this._rowSeps])
-            sep.set_style(haiku ? `background-color: rgb(${this._edge}); box-shadow: ${groove};`
-                : `background-color: rgba(${colors.fg}, 0.25);`);
+        this._paintSurface(opacity);
         this._items.forEach(item => {
             item.fill.set_style(this._accent && `background-color: rgb(${this._accent});`);
             item.button.set_style(this._buttonStyle());
@@ -351,12 +345,37 @@ export class Dock {
         return this._settings.get_string('design') === 'haiku' && this._settings.get_string('bar-width') === 'full';
     }
 
+    // What belongs to the bar's surface fades with its background: Haiku's highlight, grooves, leaf and field.
+    _paintSurface(alpha) {
+        const {haiku, dim, fg} = this._surface;
+        const glow = {bottom: '0 1px', top: '0 -1px', left: '-1px 0', right: '1px 0'}[this._position];
+        // Along the far side, just inside the bar's clear border there.
+        this._bar.set_style((this._barStyle ?? '') +
+            (haiku ? ` box-shadow: inset ${glow} 0 rgba(255, 255, 255, ${(dim ? 0.12 : 0.8) * alpha});` : ''));
+        // Haiku's separators are grooves, a dark line with a light one beside it.
+        const groove = `${this._vertical ? '0 1px' : '1px 0'} 0 rgba(255, 255, 255, ${(dim ? 0.12 : 0.7) * alpha})`;
+        for (const sep of [...this._seps, ...this._rowSeps])
+            sep.set_style(haiku ? `background-color: rgba(${this._edge}, ${alpha}); box-shadow: ${groove};`
+                : `background-color: rgba(${fg}, 0.25);`);
+        this._dressBoxes(this._boxes, haiku, 1, alpha);
+    }
+
     // Haiku: the menu on the yellow leaf, from the field box on an inset field (clock and tray, in the top bar the tray).
-    _dressBoxes(boxes, haiku, field = 1) {
+    // Painted here, the surface fades with the bar.
+    _dressBoxes(boxes, haiku, field = 1, alpha = 1) {
+        const dim = this._surface?.dim;
         boxes.forEach((box, i) => {
             setClass(box, 'silver-dock-leaf', haiku && i === 0);
             setClass(box, 'silver-dock-field', haiku && i >= field);
-            setClass(box, 'silver-dock-field-start', haiku && i === field);
+            if (!haiku || (i > 0 && i < field))
+                box.set_style(null);
+            else if (i === 0)
+                box.set_style('padding: 0 4px; background-gradient-direction: vertical; ' +
+                    `background-gradient-start: rgba(255, 243, 176, ${alpha}); ` +
+                    `background-gradient-end: rgba(255, 203, 0, ${alpha}); box-shadow: inset -1px 0 0 rgba(138, 112, 0, ${alpha});`);
+            else
+                box.set_style(`background-color: rgba(0, 0, 0, ${(dim ? 0.18 : 0.06) * alpha});` +
+                    (i === field ? ` box-shadow: inset 1px 0 0 rgba(0, 0, 0, ${(dim ? 0.5 : 0.3) * alpha});` : ''));
         });
     }
 
@@ -1833,6 +1852,8 @@ export class Dock {
             return;
         this._bgOpacity = target;
         this._bg.ease({opacity: target, duration: 250, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+        if (this._surface?.haiku)
+            this._paintSurface(target / 255);
     }
 
     _shouldHide() {

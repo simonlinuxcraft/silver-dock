@@ -212,6 +212,7 @@ set_key tooltips false
 set_key position top
 set_key position left
 set_key blur false
+set_key bar-width fit
 set_key badges false
 set_key trash false
 set_key drives false
@@ -220,6 +221,7 @@ set_key dnd false
 set_key peek false
 set_key scroll false
 set_key previews false
+set_key bar-width full
 set_key position right
 set_key style-top-bar false
 # Too long for the side: the icons have to shrink.

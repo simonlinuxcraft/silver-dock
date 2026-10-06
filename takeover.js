@@ -1,11 +1,18 @@
 // The only use of GNOME Shell internals, check here first when a release breaks.
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
+// The top bar's boxes while GNOME holds them, none if the internals changed.
+export function panelBoxes() {
+    const panel = Main.panel;
+    const boxes = [panel?._leftBox, panel?._centerBox, panel?._rightBox];
+    return boxes.every(box => box?.get_parent() === panel) ? boxes : [];
+}
+
 // Returns the moved boxes, none if the internals changed.
 export function takePanel(bar, before, after) {
     const panel = Main.panel;
-    const boxes = [panel?._leftBox, panel?._centerBox, panel?._rightBox];
-    if (!boxes.every(box => box?.get_parent() === panel))
+    const boxes = panelBoxes();
+    if (!boxes.length)
         return [];
 
     boxes.forEach(box => panel.remove_child(box));
@@ -22,6 +29,7 @@ export function takePanel(bar, before, after) {
 export function restorePanel(bar, boxes) {
     for (const box of boxes) {
         box.translation_x = box.translation_y = 0;
+        ['silver-dock-leaf', 'silver-dock-field', 'silver-dock-field-start'].forEach(name => box.remove_style_class_name(name));
         if (box.get_parent() === bar)
             bar.remove_child(box);
         if (!box.get_parent())

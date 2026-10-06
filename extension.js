@@ -119,6 +119,7 @@ export default class SilverDock extends Extension {
 
     _services() {
         this.previews.peek = this.settings.get_boolean('peek');
+        this.previews.haiku = this.settings.get_string('design') === 'haiku';
         if (this.settings.get_boolean('trash')) {
             this.trash ??= new TrashWatcher(() => this._each(dock => dock.updateTrash()));
         } else {
@@ -182,13 +183,17 @@ export default class SilverDock extends Extension {
     }
 
     _recolor() {
-        if (['theme', 'wallpaper'].includes(this.settings?.get_string('colors')))
+        const colors = this.settings?.get_string('colors');
+        if (['theme', 'wallpaper'].includes(colors) || colors === 'dock' && this.settings.get_string('scheme') === 'system')
             this._each(dock => dock.paint());
     }
 
+    prefersDark() {
+        return this._iface.get_string('color-scheme') === 'prefer-dark';
+    }
+
     wallpaperColor() {
-        return wallpaperColor(this._background, this._iface.get_string('color-scheme') === 'prefer-dark',
-            () => this._recolor());
+        return wallpaperColor(this._background, this.prefersDark(), () => this._recolor());
     }
 
     // The shell theme's top bar colors from a hidden stand-in, the GTK theme fills in.

@@ -22,7 +22,7 @@ import {dropIndex, hover, rest, STYLES} from './layout.js';
 import {RoundedMask} from './mask.js';
 import {mediaSection} from './media.js';
 import {TRASH, driveMounts, openPlace, placeActions, placeIcon, placeName} from './places.js';
-import {restorePanel, takePanel} from './takeover.js';
+import {panelBoxes, restorePanel, takePanel} from './takeover.js';
 
 // Logical px, times the shell's scale factor on actors. CSS and icon sizes stay logical.
 // px from the icons to the bar's inner side and to the screen edge (window dots)
@@ -65,8 +65,10 @@ const PUFFS = 7;
 const SIDES = {bottom: St.Side.BOTTOM, top: St.Side.TOP, left: St.Side.LEFT, right: St.Side.RIGHT};
 // bg and fg as "r, g, b", the opacity setting adds the alpha
 export const COLORS = {bg: '28, 29, 33', fg: '235, 237, 242', border: '1px solid rgba(214, 218, 226, 0.3)'};
-// Haiku's desktop blue
-const HAIKU_COLORS = {...COLORS, bg: '51, 102, 152'};
+// The designs' other half: Silver Dock light, Haiku's panel gray and a dark one
+const SILVER_LIGHT = '242, 243, 246';
+const HAIKU_BG = '216, 216, 216';
+const HAIKU_DARK = '58, 58, 61';
 
 // No ease for values already there: every ease keeps the compositor busy.
 function settle(actor, props, immediate, params) {
@@ -161,7 +163,9 @@ export class Dock {
                 this._pointer = this._vertical ? y : x;
                 this._animate();
                 return Clutter.EVENT_PROPAGATE;
-            }, this);
+            },
+            'notify::width', () => this._contentChanged(),
+            'notify::height', () => this._contentChanged(), this);
         // Moving the bar mid layout pass leaves it unallocated for a frame.
         this._bar.connectObject(
             'notify::width', () => this.queuePlace(),
@@ -225,6 +229,7 @@ export class Dock {
     // Also at logout, when GNOME destroys the bar without disabling the extension.
     stopListening() {
         this._stopped = true;
+        this._boxes.forEach(box => box.disconnectObject(this));
         this._row.disconnectObject(this);
         this._bar.disconnectObject(this);
         this._amount.disconnectObject(this);
@@ -248,18 +253,23 @@ export class Dock {
         Main.panel.remove_style_class_name('silver-dock-ink');
         Main.panel.remove_style_class_name('silver-dock-shadow');
         Main.panel.remove_style_class_name('silver-dock-haiku');
+        Main.panel.remove_style_class_name('silver-dock-dim');
+        this._dressBoxes(panelBoxes(), false);
         this._dressed = false;
     }
 
     paint() {
         const margin = this._settings.get_int('margin');
-        const radius = this._settings.get_int('radius');
+        const radius = this._radius();
         const mode = this._settings.get_string('colors');
         const themed = mode === 'theme';
-        const own = (mode === 'custom' && parseColor(this._settings.get_string('color'))) ||
-            (mode === 'wallpaper' && this._ext.wallpaperColor());
         const haiku = this._settings.get_string('design') === 'haiku';
-        let colors = themed ? this._ext.themeColors() : haiku ? HAIKU_COLORS : COLORS;
+        const scheme = this._settings.get_string('scheme');
+        const night = scheme === 'design' ? !haiku : scheme === 'system' ? this._ext.prefersDark() : scheme === 'dark';
+        const own = (mode === 'custom' && parseColor(this._settings.get_string('color'))) ||
+            (mode === 'wallpaper' && this._ext.wallpaperColor()) ||
+            (mode === 'dock' && (haiku ? (night ? HAIKU_DARK : HAIKU_BG) : !night && SILVER_LIGHT));
+        let colors = themed ? this._ext.themeColors() : COLORS;
         let ink = false;
         if (own) {
             // Border and separators lighter, or darker on a light color, for contrast.
@@ -271,13 +281,20 @@ export class Dock {
         const tint = this._settings.get_boolean('tint-icons') && parseColor(this._settings.get_string('icon-color'));
         const [red, green, blue] = tint ? tint.split(',').map(Number) : [];
         this._tint = tint ? new Color({red, green, blue, alpha: 255}) : null;
-        // Haiku: a dark bevel edge on the bar and the tiles, lifted on a very dark bar.
-        const dark = luma(colors.bg) < 60;
-        this._edge = haiku ? mix(colors.bg, dark ? '255, 255, 255' : '0, 0, 0', dark ? 0.2 : 0.45) : null;
+        // Haiku: a dark bevel edge on the bar and the tiles. A dark bar gets dark tiles.
+        const dim = haiku && luma(colors.bg) < 80;
+        this._edge = haiku ? mix(colors.bg, '0, 0, 0', dim ? 0.5 : 0.45) : null;
         if (haiku)
             colors = {...colors, border: `1px solid rgb(${this._edge})`};
         setClass(this._bar, 'haiku', haiku);
+        setClass(this._bar, 'dim', dim);
+        this._previews.dim = dim;
+        // Haiku's highlight runs along the far side, just inside the bar's clear border there.
+        const glow = {bottom: '0 1px', top: '0 -1px', left: '-1px 0', right: '1px 0'}[this._position];
+        this._bar.set_style((this._barStyle ?? '') +
+            (haiku ? ` box-shadow: inset ${glow} 0 rgba(255, 255, 255, ${dim ? 0.12 : 0.8});` : ''));
         setClass(this._label, 'silver-dock-tab', haiku);
+        this._dressBoxes(this._boxes, haiku);
         setClass(this._bar, 'silver-dock-ink', ink);
         const opacity = themed ? colors.alpha : this._settings.get_int('opacity') / 100;
         this._geom.opacity = opacity;
@@ -295,21 +312,26 @@ export class Dock {
                 this._dressed = true;
             }
             Main.panel.set_style(`margin: ${margin}px ${margin}px 0; ` +
-                `background-color: rgba(${colors.bg}, ${opacity}); border: ${colors.border}; ` +
+                `background-color: rgba(${colors.bg}, ${opacity}); ${this._borderCss(colors.border, 'top', true)} ` +
                 `border-radius: ${radius}px;`);
             setClass(Main.panel, 'silver-dock-ink', ink);
             setClass(Main.panel, 'silver-dock-shadow', shadow);
             setClass(Main.panel, 'silver-dock-haiku', haiku);
+            setClass(Main.panel, 'silver-dock-dim', dim);
+            this._dressBoxes(panelBoxes(), haiku, 2);
         } else {
             this._undress();
         }
 
         // Opacity on the actor, so dynamic opacity can ease it.
-        this._bg.set_style(`border-radius: ${radius}px; background-color: rgb(${colors.bg}); border: ${colors.border};`);
+        this._bg.set_style(`border-radius: ${radius}px; background-color: rgb(${colors.bg}); ${this._borderCss(colors.border)}`);
         this._bg.remove_transition('opacity');
         this._bg.opacity = this._bgOpacity = Math.round(255 * opacity);
+        // Haiku's separators are grooves, a dark line with a light one beside it.
+        const groove = `${this._vertical ? '0 1px' : '1px 0'} 0 rgba(255, 255, 255, ${dim ? 0.12 : 0.7})`;
         for (const sep of [...this._seps, ...this._rowSeps])
-            sep.set_style(`background-color: rgba(${colors.fg}, 0.25);`);
+            sep.set_style(haiku ? `background-color: rgb(${this._edge}); box-shadow: ${groove};`
+                : `background-color: rgba(${colors.fg}, 0.25);`);
         this._items.forEach(item => {
             item.fill.set_style(this._accent && `background-color: rgb(${this._accent});`);
             item.button.set_style(this._buttonStyle());
@@ -317,6 +339,58 @@ export class Dock {
         });
         this.updateDots();
         this.queueCheck();
+    }
+
+    // Haiku's bar is square.
+    _radius() {
+        return this._settings.get_string('design') === 'haiku' ? 0 : this._settings.get_int('radius');
+    }
+
+    // Haiku's bar spans the screen edge to edge, or only as far as its content.
+    get _full() {
+        return this._settings.get_string('design') === 'haiku' && this._settings.get_string('bar-width') === 'full';
+    }
+
+    // Haiku: the menu on the yellow leaf, from the field box on an inset field (clock and tray, in the top bar the tray).
+    _dressBoxes(boxes, haiku, field = 1) {
+        boxes.forEach((box, i) => {
+            setClass(box, 'silver-dock-leaf', haiku && i === 0);
+            setClass(box, 'silver-dock-field', haiku && i >= field);
+            setClass(box, 'silver-dock-field-start', haiku && i === field);
+        });
+    }
+
+    // A Haiku bar on the screen edge has no border along it, spanning the edge none at its ends either.
+    _borderCss(border, side = this._position, spans = this._full) {
+        if (!this._edge || this._settings.get_int('margin') > 0)
+            return `border: ${border};`;
+        const far = {bottom: 'top', top: 'bottom', left: 'right', right: 'left'}[side];
+        return spans ? `border: 0; border-${far}: ${border};` : `border: ${border}; border-${side}-width: 0;`;
+    }
+
+    // The same Haiku border in logical px per side, the bar keeps its content inside it.
+    _lines() {
+        const flush = this._settings.get_int('margin') === 0;
+        return {far: 1, ends: flush && this._full ? 0 : 1, edge: flush ? 0 : 1};
+    }
+
+    // The bar's length along its edge when it spans the screen, less the distance to the edge on both ends.
+    _fullLength() {
+        const m = Main.layoutManager.monitors[this.monitorIndex];
+        if (!m)
+            return -1;
+        const room = this._vertical ? Main.layoutManager.getWorkAreaForMonitor(this.monitorIndex).height : m.width;
+        return room - 2 * this._geom.margin;
+    }
+
+    // What the bar needs along its edge: its children and padding, whatever the set length, and the room magnify
+    // spreads into (its icons grow by up to three slots' worth).
+    _content() {
+        const pick = this._vertical ? 'get_preferred_height' : 'get_preferred_width';
+        const {slot, peak} = this._geom;
+        const spread = STYLES[this._style].spread ? Math.ceil(3 * slot * (peak - 1)) : 0;
+        return this._bar.get_children().reduce((sum, child) => sum + (child.visible ? child[pick](-1)[1] : 0),
+            2 * this._end * this._scale + spread);
     }
 
     // The button is the tile. Tiles are small boxes with a bevel edge, the border takes 1 px of the padding.
@@ -376,7 +450,7 @@ export class Dock {
         this._blur.set_size(width, height);
         this._clone.set_position(this._wallpaper.x - x, this._wallpaper.y - y);
         // St draws no radius beyond half the height.
-        const radius = this._settings.get_int('radius') * this._scale;
+        const radius = this._radius() * this._scale;
         this._mask.setShape(width, height, Math.min(radius, width / 2, height / 2));
     }
 
@@ -418,7 +492,8 @@ export class Dock {
         const icon = Math.min(this._settings.get_int('icon-size') * s, this._fitIcon ?? Infinity);
         const zoom = this._settings.get_double('zoom');
         const margin = this._settings.get_int('margin');
-        const radius = this._settings.get_int('radius');
+        const radius = this._radius();
+        const haiku = this._settings.get_string('design') === 'haiku';
 
         this._style = this._settings.get_string('animation');
         this._position = this._settings.get_string('position');
@@ -428,48 +503,75 @@ export class Dock {
         this._dir = this._edgeFirst ? 1 : -1;
         this._along = this._vertical ? 'translation_y' : 'translation_x';
         this._across = this._vertical ? 'translation_x' : 'translation_y';
+        // Only magnify and ripple grow the icons, rendered any bigger they would only lose detail scaled down.
+        const peak = 1 + (zoom - 1) * STYLES[this._style].zoom;
         // big and pad whole logical px, St draws icons and padding in those.
         this._geom = {
             icon,
             zoom,
+            peak,
             margin: margin * s,
-            inner: INNER * s,
-            outer: OUTER * s,
+            // Haiku centres the tiles, the dots sit below them anyway.
+            inner: (haiku ? (INNER + OUTER) / 2 : INNER) * s,
+            outer: (haiku ? (INNER + OUTER) / 2 : OUTER) * s,
             slot: icon + Math.round(icon / 5),
-            big: Math.round(icon * zoom / s) * s, // rendered at full zoom and scaled down, stays sharp
+            big: Math.round(icon * peak / s) * s, // rendered at the largest size and scaled down, stays sharp
             thick: (INNER + OUTER) * s + icon,
         };
         // Room for the tile around the icon, at rest as wide as a slot, or a gap narrower in the Haiku design.
-        const gap = this._settings.get_string('design') === 'haiku' ? TILE_GAP * s : 0;
-        this._geom.pad = Math.floor((this._geom.slot - icon - gap) / 2 * zoom / s) * s;
+        const gap = haiku ? TILE_GAP * s : 0;
+        this._geom.pad = Math.floor((this._geom.slot - icon - gap) / 2 * peak / s) * s;
 
         // The strut needs the bar on the screen edge, the gap is padding.
-        const end = Math.round(radius / 2) + 4;
-        this._bar.set_style({
-            bottom: `padding: 0 ${end}px ${margin}px;`,
-            top: `padding: ${margin}px ${end}px 0;`,
-            left: `padding: ${end}px 0 ${end}px ${margin}px;`,
-            right: `padding: ${end}px ${margin}px ${end}px 0;`,
-        }[this._position]);
+        const full = this._full;
+        // Haiku's leaf and field reach the ends, inside the border.
+        const {far, ends, edge} = haiku ? this._lines() : {far: 0, ends: 0, edge: 0};
+        const end = this._end = Math.round(radius / 2) + (haiku ? ends : 4);
+        const near = margin + edge;
+        // On the far side a clear border, the highlight is drawn inside it, below the background's edge.
+        const farSide = {bottom: 'top', top: 'bottom', left: 'right', right: 'left'}[this._position];
+        this._barStyle = {
+            bottom: `padding: 0 ${end}px ${near}px;`,
+            top: `padding: ${near}px ${end}px 0;`,
+            left: `padding: ${end}px 0 ${end}px ${near}px;`,
+            right: `padding: ${end}px ${near}px ${end}px 0;`,
+        }[this._position] + (far ? ` border-${farSide}: ${far}px solid transparent;` : '');
+        this._bar.set_style(this._barStyle);
         setVertical(this._bar, this._vertical);
         setClass(this._bar, 'vertical', this._vertical);
         this._bar.set_size(-1, -1);
+        const lines = (far + edge) * s;
         if (this._vertical)
-            this._bar.width = this._geom.thick + this._geom.margin;
+            this._bar.width = this._geom.thick + this._geom.margin + lines;
         else
-            this._bar.height = this._geom.thick + this._geom.margin;
+            this._bar.height = this._geom.thick + this._geom.margin + lines;
+        // Spanning the screen, the icons sit at the start and the clock and tray at the far end.
+        const [main, cross] = this._vertical ? ['y', 'x'] : ['x', 'y'];
+        this._row.set({
+            [`${main}_expand`]: full,
+            [`${main}_align`]: full ? Clutter.ActorAlign.START : Clutter.ActorAlign.FILL,
+            [`${cross}_expand`]: false,
+            [`${cross}_align`]: Clutter.ActorAlign.FILL,
+        });
+        if (full)
+            this._bar[this._vertical ? 'height' : 'width'] = this._fullLength();
         this._ownTopBar = this._vertical ||
             (this._position === 'bottom' && this._settings.get_boolean('keep-top-bar'));
         const wantPanel = this._primary && !this._ownTopBar && this._panelOk;
         if (wantPanel && !this._boxes.length) {
             this._boxes = takePanel(this._bar, this._seps[0], this._seps[1]);
             this._panelOk = this._boxes.length > 0;
+            this._boxes.forEach(box => box.connectObject(
+                'notify::width', () => this._contentChanged(),
+                'notify::height', () => this._contentChanged(), this));
         } else if (!wantPanel && this._boxes.length) {
+            this._boxes.forEach(box => box.disconnectObject(this));
             restorePanel(this._bar, this._boxes);
             this._boxes = [];
         }
         for (const key of ['lift-buttons', 'warp', 'glide'])
             setClass(this._bar, key, this._settings.get_boolean(key));
+        setClass(this._bar, 'quiet-menus', !this._settings.get_boolean('open-highlight'));
         // Opens to the old side otherwise.
         this._dockMenu?.destroy();
         this._dockMenu = null;
@@ -478,7 +580,8 @@ export class Dock {
         for (const sep of [...this._seps, ...this._rowSeps])
             sep.set_size(...sepSize);
         for (const sep of this._seps) {
-            sep.visible = this._settings.get_boolean('separators') && this._boxes.length > 0;
+            // Haiku's leaf and field bring their own edges.
+            sep.visible = this._settings.get_boolean('separators') && this._boxes.length > 0 && !haiku;
             [sep.margin_left, sep.margin_right, sep.margin_top, sep.margin_bottom] = this._vertical
                 ? [0, 0, SEP_MARGIN * s, SEP_MARGIN * s] : [SEP_MARGIN * s, SEP_MARGIN * s, 0, 0];
         }
@@ -686,12 +789,17 @@ export class Dock {
         const name = app ? app.get_name() : placeName(key);
         const icon = app ? app.create_icon_texture(big / s) : placeIcon(key, big / s, this._ext.trash?.full);
         icon.set_pivot_point(0.5, 0.5);
+        // Drawn smaller than rendered while at rest, mipmaps keep the edges from aliasing.
+        const smooth = child => child.set_content_scaling_filters(Clutter.ScalingFilter.TRILINEAR, Clutter.ScalingFilter.LINEAR);
+        icon.get_children().forEach(smooth);
+        icon.connectObject('child-added', (actor, child) => smooth(child), this);
         this._tintIcon(icon);
 
         const font = Math.max(10, Math.round(size / s / 3));
         const badge = new St.Label({
             style_class: 'silver-dock-badge',
-            style: `font-size: ${font}px; min-width: ${Math.round(font * 1.1)}px; border-radius: ${font}px;`,
+            style: `font-size: ${font}px; min-width: ${Math.round(font * 1.1)}px;` +
+                (this._settings.get_string('design') === 'haiku' ? '' : ` border-radius: ${font}px;`),
             visible: false,
         });
         const progress = new St.Widget({
@@ -1190,6 +1298,12 @@ export class Dock {
         this._queue('place', () => this._place());
     }
 
+    // A bar spanning the screen keeps its size, the icons may have to shrink or may grow back.
+    _contentChanged() {
+        if (this._full)
+            this.queuePlace();
+    }
+
     queueCheck() {
         // Also on key focus changes, as when a grab ends.
         this._queue('check', () => {
@@ -1253,8 +1367,13 @@ export class Dock {
             return;
 
         const area = this._vertical ? Main.layoutManager.getWorkAreaForMonitor(this.monitorIndex) : m;
+        const full = this._full;
+        const size = this._vertical ? 'height' : 'width';
+        if (full && this._bar[size] !== this._fullLength())
+            this._bar[size] = this._fullLength();
         const [w, h] = this._bar.get_size();
-        if (this._fit(this._vertical ? h : w, this._vertical ? area.height : m.width))
+        const room = this._vertical ? area.height : m.width;
+        if (full ? this._fit(this._content(), this._fullLength()) : this._fit(this._vertical ? h : w, room))
             return;
         const centerX = m.x + Math.round((m.width - w) / 2);
         const centerY = area.y + Math.round((area.height - h) / 2);
@@ -1377,16 +1496,20 @@ export class Dock {
     }
 
     _animate() {
-        const {zoom, slot, margin} = this._geom;
+        const {zoom, peak, slot, margin} = this._geom;
         const n = this._items.length;
         const eased = STYLES[this._style].eased;
         const hovered = eased ? Number(this._row.hover || this._keyFocus !== null) : this._amount.value;
-        const {scales, shifts, lifts, left, right} = hover(
+        const {scales, lifts, left, right, ...spread} = hover(
             this._style, n, slot, this._pointer, zoom, this._dragging ? 0 : hovered, this._gaps);
+        // Spanning the screen the row keeps its start and grows into the free space after it.
+        const full = this._full;
+        const pin = full ? -Math.min(0, left) : 0;
+        const shifts = spread.shifts.map(shift => shift + pin);
 
         this._items.forEach((item, i) => {
             const {button, indicator} = item;
-            button.set_scale(scales[i] / zoom, scales[i] / zoom);
+            button.set_scale(scales[i] / peak, scales[i] / peak);
             button[this._along] = shifts[i];
             indicator[this._along] = shifts[i];
             this._placeExtras(item, this._centers[i] + shifts[i], scales[i]);
@@ -1408,8 +1531,8 @@ export class Dock {
         });
 
         // Only visually wider, the bar and its strut keep their size and windows never resize.
-        const startShift = Math.min(0, Math.round(left));
-        const endShift = Math.max(0, Math.round(right - this._restWidth));
+        const startShift = full ? 0 : Math.min(0, Math.round(left));
+        const endShift = full ? 0 : Math.max(0, Math.round(right - this._restWidth));
         const [firstBox, ...otherBoxes] = this._boxes;
         const [firstSep, secondSep] = this._seps;
         [firstBox, firstSep].forEach(actor => actor && (actor[this._along] = startShift));

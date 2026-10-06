@@ -56,14 +56,78 @@
     box-shadow: inset 0 0 0 2px #336698;
 }
 
+/* On a dark bar the tiles darken too, the active one stays yellow. */
+.silver-dock.haiku.dim .silver-dock-app {
+    background-gradient-start: #5e5e62;
+    background-gradient-end: #48484c;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.silver-dock.haiku.dim .silver-dock-app:hover {
+    background-gradient-start: #6c6c70;
+    background-gradient-end: #545458;
+}
+
+.silver-dock.haiku.dim .silver-dock-app:checked {
+    background-gradient-start: #fff3b0;
+    background-gradient-end: #ffcb00;
+}
+
+.silver-dock.haiku.dim .silver-dock-app:focus {
+    box-shadow: inset 0 0 0 2px #6f9fd0;
+}
+
+/* St draws one shadow per actor, and no borders on the top bar's boxes. The bar itself carries the highlight (set in
+   code, it follows the position), the background the drop shadow, the boxes inset lines. */
 .silver-dock-bg.silver-dock-haiku,
 #panel.silver-dock-haiku {
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    box-shadow: none;
 }
 
 .silver-dock-bg.silver-dock-haiku.silver-dock-shadow,
 #panel.silver-dock-haiku.silver-dock-shadow {
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 3px 12px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* The menu on a yellow leaf, the clock and tray in an inset field, like the Deskbar. */
+.silver-dock.haiku .silver-dock-leaf,
+#panel.silver-dock-haiku .silver-dock-leaf {
+    padding: 0 4px;
+    background-gradient-direction: vertical;
+    background-gradient-start: #fff3b0;
+    background-gradient-end: #ffcb00;
+    box-shadow: inset -1px 0 0 #8a7000;
+}
+
+/* The leaf stays yellow whatever the bar's color, its content dark. */
+.silver-dock.haiku .silver-dock-leaf StIcon,
+#panel.silver-dock-haiku .silver-dock-leaf StIcon {
+    color: #1c1d21;
+}
+
+.silver-dock.haiku .silver-dock-leaf .workspace-dot,
+#panel.silver-dock-haiku .silver-dock-leaf .workspace-dot {
+    background-color: #1c1d21;
+}
+
+.silver-dock.haiku .silver-dock-field,
+#panel.silver-dock-haiku .silver-dock-field {
+    background-color: rgba(0, 0, 0, 0.06);
+}
+
+.silver-dock.haiku .silver-dock-field-start,
+#panel.silver-dock-haiku .silver-dock-field-start {
+    box-shadow: inset 1px 0 0 rgba(0, 0, 0, 0.3);
+}
+
+.silver-dock.haiku.dim .silver-dock-field,
+#panel.silver-dock-haiku.silver-dock-dim .silver-dock-field {
+    background-color: rgba(0, 0, 0, 0.18);
+}
+
+.silver-dock.haiku.dim .silver-dock-field-start,
+#panel.silver-dock-haiku.silver-dock-dim .silver-dock-field-start {
+    box-shadow: inset 1px 0 0 rgba(0, 0, 0, 0.5);
 }
 
 /* The app name on a yellow tab, like a Haiku window title. */
@@ -157,6 +221,90 @@
     background-color: rgba(255, 255, 255, 0.2);
 }
 
+/* Haiku design: the previews as a Haiku popup, every window a tile under a yellow tab, the badge a small red square. */
+.silver-dock-previews.haiku {
+    background-color: #d8d8d8;
+    border: 1px solid #4a4a4a;
+    border-radius: 0;
+    padding: 4px;
+    spacing: 4px;
+    box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.3);
+}
+
+.silver-dock-previews.haiku .silver-dock-preview {
+    padding: 5px;
+    border: 1px solid #777;
+    border-radius: 3px;
+    background-gradient-direction: vertical;
+    background-gradient-start: #ececec;
+    background-gradient-end: #cdcdcd;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.silver-dock-previews.haiku .silver-dock-preview:hover {
+    background-gradient-start: #fafafa;
+    background-gradient-end: #dedede;
+}
+
+.silver-dock-previews.haiku .silver-dock-preview-box {
+    spacing: 4px;
+}
+
+.silver-dock-previews.haiku .silver-dock-preview-header {
+    padding: 1px 4px;
+    border: 1px solid #6b5400;
+    border-radius: 3px 3px 0 0;
+    background-gradient-direction: vertical;
+    background-gradient-start: #fff3b0;
+    background-gradient-end: #ffcb00;
+}
+
+.silver-dock-previews.haiku .silver-dock-preview-title {
+    color: #1c1d21;
+    font-weight: bold;
+}
+
+.silver-dock-previews.haiku .silver-dock-preview-close {
+    border-radius: 2px;
+    padding: 1px 2px;
+}
+
+.silver-dock-previews.haiku .silver-dock-preview-close StIcon {
+    color: #1c1d21;
+}
+
+.silver-dock-previews.haiku .silver-dock-preview-close:hover {
+    background-color: rgba(0, 0, 0, 0.15);
+}
+
+.silver-dock-previews.haiku.dim {
+    background-color: #3a3a3d;
+    border: 1px solid #1d1d1f;
+    box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.5);
+}
+
+.silver-dock-previews.haiku.dim .silver-dock-preview {
+    border: 1px solid #1d1d1f;
+    background-gradient-start: #5e5e62;
+    background-gradient-end: #48484c;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.silver-dock-previews.haiku.dim .silver-dock-preview:hover {
+    background-gradient-start: #6c6c70;
+    background-gradient-end: #545458;
+}
+
+.silver-dock.haiku .silver-dock-badge {
+    border: 1px solid #5a0a05;
+    border-radius: 2px;
+    background-gradient-direction: vertical;
+    background-gradient-start: #ff8a78;
+    background-gradient-end: #c01c10;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+    text-shadow: none;
+}
+
 .silver-dock-dots {
     spacing: 3px;
 }
@@ -174,10 +322,20 @@
     transition-duration: 250ms;
 }
 
-/* Themes light up the clock's inner .clock, not its button. */
+/* Themes light up the clock's inner .clock, not its button. Haiku's leaf stays plain yellow, focus keeps its mark. */
 #panel.silver-dock.lift-buttons .panel-button:hover,
 #panel.silver-dock.lift-buttons .panel-button:hover .clock,
-#panel.silver-dock.warp .arcmenu-panel-menu:hover {
+#panel.silver-dock.warp .arcmenu-panel-menu:hover,
+#panel.silver-dock.quiet-menus .panel-button:active,
+#panel.silver-dock.quiet-menus .panel-button:active .clock,
+#panel.silver-dock.quiet-menus .panel-button:checked,
+#panel.silver-dock.quiet-menus .panel-button:checked .clock,
+#panel.silver-dock.haiku .silver-dock-leaf .panel-button:hover,
+#panel.silver-dock.haiku .silver-dock-leaf .panel-button:active,
+#panel.silver-dock.haiku .silver-dock-leaf .panel-button:checked,
+#panel.silver-dock-haiku .silver-dock-leaf .panel-button:hover,
+#panel.silver-dock-haiku .silver-dock-leaf .panel-button:active,
+#panel.silver-dock-haiku .silver-dock-leaf .panel-button:checked {
     box-shadow: none;
     background-color: transparent;
 }
@@ -200,9 +358,15 @@
     icon-shadow: none;
 }
 
+/* Themes put a dark glow behind light top bar text, on dark text it smears. */
 #panel.silver-dock-ink .panel-button,
 #panel.silver-dock-ink .system-status-icon {
     color: #1c1d21;
+    text-shadow: none;
+}
+
+#panel.silver-dock-ink .workspace-dot {
+    background-color: #1c1d21;
 }
 
 #panel.silver-dock-ink .screen-recording-indicator,

@@ -82,20 +82,35 @@ settings.set_boolean('keep-top-bar', true);
 check(rows['Top bar in the dock\'s look'].visible, 'top bar look hidden with a kept top bar');
 settings.set_string('position', 'left');
 check(!rows['Keep the top bar'].visible && rows['Top bar in the dock\'s look'].visible, 'top bar rows wrong on the left');
+const inDock = ['Buttons lift on hover instead of lighting up', 'Light up the button of an open menu',
+    'Warp start for the ArcMenu button'];
 settings.set_string('position', 'top');
-check(!groups['Top bar'].visible && groups['Top bar content in the dock'].visible, 'top bar groups wrong at the top');
+check(!rows['Keep the top bar'].visible && inDock.every(title => rows[title].visible), 'top bar rows wrong at the top');
 settings.set_string('position', 'bottom');
-check(groups['Top bar'].visible && !groups['Top bar content in the dock'].visible, 'top bar groups wrong with a kept top bar');
+check(rows['Keep the top bar'].visible && !inDock.some(title => rows[title].visible), 'top bar rows wrong with a kept top bar');
 settings.set_boolean('keep-top-bar', false);
-check(groups['Top bar content in the dock'].visible, 'top bar effects hidden with the top bar in the dock');
+check(inDock.every(title => rows[title].visible), 'top bar effects hidden with the top bar in the dock');
 settings.set_string('position', 'left');
-check(groups['Top bar'].visible && !groups['Top bar content in the dock'].visible, 'top bar groups wrong on the left');
+check(!inDock.some(title => rows[title].visible), 'top bar effects shown on the left');
+settings.set_string('colors', 'custom');
+rows['Light or dark'].selected = 3;
+check(settings.get_string('scheme') === 'system' && settings.get_string('colors') === 'dock',
+    'light or dark combo not written or kept the own color');
 rows['Hide when a window overlaps the bar'].enable_expansion = true;
 check(settings.get_boolean('autohide'), 'autohide switch not written');
 rows['Bounce while an app starts'].active = false;
 check(!settings.get_boolean('bounce'), 'bounce switch not written');
 rows['Design'].selected = 1;
 check(settings.get_string('design') === 'haiku', 'design combo not written');
+check(settings.get_int('margin') === 0 && settings.get_int('opacity') === 100 && !rows['Corner radius'].visible,
+    'haiku did not make the bar flush and solid or left the radius row');
+check(rows['Bar width'].visible, 'bar width hidden with the haiku design');
+rows['Bar width'].selected = 1;
+check(settings.get_string('bar-width') === 'fit', 'bar width combo not written');
+rows['Design'].selected = 0;
+check(!rows['Bar width'].visible && rows['Corner radius'].visible && settings.get_int('margin') === 8,
+    'silver design did not restore the distance or swapped the shape rows');
+rows['Design'].selected = 1;
 rows['Screen edge'].selected = 3;
 check(settings.get_string('position') === 'right', 'position combo not written');
 for (const [title, key] of [['Separators', 'separators'], ['Shadow', 'shadow'],
@@ -112,7 +127,7 @@ for (const [title, key] of [['Separators', 'separators'], ['Shadow', 'shadow'],
     ['Rise in a wave after login and unlock', 'intro'], ['Badges pop up', 'badge-pop'],
     ['Bar springs back in after hiding', 'springy'], ['Windows minimize into their icon', 'minimize-to-icon'],
     ['Warp start for the ArcMenu button', 'warp'],
-    ['Buttons lift on hover instead of lighting up', 'lift-buttons'], ['Internal drives too', 'internal-drives'],
+    ['Buttons lift on hover instead of lighting up', 'lift-buttons'], ['Light up the button of an open menu', 'open-highlight'], ['Internal drives too', 'internal-drives'],
     ['Show only that window while on its preview', 'peek'], ['A dock on every monitor', 'all-monitors'], ['Scroll over an icon to switch its windows', 'scroll']]) {
     const prop = rows[title] instanceof Adw.ExpanderRow ? 'enable_expansion' : 'active';
     rows[title][prop] = !settings.get_boolean(key);

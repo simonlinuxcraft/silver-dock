@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: silver-dock\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-06 14:05+0200\n"
+"POT-Creation-Date: 2026-10-06 19:10+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,15 +17,15 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: dock.js:199
+#: dock.js:201
 msgid "Dock"
 msgstr ""
 
-#: dock.js:1082
+#: dock.js:1173
 msgid "Dock Settings"
 msgstr ""
 
-#: places.js:21 prefs.js:138
+#: places.js:21 prefs.js:155
 msgid "Trash"
 msgstr ""
 
@@ -64,136 +64,84 @@ msgstr ""
 msgid "Cannot unmount %s"
 msgstr ""
 
-#: prefs.js:82
+#: prefs.js:83
 msgid "General"
 msgstr ""
 
-#: prefs.js:83
-msgid "Position"
-msgstr ""
-
 #: prefs.js:84
-msgid "Screen edge"
-msgstr ""
-
-#: prefs.js:85
-msgid "Bottom"
-msgstr ""
-
-#: prefs.js:85
-msgid "Top"
-msgstr ""
-
-#: prefs.js:85
-msgid "Left"
-msgstr ""
-
-#: prefs.js:85
-msgid "Right"
-msgstr ""
-
-#: prefs.js:86
-msgid "A dock on every monitor"
-msgstr ""
-
-#: prefs.js:87
 msgid "Look"
 msgstr ""
 
-#: prefs.js:88
+#: prefs.js:85
 msgid "Design"
 msgstr ""
 
-#: prefs.js:88
+#: prefs.js:85
 msgid "Silver Dock"
 msgstr ""
 
-#: prefs.js:88
+#: prefs.js:85
 msgid "Haiku"
 msgstr ""
 
-#: prefs.js:89
-msgid "Icon size"
-msgstr ""
-
-#: prefs.js:90
-msgid "Hover animation"
-msgstr ""
-
-#: prefs.js:91
-msgid "Magnify"
-msgstr ""
-
-#: prefs.js:91
-msgid "Ripple"
-msgstr ""
-
-#: prefs.js:91
-msgid "Lift"
-msgstr ""
-
-#: prefs.js:91
-msgid "None"
-msgstr ""
-
-#: prefs.js:92
-msgid "Magnification"
-msgstr ""
-
-#: prefs.js:93
-msgid "Colors from"
-msgstr ""
-
-#: prefs.js:94
-msgid "Design default"
-msgstr ""
-
-#: prefs.js:94
-msgid "Shell and GTK theme"
-msgstr ""
-
-#: prefs.js:94
-msgid "Own color"
-msgstr ""
-
-#: prefs.js:95
-msgid "Wallpaper"
+#: prefs.js:96
+msgid "Light or dark"
 msgstr ""
 
 #: prefs.js:96
-msgid "Color"
+msgid "As the design"
+msgstr ""
+
+#: prefs.js:96
+msgid "Light"
 msgstr ""
 
 #: prefs.js:97
-msgid "Background opacity (%)"
+msgid "Dark"
 msgstr ""
 
-#: prefs.js:98
-msgid "Blur the wallpaper behind the bar"
+#: prefs.js:97
+msgid "As the system"
 msgstr ""
 
-#: prefs.js:98
-msgid "Strength"
+#: prefs.js:99
+msgid "Bar width"
 msgstr ""
 
-#: prefs.js:99 prefs.js:120
-msgid "Behavior"
+#: prefs.js:99
+msgid "Whole screen edge"
 msgstr ""
 
-#: prefs.js:100
-msgid "Hide when a window overlaps the bar"
+#: prefs.js:99
+msgid "As wide as its content"
 msgstr ""
 
 #: prefs.js:101
-msgid "Only come back when the pointer pushes against the edge"
+msgid "Position"
+msgstr ""
+
+#: prefs.js:102
+msgid "Screen edge"
 msgstr ""
 
 #: prefs.js:103
-msgid "Appearance"
+msgid "Bottom"
+msgstr ""
+
+#: prefs.js:103
+msgid "Top"
+msgstr ""
+
+#: prefs.js:103
+msgid "Left"
+msgstr ""
+
+#: prefs.js:103
+msgid "Right"
 msgstr ""
 
 #: prefs.js:104
-msgid "Shape"
+msgid "A dock on every monitor"
 msgstr ""
 
 #: prefs.js:105
@@ -201,201 +149,289 @@ msgid "Distance from screen edge"
 msgstr ""
 
 #: prefs.js:106
-msgid "Corner radius"
+msgid "Hiding"
 msgstr ""
 
 #: prefs.js:107
-msgid "Shadow"
+msgid "Hide when a window overlaps the bar"
 msgstr ""
 
 #: prefs.js:108
-msgid "Separators"
-msgstr ""
-
-#: prefs.js:109
-msgid "Colors"
+msgid "Only come back when the pointer pushes against the edge"
 msgstr ""
 
 #: prefs.js:110
-msgid "Highlight the active app"
+msgid "Appearance"
 msgstr ""
 
 #: prefs.js:111
-msgid "Opaque while a window touches the bar"
+msgid "Bar"
 msgstr ""
 
 #: prefs.js:112
-msgid "Tint app icons"
+msgid "Colors from"
 msgstr ""
 
-#: prefs.js:112
-msgid "Icon color"
+#: prefs.js:113
+msgid "Design default"
+msgstr ""
+
+#: prefs.js:113
+msgid "Shell and GTK theme"
+msgstr ""
+
+#: prefs.js:113
+msgid "Own color"
 msgstr ""
 
 #: prefs.js:114
-msgid "Top bar"
+msgid "Wallpaper"
+msgstr ""
+
+#: prefs.js:115
+msgid "Color"
 msgstr ""
 
 #: prefs.js:116
-msgid "Keep the top bar"
+msgid "Background opacity (%)"
 msgstr ""
 
 #: prefs.js:117
-msgid "Top bar in the dock's look"
+msgid "Opaque while a window touches the bar"
+msgstr ""
+
+#: prefs.js:118
+msgid "Blur the wallpaper behind the bar"
+msgstr ""
+
+#: prefs.js:118
+msgid "Strength"
+msgstr ""
+
+#: prefs.js:120
+msgid "Corner radius"
 msgstr ""
 
 #: prefs.js:121
-msgid "Clicks and scrolling"
+msgid "Shadow"
 msgstr ""
 
 #: prefs.js:122
-msgid "Minimize all its windows"
+msgid "Separators"
 msgstr ""
 
-#: prefs.js:123
-msgid "Click on an app"
-msgstr ""
-
-#: prefs.js:123
-msgid "Previews if it has several windows"
-msgstr ""
-
-#: prefs.js:124
-msgid "Minimize or switch windows"
-msgstr ""
-
-#: prefs.js:124
-msgid "Only bring to the front"
-msgstr ""
-
-#: prefs.js:125
-msgid "Middle click"
-msgstr ""
-
-#: prefs.js:125
-msgid "New window"
-msgstr ""
-
-#: prefs.js:126
-msgid "Close the app"
-msgstr ""
-
-#: prefs.js:126
-msgid "Nothing"
-msgstr ""
-
-#: prefs.js:127
-msgid "Scroll over an icon to switch its windows"
-msgstr ""
-
-#: prefs.js:128
-msgid "Scroll on a free spot to switch workspaces"
-msgstr ""
-
-#: prefs.js:129
-msgid "Drag to rearrange, pin and unpin apps"
-msgstr ""
-
-#: prefs.js:130
-msgid "Information"
-msgstr ""
-
-#: prefs.js:131
-msgid "Show app names on hover"
-msgstr ""
-
-#: prefs.js:132
-msgid "Show window previews on hover"
-msgstr ""
-
-#: prefs.js:132
-msgid "Show only that window while on its preview"
-msgstr ""
-
-#: prefs.js:133
-msgid "Badges and progress on app icons"
-msgstr ""
-
-#: prefs.js:134
-msgid "Count notifications of apps without their own badge"
-msgstr ""
-
-#: prefs.js:135
-msgid "Badges pop up"
-msgstr ""
-
-#: prefs.js:136
-msgid "Media controls in the right click menu"
-msgstr ""
-
-#: prefs.js:137
-msgid "Places"
-msgstr ""
-
-#: prefs.js:139
-msgid "Removable drives (USB sticks, SD cards)"
-msgstr ""
-
-#: prefs.js:139
-msgid "Internal drives too"
-msgstr ""
-
-#: prefs.js:141
-msgid "Animation"
-msgstr ""
-
-#: prefs.js:142
+#: prefs.js:123 prefs.js:163
 msgid "Icons"
 msgstr ""
 
+#: prefs.js:124
+msgid "Icon size"
+msgstr ""
+
+#: prefs.js:125
+msgid "Highlight the active app"
+msgstr ""
+
+#: prefs.js:126
+msgid "Tint app icons"
+msgstr ""
+
+#: prefs.js:126
+msgid "Icon color"
+msgstr ""
+
+#: prefs.js:128
+msgid "Top bar"
+msgstr ""
+
+#: prefs.js:129
+msgid "Keep the top bar"
+msgstr ""
+
+#: prefs.js:130
+msgid "Top bar in the dock's look"
+msgstr ""
+
+#: prefs.js:132
+msgid "Buttons lift on hover instead of lighting up"
+msgstr ""
+
+#: prefs.js:134
+msgid "Light up the button of an open menu"
+msgstr ""
+
+#: prefs.js:137
+msgid "Behavior"
+msgstr ""
+
+#: prefs.js:138
+msgid "Clicks and scrolling"
+msgstr ""
+
+#: prefs.js:139
+msgid "Minimize all its windows"
+msgstr ""
+
+#: prefs.js:140
+msgid "Click on an app"
+msgstr ""
+
+#: prefs.js:140
+msgid "Previews if it has several windows"
+msgstr ""
+
+#: prefs.js:141
+msgid "Minimize or switch windows"
+msgstr ""
+
+#: prefs.js:141
+msgid "Only bring to the front"
+msgstr ""
+
+#: prefs.js:142
+msgid "Middle click"
+msgstr ""
+
+#: prefs.js:142
+msgid "New window"
+msgstr ""
+
 #: prefs.js:143
-msgid "Apps pop in and out"
+msgid "Close the app"
+msgstr ""
+
+#: prefs.js:143
+msgid "Nothing"
 msgstr ""
 
 #: prefs.js:144
-msgid "Bounce while an app starts"
+msgid "Scroll over an icon to switch its windows"
 msgstr ""
 
 #: prefs.js:145
-msgid "Wiggle when an app asks for attention"
+msgid "Scroll on a free spot to switch workspaces"
 msgstr ""
 
 #: prefs.js:146
-msgid "Squash on click"
+msgid "Drag to rearrange, pin and unpin apps"
 msgstr ""
 
 #: prefs.js:147
-msgid "A little cloud when an app is dragged off"
+msgid "Information"
 msgstr ""
 
 #: prefs.js:148
-msgid "Window dots glide"
+msgid "Show app names on hover"
 msgstr ""
 
 #: prefs.js:149
-msgid "Rise in a wave after login and unlock"
+msgid "Show window previews on hover"
+msgstr ""
+
+#: prefs.js:149
+msgid "Show only that window while on its preview"
 msgstr ""
 
 #: prefs.js:150
-msgid "Bar and windows"
+msgid "Badges and progress on app icons"
 msgstr ""
 
 #: prefs.js:151
-msgid "Bar springs back in after hiding"
+msgid "Count notifications of apps without their own badge"
 msgstr ""
 
 #: prefs.js:152
-msgid "Windows minimize into their icon"
+msgid "Badges pop up"
 msgstr ""
 
 #: prefs.js:153
-msgid "Top bar content in the dock"
+msgid "Media controls in the right click menu"
 msgstr ""
 
-#: prefs.js:155
-msgid "Warp start for the ArcMenu button"
+#: prefs.js:154
+msgid "Places"
 msgstr ""
 
 #: prefs.js:156
-msgid "Buttons lift on hover instead of lighting up"
+msgid "Removable drives (USB sticks, SD cards)"
+msgstr ""
+
+#: prefs.js:156
+msgid "Internal drives too"
+msgstr ""
+
+#: prefs.js:158
+msgid "Animation"
+msgstr ""
+
+#: prefs.js:159
+msgid "Hover"
+msgstr ""
+
+#: prefs.js:160
+msgid "Hover animation"
+msgstr ""
+
+#: prefs.js:161
+msgid "Magnify"
+msgstr ""
+
+#: prefs.js:161
+msgid "Ripple"
+msgstr ""
+
+#: prefs.js:161
+msgid "Lift"
+msgstr ""
+
+#: prefs.js:161
+msgid "None"
+msgstr ""
+
+#: prefs.js:162
+msgid "Magnification"
+msgstr ""
+
+#: prefs.js:164
+msgid "Apps pop in and out"
+msgstr ""
+
+#: prefs.js:165
+msgid "Bounce while an app starts"
+msgstr ""
+
+#: prefs.js:166
+msgid "Wiggle when an app asks for attention"
+msgstr ""
+
+#: prefs.js:167
+msgid "Squash on click"
+msgstr ""
+
+#: prefs.js:168
+msgid "A little cloud when an app is dragged off"
+msgstr ""
+
+#: prefs.js:169
+msgid "Window dots glide"
+msgstr ""
+
+#: prefs.js:170
+msgid "Rise in a wave after login and unlock"
+msgstr ""
+
+#: prefs.js:171
+msgid "Bar and windows"
+msgstr ""
+
+#: prefs.js:172
+msgid "Bar springs back in after hiding"
+msgstr ""
+
+#: prefs.js:173
+msgid "Windows minimize into their icon"
+msgstr ""
+
+#: prefs.js:174
+msgid "Warp start for the ArcMenu button"
 msgstr ""

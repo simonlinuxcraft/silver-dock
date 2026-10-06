@@ -42,6 +42,24 @@
       <default>'silver'</default>
       <summary>Design of the bar: Silver Dock's own, or Haiku with a bevelled bar, a light tile behind every icon and app names on a yellow tab</summary>
     </key>
+    <key name="scheme" type="s">
+      <choices>
+        <choice value="design"/>
+        <choice value="light"/>
+        <choice value="dark"/>
+        <choice value="system"/>
+      </choices>
+      <default>'design'</default>
+      <summary>The design's own colors light or dark: as the design has them (Silver Dock dark, Haiku light), fixed, or following the system's dark style</summary>
+    </key>
+    <key name="bar-width" type="s">
+      <choices>
+        <choice value="full"/>
+        <choice value="fit"/>
+      </choices>
+      <default>'full'</default>
+      <summary>Haiku design only: the bar spans the whole screen edge, or is only as wide as its icons, clock and tray</summary>
+    </key>
     <key name="blur" type="b">
       <default>true</default>
       <summary>Blur the wallpaper behind the bar, windows under it are not blurred</summary>
@@ -96,6 +114,10 @@
     <key name="springy" type="b">
       <default>true</default>
       <summary>The bar springs back in after autohide</summary>
+    </key>
+    <key name="open-highlight" type="b">
+      <default>true</default>
+      <summary>Top bar buttons in the dock light up while their menu is open</summary>
     </key>
     <key name="lift-buttons" type="b">
       <default>true</default>

@@ -34,6 +34,14 @@
       <default>true</default>
       <summary>A soft tile behind the icon of the app in front</summary>
     </key>
+    <key name="design" type="s">
+      <choices>
+        <choice value="silver"/>
+        <choice value="haiku"/>
+      </choices>
+      <default>'silver'</default>
+      <summary>Design of the bar: Silver Dock's own, or Haiku with a bevelled bar, a light tile behind every icon and app names on a yellow tab</summary>
+    </key>
     <key name="blur" type="b">
       <default>true</default>
       <summary>Blur the wallpaper behind the bar, windows under it are not blurred</summary>

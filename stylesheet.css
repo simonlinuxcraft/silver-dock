@@ -34,6 +34,49 @@
     background-color: rgba(255, 255, 255, 0.25);
 }
 
+/* Haiku design: a light bevelled tile behind every icon, its dark edge and padding are set in code from the bar's color. */
+.silver-dock.haiku .silver-dock-app {
+    background-gradient-direction: vertical;
+    background-gradient-start: #ececec;
+    background-gradient-end: #cdcdcd;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.silver-dock.haiku .silver-dock-app:hover {
+    background-gradient-start: #fafafa;
+    background-gradient-end: #dedede;
+}
+
+.silver-dock.haiku .silver-dock-app:checked {
+    background-gradient-start: #fff3b0;
+    background-gradient-end: #ffcb00;
+}
+
+.silver-dock.haiku .silver-dock-app:focus {
+    box-shadow: inset 0 0 0 2px #336698;
+}
+
+.silver-dock-bg.silver-dock-haiku,
+#panel.silver-dock-haiku {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.silver-dock-bg.silver-dock-haiku.silver-dock-shadow,
+#panel.silver-dock-haiku.silver-dock-shadow {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 3px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* The app name on a yellow tab, like a Haiku window title. */
+.dash-label.silver-dock-tab {
+    background-color: #ffcb00;
+    color: #1c1d21;
+    border: 1px solid #6b5400;
+    border-radius: 3px 6px 0 0;
+    box-shadow: inset 0 1px 0 #fff3b0;
+    text-shadow: none;
+    font-weight: bold;
+}
+
 .silver-dock.glide .silver-dock-app {
     transition-duration: 200ms;
 }
@@ -187,4 +230,18 @@
 
 #panel.silver-dock-ink .silver-dock-dots.focused .silver-dock-dot {
     background-color: rgba(28, 29, 33, 0.95);
+}
+
+/* The ink tile tones set the background color, which resets the gradient's start in St. */
+#panel.silver-dock-ink.haiku .silver-dock-app:focus {
+    background-color: transparent;
+    background-gradient-start: #fafafa;
+    background-gradient-end: #dedede;
+}
+
+#panel.silver-dock-ink.haiku .silver-dock-app:checked,
+#panel.silver-dock-ink.haiku .silver-dock-app:checked:focus {
+    background-color: transparent;
+    background-gradient-start: #fff3b0;
+    background-gradient-end: #ffcb00;
 }

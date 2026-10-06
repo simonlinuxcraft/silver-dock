@@ -190,6 +190,7 @@ set_key notification-badges false
 set_key poof false
 set_key blur-radius 80
 set_key highlight-active false
+set_key design haiku
 set_key click-action minimize
 set_key middle-click none
 set_key scroll-workspaces false

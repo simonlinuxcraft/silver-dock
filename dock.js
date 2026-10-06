@@ -15,7 +15,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import {mix, parseColor} from './colors.js';
+import {luma, mix, parseColor} from './colors.js';
 import {Color, HAS_ACCENT, setVertical, trustHover} from './compat.js';
 import {badgeOf, countText, progressOf} from './launcher.js';
 import {dropIndex, hover, rest, STYLES} from './layout.js';
@@ -40,6 +40,8 @@ const SEP_MARGIN = 4;
 const MIN_ICON = 16;
 const POP_TIME = 350;
 const DOT = 5;
+// logical px between neighbouring tiles
+const TILE_GAP = 3;
 const DOT_LONG = 12;
 const BUTTON_LIFT = 3;
 const WARP_LIFT = 5;
@@ -63,6 +65,8 @@ const PUFFS = 7;
 const SIDES = {bottom: St.Side.BOTTOM, top: St.Side.TOP, left: St.Side.LEFT, right: St.Side.RIGHT};
 // bg and fg as "r, g, b", the opacity setting adds the alpha
 export const COLORS = {bg: '28, 29, 33', fg: '235, 237, 242', border: '1px solid rgba(214, 218, 226, 0.3)'};
+// Haiku's desktop blue
+const HAIKU_COLORS = {...COLORS, bg: '51, 102, 152'};
 
 // No ease for values already there: every ease keeps the compositor busy.
 function settle(actor, props, immediate, params) {
@@ -243,6 +247,7 @@ export class Dock {
         Main.panel.set_style(this._panelStyle);
         Main.panel.remove_style_class_name('silver-dock-ink');
         Main.panel.remove_style_class_name('silver-dock-shadow');
+        Main.panel.remove_style_class_name('silver-dock-haiku');
         this._dressed = false;
     }
 
@@ -253,11 +258,12 @@ export class Dock {
         const themed = mode === 'theme';
         const own = (mode === 'custom' && parseColor(this._settings.get_string('color'))) ||
             (mode === 'wallpaper' && this._ext.wallpaperColor());
-        let colors = themed ? this._ext.themeColors() : COLORS;
+        const haiku = this._settings.get_string('design') === 'haiku';
+        let colors = themed ? this._ext.themeColors() : haiku ? HAIKU_COLORS : COLORS;
         let ink = false;
         if (own) {
             // Border and separators lighter, or darker on a light color, for contrast.
-            const light = own.split(',').reduce((sum, c, i) => sum + c * [0.299, 0.587, 0.114][i], 0) > 150;
+            const light = luma(own) > 150;
             const shade = mix(own, light ? '0, 0, 0' : '255, 255, 255', 0.6);
             colors = {bg: own, fg: shade, border: `1px solid rgba(${shade}, 0.5)`};
             ink = light && this._settings.get_int('opacity') >= 50;
@@ -265,6 +271,13 @@ export class Dock {
         const tint = this._settings.get_boolean('tint-icons') && parseColor(this._settings.get_string('icon-color'));
         const [red, green, blue] = tint ? tint.split(',').map(Number) : [];
         this._tint = tint ? new Color({red, green, blue, alpha: 255}) : null;
+        // Haiku: a dark bevel edge on the bar and the tiles, lifted on a very dark bar.
+        const dark = luma(colors.bg) < 60;
+        this._edge = haiku ? mix(colors.bg, dark ? '255, 255, 255' : '0, 0, 0', dark ? 0.2 : 0.45) : null;
+        if (haiku)
+            colors = {...colors, border: `1px solid rgb(${this._edge})`};
+        setClass(this._bar, 'haiku', haiku);
+        setClass(this._label, 'silver-dock-tab', haiku);
         setClass(this._bar, 'silver-dock-ink', ink);
         const opacity = themed ? colors.alpha : this._settings.get_int('opacity') / 100;
         this._geom.opacity = opacity;
@@ -273,6 +286,7 @@ export class Dock {
         setClass(this._bar, 'themed', themed && HAS_ACCENT);
         const shadow = this._settings.get_boolean('shadow');
         setClass(this._bg, 'silver-dock-shadow', shadow);
+        setClass(this._bg, 'silver-dock-haiku', haiku);
         this._setBlur(this._settings.get_boolean('blur'));
 
         if (this._primary && this._ownTopBar && this._settings.get_boolean('style-top-bar')) {
@@ -285,6 +299,7 @@ export class Dock {
                 `border-radius: ${radius}px;`);
             setClass(Main.panel, 'silver-dock-ink', ink);
             setClass(Main.panel, 'silver-dock-shadow', shadow);
+            setClass(Main.panel, 'silver-dock-haiku', haiku);
         } else {
             this._undress();
         }
@@ -297,10 +312,20 @@ export class Dock {
             sep.set_style(`background-color: rgba(${colors.fg}, 0.25);`);
         this._items.forEach(item => {
             item.fill.set_style(this._accent && `background-color: rgb(${this._accent});`);
+            item.button.set_style(this._buttonStyle());
             this._tintIcon(item.icon);
         });
         this.updateDots();
         this.queueCheck();
+    }
+
+    // The button is the tile. Tiles are small boxes with a bevel edge, the border takes 1 px of the padding.
+    _buttonStyle() {
+        const {big, pad} = this._geom;
+        const s = this._scale;
+        return this._edge
+            ? `border-radius: 3px; padding: ${pad / s - 1}px; border: 1px solid rgb(${this._edge});`
+            : `border-radius: ${Math.round((big / 4 + pad) / s)}px; padding: ${pad / s}px;`;
     }
 
     _separator() {
@@ -414,8 +439,9 @@ export class Dock {
             big: Math.round(icon * zoom / s) * s, // rendered at full zoom and scaled down, stays sharp
             thick: (INNER + OUTER) * s + icon,
         };
-        // Room for the tile around the icon, at rest as wide as a slot.
-        this._geom.pad = Math.floor((this._geom.slot - icon) / 2 * zoom / s) * s;
+        // Room for the tile around the icon, at rest as wide as a slot, or a gap narrower in the Haiku design.
+        const gap = this._settings.get_string('design') === 'haiku' ? TILE_GAP * s : 0;
+        this._geom.pad = Math.floor((this._geom.slot - icon - gap) / 2 * zoom / s) * s;
 
         // The strut needs the bar on the screen edge, the gap is padding.
         const end = Math.round(radius / 2) + 4;
@@ -680,7 +706,7 @@ export class Dock {
 
         const button = new St.Button({
             style_class: 'silver-dock-app',
-            style: `border-radius: ${Math.round((big / 4 + pad) / s)}px; padding: ${pad / s}px;`,
+            style: this._buttonStyle(),
             child: icon,
             accessible_name: name,
             can_focus: true,

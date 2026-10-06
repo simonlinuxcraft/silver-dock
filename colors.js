@@ -21,6 +21,11 @@ export function parseColor(value) {
     return null;
 }
 
+// Perceived brightness of "r, g, b", 0 to 255
+export function luma(color) {
+    return color.split(',').reduce((sum, c, i) => sum + c * [0.299, 0.587, 0.114][i], 0);
+}
+
 export function mix(base, color, share) {
     const to = color.split(',').map(Number);
     return base.split(',').map((c, i) => Math.round(Number(c) + (to[i] - c) * share)).join(', ');

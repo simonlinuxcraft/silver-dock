@@ -94,6 +94,8 @@ rows['Hide when a window overlaps the bar'].enable_expansion = true;
 check(settings.get_boolean('autohide'), 'autohide switch not written');
 rows['Bounce while an app starts'].active = false;
 check(!settings.get_boolean('bounce'), 'bounce switch not written');
+rows['Design'].selected = 1;
+check(settings.get_string('design') === 'haiku', 'design combo not written');
 rows['Screen edge'].selected = 3;
 check(settings.get_string('position') === 'right', 'position combo not written');
 for (const [title, key] of [['Separators', 'separators'], ['Shadow', 'shadow'],

@@ -6,6 +6,7 @@ GNOME internals, version differences live in `compat.js`.
 
 - Any screen edge, on one monitor or all. On the left or right the top bar keeps its content, optionally in the dock's look
 - Dock look, an own color, the wallpaper's or the shell and GTK theme's colors, optionally tinted app icons. The wallpaper behind the bar blurred, the app in front on a soft tile
+- Two designs: Silver Dock's own and Haiku, a bevelled bar in Haiku's blue with a light tile behind every icon (the active one turns yellow) and app names on a yellow tab. The bar color stays free to choose, the bevel edge follows it
 - Hover styles magnify, ripple, lift or none
 - Icons pop in and out, squash on click, rise in a wave after login, bounce until a starting app shows its window and wiggle when it asks for attention. Window dots glide, badges pop, windows minimize into their icon, top bar buttons lift, the ArcMenu button takes off
 - Window dots, app names on hover, the app menu on right click. Left and middle click do what you pick, previews of several windows by default. Scrolling over an icon switches its windows, on a free spot the workspaces

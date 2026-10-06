@@ -2,7 +2,7 @@
 import GdkPixbuf from 'gi://GdkPixbuf';
 import GLib from 'gi://GLib';
 
-import {averageColor, definedColor, mix, parseColor, wallpaperColor} from '../colors.js';
+import {averageColor, definedColor, luma, mix, parseColor, wallpaperColor} from '../colors.js';
 
 const check = (ok, msg) => {
     if (!ok)
@@ -17,6 +17,7 @@ check(parseColor('rgba(8, 8, 8, 0)') === null, 'transparent has no color to take
 check(parseColor('mix(#fff, #000, 0.5)') === null, 'functions are skipped');
 check(parseColor('rgb(300, 0, 0)') === null, 'channels above 255 are no color');
 check(mix('0, 0, 0', '255, 255, 255', 0.4) === '102, 102, 102', 'mix moves the share');
+check(luma('255, 255, 255') === 255 && luma('0, 0, 0') === 0 && luma('0, 255, 0') > luma('255, 0, 0'), 'luma weighs green over red');
 check(mix('28, 29, 33', '28, 29, 33', 0.4) === '28, 29, 33', 'mix with itself');
 
 const css = `

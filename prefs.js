@@ -85,12 +85,13 @@ export default class SilverDockPrefs extends ExtensionPreferences {
             [['bottom', _('Bottom')], ['top', _('Top')], ['left', _('Left')], ['right', _('Right')]]);
         toggle(where, 'all-monitors', _('A dock on every monitor'));
         const look = group(general, _('Look'));
+        choice(look, 'design', _('Design'), [['silver', _('Silver Dock')], ['haiku', _('Haiku')]]);
         spin(look, 'icon-size', _('Icon size'), 24, 96, 2);
         choice(look, 'animation', _('Hover animation'),
             [['magnify', _('Magnify')], ['ripple', _('Ripple')], ['lift', _('Lift')], ['none', _('None')]]);
         showIf(spin(look, 'zoom', _('Magnification'), 1, 2.5, 0.1, 1), () => is('animation', 'magnify', 'ripple'), 'animation');
         choice(look, 'colors', _('Colors from'),
-            [['dock', _('Silver Dock')], ['theme', _('Shell and GTK theme')], ['custom', _('Own color')],
+            [['dock', _('Design default')], ['theme', _('Shell and GTK theme')], ['custom', _('Own color')],
                 ['wallpaper', _('Wallpaper')]]);
         showIf(color(look, 'color', _('Color')), () => is('colors', 'custom'), 'colors');
         showIf(spin(look, 'opacity', _('Background opacity (%)'), 0, 100, 5), () => !is('colors', 'theme'), 'colors');

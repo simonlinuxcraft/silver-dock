@@ -1,4 +1,5 @@
 import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
 
@@ -12,6 +13,14 @@ import {LauncherEntries, NotificationCounts} from './launcher.js';
 import {TrashWatcher} from './places.js';
 import {MediaPlayers} from './media.js';
 import {WindowPreviews} from './previews.js';
+
+// ms after a window appears in which demands-attention is GNOME's, not the app's (urgent is always the app's)
+const OPENING = 5000;
+// Windows flagged only that way, kept while the extension is off, as on every lock.
+const quiet = new Set();
+// Read where they are used. A rebuild would only close open menus and bring a hidden bar out.
+const LIVE = new Set(['tooltips', 'previews', 'peek', 'click-action', 'middle-click', 'scroll', 'scroll-workspaces',
+    'bounce', 'squash', 'poof', 'intro', 'springy', 'minimize-to-icon', 'badge-pop', 'pop']);
 
 export default class SilverDock extends Extension {
     enable() {
@@ -47,14 +56,25 @@ export default class SilverDock extends Extension {
         Shell.WindowTracker.get_default().connectObject('notify::focus-app', () => this._each(dock => dock.updateDots()), this);
         this.settings.connectObject(
             'changed::autohide', () => this._each(dock => dock.trackBar()),
-            'changed', (settings, key) => (key === 'all-monitors' ? this._build(false) : this._refresh()), this);
+            'changed', (settings, key) => {
+                if (key === 'all-monitors')
+                    this._build(false);
+                else if (LIVE.has(key))
+                    this._services();
+                else
+                    this._refresh();
+            }, this);
         Main.layoutManager.connectObject('monitors-changed', () => this._build(false), this);
         St.ThemeContext.get_for_stage(global.stage).connectObject(
             'changed', recolor,
             'notify::scale-factor', () => this._refresh(), this);
         this._iface.connectObject('changed::gtk-theme', recolor, 'changed::color-scheme', recolor, this);
         this._background.connectObject('changed', recolor, this);
-        this.volumes.connectObject('mount-added', sync, 'mount-removed', sync, 'mount-changed', sync, this);
+        // A wallpaper on a disk mounted later.
+        this.volumes.connectObject('mount-added', () => {
+            sync();
+            recolor();
+        }, 'mount-removed', sync, 'mount-changed', sync, this);
 
         global.display.connectObject(
             'window-created', (display, win) => this._watchWindow(win),
@@ -70,7 +90,9 @@ export default class SilverDock extends Extension {
             'item-drag-begin', () => this._each(dock => dock.startDrag()),
             'item-drag-end', () => this._each(dock => dock.endDrag()),
             'item-drag-cancelled', () => this._each(dock => dock.endDrag()), this);
-        global.get_window_actors().forEach(actor => this._watchWindow(actor.meta_window));
+        const windows = global.get_window_actors().map(actor => actor.meta_window);
+        quiet.forEach(win => windows.includes(win) || quiet.delete(win));
+        windows.forEach(win => this._watchWindow(win, 0));
 
         this._services();
         this._build(true);
@@ -148,10 +170,18 @@ export default class SilverDock extends Extension {
         }
     }
 
-    _watchWindow(win) {
+    // born: 0 for windows from before the extension.
+    _watchWindow(win, born = GLib.get_monotonic_time()) {
         this._watched.add(win);
         const check = () => this._each(dock => dock.queueCheck());
-        const attention = () => this._each(dock => dock.queueAttention());
+        const attention = () => {
+            // GNOME flags a window it opens without the focus ("is ready"), that is no request of the app.
+            if (!win.demands_attention)
+                quiet.delete(win);
+            else if (GLib.get_monotonic_time() - born < OPENING * 1000)
+                quiet.add(win);
+            this._each(dock => dock.queueAttention());
+        };
         win.connectObject(
             'position-changed', check,
             'size-changed', check,
@@ -165,10 +195,16 @@ export default class SilverDock extends Extension {
             'unmanaged', () => {
                 win.disconnectObject(this);
                 this._watched.delete(win);
+                quiet.delete(win);
                 check();
-                attention();
+                this._each(dock => dock.queueAttention());
             }, this);
         check();
+    }
+
+    // Like GNOME's own handler: not for helpers off the taskbar or the window in front.
+    wantsAttention(win) {
+        return (win.urgent || (win.demands_attention && !quiet.has(win))) && !win.is_skip_taskbar() && !win.has_focus();
     }
 
     // GNOME's (un)minimize animation uses it, set before the animation starts.

@@ -33,8 +33,12 @@ export class MediaPlayers {
         this._players.clear();
     }
 
+    // Resolved late, a player may come up before its window.
     forApp(app) {
-        return [...this._players.values()].filter(player => player?.app === app);
+        return [...this._players.values()].filter(player => player?.proxy && [
+            typeof player.entry === 'string' && Shell.AppSystem.get_default().lookup_app(`${player.entry}.desktop`),
+            Shell.WindowTracker.get_default().get_app_from_pid(player.pid),
+        ].includes(app));
     }
 
     async _add(name) {
@@ -54,11 +58,9 @@ export class MediaPlayers {
                         reject(e);
                     }
                 }));
-            const app = (typeof entry === 'string' && Shell.AppSystem.get_default().lookup_app(`${entry}.desktop`)) ||
-                Shell.WindowTracker.get_default().get_app_from_pid(pid);
             // Gone or replaced meanwhile.
             if (this._players.get(name) === token)
-                this._players.set(name, app ? {app, proxy} : null);
+                this._players.set(name, {entry, pid, proxy});
         } catch (e) {
             this._log(e);
         }

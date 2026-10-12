@@ -223,7 +223,7 @@
         <choice value="raise"/>
       </choices>
       <default>'previews'</default>
-      <summary>Click on the app in front: previews of several windows, minimize or cycle, minimize all, or nothing</summary>
+      <summary>Click on the app in front: previews of several windows, minimize or cycle, minimize all, or only bring it to the front</summary>
     </key>
     <key name="middle-click" type="s">
       <choices>

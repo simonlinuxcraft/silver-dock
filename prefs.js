@@ -43,14 +43,23 @@ export default class SilverDockPrefs extends ExtensionPreferences {
             g.add(row);
             return row;
         };
-        const choice = (g, key, title, options) => {
+        // picked: only when the user picks, not when the key changes elsewhere (Design Manager, dconf).
+        const choice = (g, key, title, options, picked) => {
             const row = new Adw.ComboRow({title, model: Gtk.StringList.new(options.map(([, label]) => label))});
+            let showing = false;
             const show = () => {
+                showing = true;
                 row.selected = Math.max(0, options.findIndex(([id]) => id === settings.get_string(key)));
+                showing = false;
             };
             show();
             settings.connect(`changed::${key}`, show);
-            row.connect('notify::selected', () => settings.set_string(key, options[row.selected][0]));
+            row.connect('notify::selected', () => {
+                if (showing)
+                    return;
+                settings.set_string(key, options[row.selected][0]);
+                picked?.();
+            });
             g.add(row);
             return row;
         };
@@ -81,51 +90,12 @@ export default class SilverDockPrefs extends ExtensionPreferences {
         const topBarInDock = () => is('position', 'top') || is('position', 'bottom') && !settings.get_boolean('keep-top-bar');
 
         const general = page(_('General'), 'preferences-system-symbolic');
-        const design = group(general, _('Look'));
-        choice(design, 'design', _('Design'), [['silver', _('Silver Dock')], ['haiku', _('Haiku')]]);
-        // Haiku's bar is solid and flush with the edge, Silver Dock's floats and lets the desktop through.
-        settings.connect('changed::design', () => {
-            if (is('design', 'haiku')) {
-                settings.set_int('margin', 0);
-                settings.set_int('opacity', 100);
-            } else {
-                ['margin', 'opacity'].forEach(key => settings.reset(key));
-            }
-        });
-        // Only the design's own colors come in light and dark, picking one goes back to them.
-        choice(design, 'scheme', _('Light or dark'), [['design', _('As the design')], ['light', _('Light')],
-            ['dark', _('Dark')], ['system', _('As the system')]]);
-        settings.connect('changed::scheme', () => settings.set_string('colors', 'dock'));
-        showIf(choice(design, 'bar-width', _('Bar width'), [['full', _('Whole screen edge')], ['fit', _('As wide as its content')]]),
-            () => is('design', 'haiku'), 'design');
         const where = group(general, _('Position'));
         choice(where, 'position', _('Screen edge'),
             [['bottom', _('Bottom')], ['top', _('Top')], ['left', _('Left')], ['right', _('Right')]]);
         toggle(where, 'all-monitors', _('A dock on every monitor'));
-        spin(where, 'margin', _('Distance from screen edge'), 0, 48, 1);
-        const hiding = group(general, _('Hiding'));
-        toggle(fold(hiding, 'autohide', _('Hide when a window overlaps the bar')), 'edge-pressure',
-            _('Only come back when the pointer pushes against the edge'));
-
-        const appearance = page(_('Appearance'), 'applications-graphics-symbolic');
-        const bar = group(appearance, _('Bar'));
-        choice(bar, 'colors', _('Colors from'),
-            [['dock', _('Design default')], ['theme', _('Shell and GTK theme')], ['custom', _('Own color')],
-                ['wallpaper', _('Wallpaper')]]);
-        showIf(color(bar, 'color', _('Color')), () => is('colors', 'custom'), 'colors');
-        showIf(spin(bar, 'opacity', _('Background opacity (%)'), 0, 100, 5), () => !is('colors', 'theme'), 'colors');
-        toggle(bar, 'dynamic-opacity', _('Opaque while a window touches the bar'));
-        spin(fold(bar, 'blur', _('Blur the wallpaper behind the bar')), 'blur-radius', _('Strength'), 5, 100, 5);
-        // Haiku's bar is always square.
-        showIf(spin(bar, 'radius', _('Corner radius'), 0, 48, 1), () => !is('design', 'haiku'), 'design');
-        toggle(bar, 'shadow', _('Shadow'));
-        toggle(bar, 'separators', _('Separators'));
-        const icons = group(appearance, _('Icons'));
-        spin(icons, 'icon-size', _('Icon size'), 24, 96, 2);
-        toggle(icons, 'highlight-active', _('Highlight the active app'));
-        color(fold(icons, 'tint-icons', _('Tint app icons')), 'icon-color', _('Icon color'));
         // At the top the top bar content always moves into the dock.
-        const topBar = group(appearance, _('Top bar'));
+        const topBar = group(general, _('Top bar'));
         showIf(toggle(topBar, 'keep-top-bar', _('Keep the top bar')), () => is('position', 'bottom'), 'position');
         showIf(toggle(topBar, 'style-top-bar', _('Top bar in the dock\'s look')), () => !topBarInDock(),
             'position', 'keep-top-bar');
@@ -133,6 +103,45 @@ export default class SilverDockPrefs extends ExtensionPreferences {
             'position', 'keep-top-bar');
         showIf(toggle(topBar, 'open-highlight', _('Light up the button of an open menu')), topBarInDock,
             'position', 'keep-top-bar');
+        const hiding = group(general, _('Hiding'));
+        toggle(fold(hiding, 'autohide', _('Hide when a window overlaps the bar')), 'edge-pressure',
+            _('Only come back when the pointer pushes against the edge'));
+
+        const appearance = page(_('Appearance'), 'applications-graphics-symbolic');
+        const bar = group(appearance, _('Bar'));
+        // Haiku's bar is solid and flush with the edge, Silver Dock's floats and lets the desktop through.
+        // Back on Silver Dock only values still at Haiku's go back.
+        const haikuBar = {margin: 0, opacity: 100};
+        choice(bar, 'design', _('Design'), [['silver', _('Silver Dock')], ['haiku', _('Haiku')]], () => {
+            for (const [key, value] of Object.entries(haikuBar)) {
+                if (is('design', 'haiku'))
+                    settings.set_int(key, value);
+                else if (settings.get_int(key) === value)
+                    settings.reset(key);
+            }
+        });
+        showIf(choice(bar, 'bar-width', _('Bar width'), [['full', _('Whole screen edge')], ['fit', _('As wide as its content')]]),
+            () => is('design', 'haiku'), 'design');
+        spin(bar, 'margin', _('Distance from screen edge'), 0, 48, 1);
+        // Haiku's bar is always square.
+        showIf(spin(bar, 'radius', _('Corner radius'), 0, 48, 1), () => !is('design', 'haiku'), 'design');
+        toggle(bar, 'shadow', _('Shadow'));
+        toggle(bar, 'separators', _('Separators'));
+        spin(fold(bar, 'blur', _('Blur the wallpaper behind the bar')), 'blur-radius', _('Strength'), 5, 100, 5);
+        const colors = group(appearance, _('Colors'));
+        choice(colors, 'colors', _('Colors from'),
+            [['dock', _('Design default')], ['theme', _('Shell and GTK theme')], ['custom', _('Own color')],
+                ['wallpaper', _('Wallpaper')]]);
+        // Only the design's own colors come in light and dark.
+        showIf(choice(colors, 'scheme', _('Light or dark'), [['design', _('As the design')], ['light', _('Light')],
+            ['dark', _('Dark')], ['system', _('As the system')]]), () => is('colors', 'dock'), 'colors');
+        showIf(color(colors, 'color', _('Color')), () => is('colors', 'custom'), 'colors');
+        showIf(spin(colors, 'opacity', _('Background opacity (%)'), 0, 100, 5), () => !is('colors', 'theme'), 'colors');
+        toggle(colors, 'dynamic-opacity', _('Opaque while a window touches the bar'));
+        const icons = group(appearance, _('Icons'));
+        spin(icons, 'icon-size', _('Icon size'), 24, 96, 2);
+        toggle(icons, 'highlight-active', _('Highlight the active app'));
+        color(fold(icons, 'tint-icons', _('Tint app icons')), 'icon-color', _('Icon color'));
 
         const behavior = page(_('Behavior'), 'input-mouse-symbolic');
         const clicks = group(behavior, _('Clicks and scrolling'));
@@ -144,13 +153,14 @@ export default class SilverDockPrefs extends ExtensionPreferences {
         toggle(clicks, 'scroll', _('Scroll over an icon to switch its windows'));
         toggle(clicks, 'scroll-workspaces', _('Scroll on a free spot to switch workspaces'));
         toggle(clicks, 'dnd', _('Drag to rearrange, pin and unpin apps'));
-        const info = group(behavior, _('Information'));
-        toggle(info, 'tooltips', _('Show app names on hover'));
-        toggle(fold(info, 'previews', _('Show window previews on hover')), 'peek', _('Show only that window while on its preview'));
-        const badges = fold(info, 'badges', _('Badges and progress on app icons'));
+        const pointing = group(behavior, _('Names and previews'));
+        toggle(pointing, 'tooltips', _('Show app names on hover'));
+        toggle(fold(pointing, 'previews', _('Show window previews on hover')), 'peek', _('Show only that window while on its preview'));
+        const extras = group(behavior, _('Badges and media'));
+        const badges = fold(extras, 'badges', _('Badges and progress on app icons'));
         toggle(badges, 'notification-badges', _('Count notifications of apps without their own badge'));
         toggle(badges, 'badge-pop', _('Badges pop up'));
-        toggle(info, 'media', _('Media controls in the right click menu'));
+        toggle(extras, 'media', _('Media controls in the right click menu'));
         const places = group(behavior, _('Places'));
         toggle(places, 'trash', _('Trash'));
         toggle(fold(places, 'drives', _('Removable drives (USB sticks, SD cards)')), 'internal-drives', _('Internal drives too'));
@@ -160,7 +170,7 @@ export default class SilverDockPrefs extends ExtensionPreferences {
         choice(hover, 'animation', _('Hover animation'),
             [['magnify', _('Magnify')], ['ripple', _('Ripple')], ['lift', _('Lift')], ['none', _('None')]]);
         showIf(spin(hover, 'zoom', _('Magnification'), 1, 2.5, 0.1, 1), () => is('animation', 'magnify', 'ripple'), 'animation');
-        const moving = group(motion, _('Icons'));
+        const moving = group(motion, _('Icon effects'));
         toggle(moving, 'pop', _('Apps pop in and out'));
         toggle(moving, 'bounce', _('Bounce while an app starts'));
         toggle(moving, 'attention', _('Wiggle when an app asks for attention'));

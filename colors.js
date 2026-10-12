@@ -126,6 +126,8 @@ export function wallpaperColor(settings, dark, onLoaded) {
     if (wallpaper.key === key)
         return wallpaper.color;
     wallpaper = {key, color: plain ? parseColor(key) : null};
+    // The next paint tries again, the file may be on a disk mounted later.
+    const failed = () => wallpaper.key === key && (wallpaper.key = null);
     if (!plain) {
         Gio.File.new_for_uri(uri).read_async(GLib.PRIORITY_DEFAULT, null, (file, result) => {
             try {
@@ -138,9 +140,11 @@ export function wallpaperColor(settings, dark, onLoaded) {
                             wallpaper.color = averageColor(p.get_pixels(), p.width, p.height, p.rowstride, p.n_channels);
                             onLoaded();
                         } catch {
+                            failed();
                         }
                     });
             } catch {
+                failed();
             }
         });
     }

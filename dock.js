@@ -105,6 +105,19 @@ function rocketOf(button) {
         : null;
 }
 
+// AppIndicator hands every click on a tray icon or its menu a launch token. An app living in the tray then
+// counts as starting, even on Quit.
+function fromTray() {
+    const event = Clutter.get_current_event();
+    let actor = event && global.stage.get_event_actor(event);
+    while (actor) {
+        if (actor.has_style_class_name?.('panel-button'))
+            return Boolean(findActor(actor, child => child.has_style_class_name?.('appindicator-icon')));
+        actor = actor._delegate?.sourceActor ?? actor.get_parent();
+    }
+    return false;
+}
+
 // "along" runs with the icon row, "across" from its inner side to the screen edge.
 export class Dock {
     constructor(ext, monitorIndex, primary, intro) {
@@ -269,9 +282,11 @@ export class Dock {
             (mode === 'dock' && (haiku ? (night ? HAIKU_DARK : HAIKU_BG) : !night && SILVER_LIGHT));
         let colors = themed ? this._ext.themeColors() : COLORS;
         let ink = false;
+        this._light = false;
+        this._themed = themed;
         if (own) {
             // Border and separators lighter, or darker on a light color, for contrast.
-            const light = luma(own) > 150;
+            const light = this._light = luma(own) > 150;
             const shade = mix(own, light ? '0, 0, 0' : '255, 255, 255', 0.6);
             colors = {bg: own, fg: shade, border: `1px solid rgba(${shade}, 0.5)`};
             ink = light && this._settings.get_int('opacity') >= 50;
@@ -289,11 +304,9 @@ export class Dock {
         this._previews.dim = dim;
         this._surface = {haiku, dim, fg: colors.fg};
         setClass(this._label, 'silver-dock-tab', haiku);
-        // Text in the bar dark on a light color, light on any other of ours. Themes may write either.
         const bright = !themed && !ink;
-        setClass(this._bar, 'silver-dock-ink', ink);
-        setClass(this._bar, 'silver-dock-bright', bright);
         const opacity = themed ? colors.alpha : this._settings.get_int('opacity') / 100;
+        this._inkBar(opacity);
         this._geom.opacity = opacity;
         this._accent = colors.accent ?? null;
         // The stylesheet's system accent needs GNOME 47.
@@ -867,8 +880,8 @@ export class Dock {
             item.room = room;
             this._queue('room', () => {
                 this._layout();
-                // Already smooth, a glide behind it would overshoot.
-                this._place(true);
+                // In the same frame, the bar's own notify comes a frame late.
+                this._place();
             });
         });
         button.connect('clicked', (b, mouseButton) => {
@@ -885,6 +898,8 @@ export class Dock {
             }
         });
         button.connect('scroll-event', (actor, event) => this._scroll(item, event));
+        // GNOME's app menu calls it for New Window and the app's actions.
+        button.animateLaunch = () => this._launched(item);
         // Menu key or Shift+F10
         button.connect('popup-menu', () => this._openMenu(item));
         button.connect('key-focus-in', () => this._focusItem(item));
@@ -1003,8 +1018,13 @@ export class Dock {
 
     onAppState(app) {
         this.sync();
-        if (app.state === Shell.AppState.STARTING && this._settings.get_boolean('bounce'))
-            this._bounce(this._items.find(item => item.app === app && !item.leaving));
+        const item = this._items.find(other => other.app === app && !other.leaving);
+        if (!item || app.state !== Shell.AppState.STARTING || fromTray())
+            return;
+        // A bounce from a click on the icon now also ends with the start.
+        item.starting = true;
+        if (this._settings.get_boolean('bounce'))
+            this._bounce(item);
     }
 
     updateBadges() {
@@ -1055,12 +1075,14 @@ export class Dock {
             item.icon.icon_name = this._ext.trash?.full ? 'user-trash-full' : 'user-trash';
     }
 
-    // The icon moves, its button carries the hover transform.
+    // The icon moves, its button carries the hover transform. While GNOME reports the start the bounce ends
+    // with it, also when it fails. Else (no StartupNotify) until the first window.
     _bounce(item) {
-        const icon = item?.icon;
+        const {icon} = item;
         // Unmapped (fullscreen) or without animations an ease ends at once: the hops would recurse.
-        const live = () => icon.mapped && St.Settings.get().enable_animations;
-        if (!icon || !live() || icon.get_transition(this._across.replace('_', '-')))
+        // Hidden nobody sees it, an ease keeps the compositor busy.
+        const live = () => icon.mapped && !this._hidden && St.Settings.get().enable_animations;
+        if (!live() || icon.get_transition(this._across.replace('_', '-')))
             return;
         const until = GLib.get_monotonic_time() + BOUNCE_MAX * 1000;
         const hop = () => icon.ease({
@@ -1070,7 +1092,8 @@ export class Dock {
             repeatCount: 1,
             autoReverse: true,
             onComplete: () => {
-                if (live() && !item.leaving && !item.app.get_n_windows() && GLib.get_monotonic_time() < until)
+                const waiting = item.starting ? item.app.state === Shell.AppState.STARTING : !item.app.get_n_windows();
+                if (live() && !item.leaving && waiting && GLib.get_monotonic_time() < until)
                     hop();
             },
         });
@@ -1086,7 +1109,7 @@ export class Dock {
             const was = item.attention;
             item.attention = enabled && Boolean(item.app) &&
                 (Boolean(this._ext.launcher?.get(item.app.get_id())?.urgent) ||
-                 item.app.get_windows().some(win => win.demands_attention || win.urgent));
+                 item.app.get_windows().some(win => this._ext.wantsAttention(win)));
             if (was && !item.attention)
                 item.calm = now;
             // Steam flashes its urgent flag on and off, that is one request.
@@ -1240,6 +1263,8 @@ export class Dock {
     }
 
     _easeAmount() {
+        if (STYLES[this._style].eased)
+            return;
         this._amount.ease(this._row.hover || this._keyFocus ? 1 : 0, {
             duration: 150,
             mode: Clutter.AnimationMode.EASE_OUT_QUAD,
@@ -1290,8 +1315,8 @@ export class Dock {
             return;
         }
         // GNOME only reports a start for apps with StartupNotify.
-        if (!windows.length && this._settings.get_boolean('bounce'))
-            this._bounce(item);
+        if (!windows.length)
+            this._launched(item);
         if (middle)
             app.open_new_window(-1);
         else if (!windows.length || action === 'raise' || Shell.WindowTracker.get_default().focus_app !== app)
@@ -1300,6 +1325,12 @@ export class Dock {
             windows.forEach(win => win.minimize());
         else
             Main.activateWindow(windows[windows.length - 1]);
+    }
+
+    _launched(item) {
+        item.starting = false;
+        if (this._settings.get_boolean('bounce'))
+            this._bounce(item);
     }
 
     _queue(key, fn) {
@@ -1380,7 +1411,7 @@ export class Dock {
         this.queueCheck();
     }
 
-    _place(immediate = false) {
+    _place() {
         const m = Main.layoutManager.monitors[this.monitorIndex];
         if (!m)
             return;
@@ -1402,24 +1433,26 @@ export class Dock {
             left: [m.x, centerY],
             right: [m.x + m.width - w, centerY],
         }[this._position];
-        // A tray icon coming or going resizes the bar at once, it glides to its new centre.
-        // A running glide only takes the new target, restarted every frame it would never move.
+        // The bar always takes its place at once, a popping icon grows the row every frame. Anything else
+        // resizing it at once (a tray icon) glides: an offset along the bar eases out, also when the row
+        // grows meanwhile and also from the middle of an earlier glide.
         const [prop, along, across] = this._vertical ? ['y', y, x] : ['x', x, y];
-        const glide = this._bar.get_transition(prop);
-        if (immediate || this._placedAcross !== across || !this._bar.mapped) {
-            this._bar.remove_transition(prop);
-            this._bar.set_position(x, y);
-        } else if (glide) {
-            glide.set_to(along);
-        } else if (this._bar[prop] !== along) {
-            this._bar.ease({
-                [prop]: along, duration: MOVE_TIME, mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-                onComplete: () => this._updateBarrier(),
-            });
-            // Before the layout pass, notify::x also comes during it.
-            this._bar.get_transition(prop)?.connect_after('new-frame', () => this._animate());
+        const glide = this._along.replace('_', '-');
+        // Rounded, the row's fractional width while popping leaves float noise.
+        const others = Math.round((this._vertical ? h : w) - this._row[size]);
+        if (this._placedAcross !== across || !this._bar.mapped) {
+            this._bar.remove_transition(glide);
+            this._bar[this._along] = 0;
+        } else if (others !== this._others && this._bar[prop] !== along) {
+            const offset = this._bar[prop] + this._bar[this._along] - along;
+            this._bar.remove_transition(glide);
+            this._bar[this._along] = offset;
+            this._bar.ease({[this._along]: 0, duration: MOVE_TIME, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+            this._bar.get_transition(glide)?.connect_after('new-frame', () => this._animate());
         }
+        this._bar.set_position(x, y);
         this._placedAcross = across;
+        this._others = others;
         this._updateBarrier();
         this._animate();
         this._updateOpacity();
@@ -1427,8 +1460,11 @@ export class Dock {
     }
 
     // Not on an edge shared with another monitor, the barrier would block the way over.
-    _updateBarrier() {
+    // now: else a moved or resized bar gets its new barrier once it rests, not every frame of a pop or glide.
+    _updateBarrier(now = false) {
         const m = Main.layoutManager.monitors[this.monitorIndex];
+        if (!m)
+            return;
         const [along, length] = this._barAxes();
         const edge = {bottom: m.y + m.height, top: m.y, left: m.x, right: m.x + m.width}[this._position];
         const touches = {
@@ -1451,6 +1487,16 @@ export class Dock {
         const key = wanted ? `${x1} ${y1} ${x2} ${y2} ${this._position}` : null;
         if (key === this._barrierKey)
             return;
+        if (!now && key && this._barrierKey) {
+            if (this._barrierTimer)
+                GLib.source_remove(this._barrierTimer);
+            this._barrierTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, MOVE_TIME, () => {
+                this._barrierTimer = 0;
+                this._updateBarrier(true);
+                return GLib.SOURCE_REMOVE;
+            });
+            return;
+        }
         this._removeBarrier();
         if (!wanted)
             return;
@@ -1475,6 +1521,9 @@ export class Dock {
     }
 
     _removeBarrier() {
+        if (this._barrierTimer)
+            GLib.source_remove(this._barrierTimer);
+        this._barrierTimer = 0;
         this._pressure?.destroy();
         this._barrier?.destroy();
         this._pressure = this._barrier = this._barrierKey = null;
@@ -1518,6 +1567,13 @@ export class Dock {
         const {zoom, peak, slot, margin} = this._geom;
         const n = this._items.length;
         const eased = STYLES[this._style].eased;
+        // The row moves under a resting pointer when an icon pops in or the bar glides.
+        if (this._row.hover && !this._keyFocus) {
+            const [px, py] = global.get_pointer();
+            const [ok, x, y] = this._row.transform_stage_point(px, py);
+            if (ok)
+                this._pointer = this._vertical ? y : x;
+        }
         const hovered = eased ? Number(this._row.hover || this._keyFocus !== null) : this._amount.value;
         const {scales, lifts, left, right, ...spread} = hover(
             this._style, n, slot, this._pointer, zoom, this._dragging ? 0 : hovered, this._gaps);
@@ -1557,7 +1613,9 @@ export class Dock {
         [firstBox, firstSep].forEach(actor => actor && (actor[this._along] = startShift));
         [secondSep, ...otherBoxes].forEach(actor => actor && (actor[this._along] = endShift));
 
-        const [along, length, across, thick] = this._barAxes();
+        const [rest, length, across, thick] = this._barAxes();
+        // Where a glide has it now.
+        const along = rest + this._bar[this._along];
         const bgAt = this._xy(along + startShift, across + (this._edgeFirst ? margin : 0));
         const bgSize = this._xy(length - startShift + endShift, thick - margin);
         this._bg.set_position(...bgAt);
@@ -1854,6 +1912,14 @@ export class Dock {
         this._bg.ease({opacity: target, duration: 250, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
         if (this._surface?.haiku)
             this._paintSurface(target / 255);
+        this._inkBar(target / 255);
+    }
+
+    // Text dark on a light color that shows, light on any other of ours. Themes may write either.
+    _inkBar(alpha) {
+        const ink = this._light && alpha >= 0.5;
+        setClass(this._bar, 'silver-dock-ink', ink);
+        setClass(this._bar, 'silver-dock-bright', !this._themed && !ink);
     }
 
     _shouldHide() {
@@ -1905,9 +1971,10 @@ export class Dock {
             : {duration: SLIDE_TIME, mode: Clutter.AnimationMode.EASE_OUT_QUAD};
         const out = -this._dir;
         const [, , , thick] = this._barAxes();
+        const shadow = this._settings.get_boolean('shadow') ? SHADOW * this._scale : 0;
         // A 1 px strip stays on screen and catches the pointer.
         this._bar.ease({...params, [this._across]: hidden ? out * (thick - 1) : 0, onComplete: () => this._syncHover()});
         for (const actor of [this._bg, this._blur].filter(Boolean))
-            actor.ease({...params, [this._across]: hidden ? out * (thick + SHADOW * this._scale) : 0});
+            actor.ease({...params, [this._across]: hidden ? out * (thick + shadow) : 0});
     }
 }

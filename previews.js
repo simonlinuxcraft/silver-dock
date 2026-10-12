@@ -126,7 +126,8 @@ export class WindowPreviews {
     }
 
     _peekAt(win) {
-        if (win.minimized) {
+        // A window on another workspace has nothing to show here.
+        if (win.minimized || !win.located_on_workspace(global.workspace_manager.get_active_workspace())) {
             this._endPeek();
             return;
         }

@@ -93,9 +93,10 @@ check(inDock.every(title => rows[title].visible), 'top bar effects hidden with t
 settings.set_string('position', 'left');
 check(!inDock.some(title => rows[title].visible), 'top bar effects shown on the left');
 settings.set_string('colors', 'custom');
+check(!rows['Light or dark'].visible, 'light or dark shown with an own color');
+settings.set_string('colors', 'dock');
 rows['Light or dark'].selected = 3;
-check(settings.get_string('scheme') === 'system' && settings.get_string('colors') === 'dock',
-    'light or dark combo not written or kept the own color');
+check(settings.get_string('scheme') === 'system' && rows['Light or dark'].visible, 'light or dark combo not written');
 rows['Hide when a window overlaps the bar'].enable_expansion = true;
 check(settings.get_boolean('autohide'), 'autohide switch not written');
 rows['Bounce while an app starts'].active = false;
@@ -110,6 +111,12 @@ check(settings.get_string('bar-width') === 'fit', 'bar width combo not written')
 rows['Design'].selected = 0;
 check(!rows['Bar width'].visible && rows['Corner radius'].visible && settings.get_int('margin') === 8,
     'silver design did not restore the distance or swapped the shape rows');
+// Written elsewhere (Design Manager, dconf) the design keeps the values it comes with.
+settings.set_int('margin', 20);
+settings.set_string('design', 'haiku');
+check(rows['Design'].selected === 1 && settings.get_int('margin') === 20, 'design preset ran on an outside change');
+rows['Design'].selected = 0;
+check(settings.get_int('margin') === 20, 'silver design reset an own distance');
 rows['Design'].selected = 1;
 rows['Screen edge'].selected = 3;
 check(settings.get_string('position') === 'right', 'position combo not written');

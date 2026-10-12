@@ -386,6 +386,10 @@
     background-color: #f2f3f5;
 }
 
+#panel.silver-dock-bright .privacy-indicator {
+    color: #ff7800;
+}
+
 /* Haiku's leaf stays yellow whatever the bar's color, its content dark. Last, it wins over the bar's text color. */
 #panel.silver-dock.haiku .silver-dock-leaf .panel-button,
 #panel.silver-dock.haiku .silver-dock-leaf StIcon,

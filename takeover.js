@@ -1,4 +1,4 @@
-// The only use of GNOME Shell internals, check here first when a release breaks.
+// GNOME Shell internals, check here first when a release breaks. dock.js also reads _sourceActor and _delegate of menus.
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 // The top bar's boxes while GNOME holds them, none if the internals changed.

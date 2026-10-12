@@ -5,10 +5,12 @@ import Shell from 'gi://Shell';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 const KEYS = ['count', 'count-visible', 'progress', 'progress-visible', 'urgent'];
+// Kept while the extension is off, as on every lock: apps only send on a change.
+const entries = new Map();
 
 export class LauncherEntries {
     constructor(onChange) {
-        this._entries = new Map();
+        this._entries = entries;
         this._onChange = onChange;
         const bus = Gio.DBus.session;
         this._subscriptions = [
@@ -25,12 +27,27 @@ export class LauncherEntries {
         // libunity only publishes while someone owns this name.
         this._name = bus.own_name('com.canonical.Unity',
             Gio.BusNameOwnerFlags.ALLOW_REPLACEMENT | Gio.BusNameOwnerFlags.REPLACE, null, null);
+        // Senders that quit while the extension was off.
+        const senders = new Set([...entries.values()].map(entry => entry.sender));
+        if (senders.size) {
+            bus.call('org.freedesktop.DBus', '/org/freedesktop/DBus', 'org.freedesktop.DBus', 'ListNames', null, null,
+                Gio.DBusCallFlags.NONE, -1, null, (c, result) => {
+                    try {
+                        const [names] = c.call_finish(result).deepUnpack();
+                        senders.forEach(sender => names.includes(sender) || this._ownerChanged(sender, sender, ''));
+                    } catch (e) {
+                        console.log(`Silver Dock: launcher entries (${e.message})`);
+                    }
+                });
+        }
     }
 
     destroy() {
         this._subscriptions.forEach(id => Gio.DBus.session.signal_unsubscribe(id));
         Gio.DBus.session.unown_name(this._name);
-        this._entries.clear();
+        // A change while off goes unheard, only counts last. Urgency and progress come again while they last.
+        for (const entry of entries.values())
+            ['urgent', 'progress', 'progress-visible'].forEach(key => delete entry[key]);
     }
 
     get(appId) {
@@ -88,11 +105,12 @@ export class NotificationCounts {
     }
 
     // The policy id is the app's desktop id without .desktop, system sources have none.
+    // Feedback such as GNOME's "is ready" for a window is no message.
     get(appId) {
         let count = 0;
         for (const source of this._sources) {
             if (source.policy?.id && `${source.policy.id}.desktop` === appId)
-                count += source.count;
+                count += source.notifications.filter(notification => !notification.forFeedback).length;
         }
         return count;
     }

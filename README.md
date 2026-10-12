@@ -1,8 +1,8 @@
 # Silver Dock
 
 A dock for GNOME Shell 46 to 50, on Wayland and X11. At the bottom or top it also
-holds the top bar's menu, clock, tray and system menu. Only `takeover.js` touches
-GNOME internals, version differences live in `compat.js`.
+holds the top bar's menu, clock, tray and system menu. GNOME internals stay in `takeover.js`
+(`dock.js` only reads `_sourceActor` and `_delegate` of menus), version differences live in `compat.js`.
 
 - Any screen edge, on one monitor or all. On the left or right the top bar keeps its content, optionally in the dock's look
 - Dock look, an own color, the wallpaper's or the shell and GTK theme's colors, optionally tinted app icons. The wallpaper behind the bar blurred, the app in front on a soft tile

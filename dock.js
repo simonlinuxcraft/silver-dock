@@ -917,7 +917,9 @@ export class Dock {
         });
         app?.connectObject('windows-changed', () => {
             this.updateDots();
-            this._previews.refresh(app);
+            // One preview for all docks, the one showing it rebuilds it.
+            if (this._ownsPreviews())
+                this._previews.refresh(app);
         }, button);
         if (app && this._settings.get_boolean('dnd'))
             this._makeDraggable(item);
@@ -1025,6 +1027,11 @@ export class Dock {
         item.starting = true;
         if (this._settings.get_boolean('bounce'))
             this._bounce(item);
+    }
+
+    // Download progress can update many times a second.
+    queueBadges() {
+        this._queue('badges', () => this.updateBadges());
     }
 
     updateBadges() {

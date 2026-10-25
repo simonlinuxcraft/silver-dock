@@ -38,8 +38,8 @@ export default class SilverDock extends Extension {
         this._iface = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
         this._background = new Gio.Settings({schema_id: 'org.gnome.desktop.background'});
         this.volumes = Gio.VolumeMonitor.get();
-        this.launcher = new LauncherEntries(() => this._each(dock => dock.updateBadges()));
-        this.notifications = new NotificationCounts(() => this._each(dock => dock.updateBadges()));
+        this.launcher = new LauncherEntries(() => this._each(dock => dock.queueBadges()));
+        this.notifications = new NotificationCounts(() => this._each(dock => dock.queueBadges()));
         this.media = new MediaPlayers();
         this.previews = new WindowPreviews(() => this._each(dock => dock.previewsChanged()));
         this.trash = null;
@@ -174,6 +174,9 @@ export default class SilverDock extends Extension {
     _watchWindow(win, born = GLib.get_monotonic_time()) {
         this._watched.add(win);
         const check = () => this._each(dock => dock.queueCheck());
+        // Fires every frame while a window is dragged, only overlap needs it. Fullscreen has its own signal.
+        const moved = () => (this.settings.get_boolean('autohide') || this.settings.get_boolean('dynamic-opacity')) &&
+            check();
         const attention = () => {
             // GNOME flags a window it opens without the focus ("is ready"), that is no request of the app.
             if (!win.demands_attention)
@@ -183,8 +186,8 @@ export default class SilverDock extends Extension {
             this._each(dock => dock.queueAttention());
         };
         win.connectObject(
-            'position-changed', check,
-            'size-changed', check,
+            'position-changed', moved,
+            'size-changed', moved,
             'notify::minimized', () => {
                 this._setIconGeometry(win);
                 check();

@@ -19,10 +19,11 @@ import {luma, mix, parseColor} from './colors.js';
 import {Color, HAS_ACCENT, setVertical, trustHover} from './compat.js';
 import {badgeOf, countText, progressOf} from './launcher.js';
 import {dropIndex, hover, rest, STYLES} from './layout.js';
+import {TwoLineClock} from './clock.js';
 import {RoundedMask} from './mask.js';
 import {mediaSection} from './media.js';
 import {TRASH, driveMounts, openPlace, placeActions, placeIcon, placeName} from './places.js';
-import {panelBoxes, restorePanel, takePanel} from './takeover.js';
+import {clockLabel, panelBoxes, restorePanel, takePanel} from './takeover.js';
 
 // Logical px, times the shell's scale factor on actors. CSS and icon sizes stay logical.
 // px from the icons to the bar's inner side and to the screen edge (window dots)
@@ -37,12 +38,16 @@ const MOVE_TIME = 150;
 // with the panel buttons' 8 px padding this gives 12 px beside every separator
 const EDGE = 4;
 const SEP_MARGIN = 4;
+// px between islands
+const ISLAND_GAP = 8;
+// icon size from which the clock takes two lines
+const TWO_LINES = 28;
 const MIN_ICON = 16;
 const POP_TIME = 350;
 const DOT = 5;
 // logical px between neighbouring tiles
 const TILE_GAP = 3;
-const DOT_LONG = 12;
+const DOT_LONG = 14;
 const BUTTON_LIFT = 3;
 const WARP_LIFT = 5;
 const SCROLL_PAUSE = 150;
@@ -144,6 +149,11 @@ export class Dock {
         this._scale = 1;
 
         this._bg = new St.Widget({style_class: 'silver-dock-bg'});
+        // The islands' backgrounds, the bar's own stays clear then.
+        this._pieces = [0, 1, 2].map(() => new St.Widget({visible: false}));
+        this._pieces.forEach(piece => this._bg.add_child(piece));
+        this._islands = false;
+        this._clock = null;
         this._blur = null;
         // X11 only sends the pointer to tracked chrome, this covers the magnified icons.
         this._reach = new St.Widget({visible: false});
@@ -236,6 +246,8 @@ export class Dock {
         actors.forEach(actor => actor.get_parent() && Main.layoutManager.removeChrome(actor));
         this._items.forEach(item => this._destroyItem(item));
         this._dockMenu?.destroy();
+        this._clock?.destroy();
+        this._clock = null;
         // The panel boxes would die with the bar.
         restorePanel(this._bar, this._boxes);
         this._undress();
@@ -316,8 +328,10 @@ export class Dock {
         this._accent = colors.accent ?? null;
         // The stylesheet's system accent needs GNOME 47.
         setClass(this._bar, 'themed', themed && HAS_ACCENT);
+        setClass(this._bar, 'accent', !haiku && HAS_ACCENT);
         const shadow = this._settings.get_boolean('shadow');
-        setClass(this._bg, 'silver-dock-shadow', shadow);
+        setClass(this._bg, 'silver-dock-shadow', shadow && !this._islands);
+        this._pieces.forEach(piece => setClass(piece, 'silver-dock-shadow', shadow));
         setClass(this._bg, 'silver-dock-haiku', haiku);
         this._setBlur(this._settings.get_boolean('blur'));
 
@@ -340,7 +354,12 @@ export class Dock {
         }
 
         // Opacity on the actor, so dynamic opacity can ease it.
-        this._bg.set_style(`border-radius: ${radius}px; background-color: rgb(${colors.bg}); ${this._borderCss(colors.border)}`);
+        const surface = `border-radius: ${radius}px; background-color: rgb(${colors.bg}); ${this._borderCss(colors.border)}`;
+        this._bg.set_style(this._islands ? null : surface);
+        this._pieces.forEach(piece => {
+            piece.set_style(surface);
+            piece.visible = this._islands;
+        });
         this._bg.remove_transition('opacity');
         this._bg.opacity = this._bgOpacity = Math.round(255 * opacity);
         this._paintSurface(opacity);
@@ -374,18 +393,22 @@ export class Dock {
         const groove = `${this._vertical ? '0 1px' : '1px 0'} 0 rgba(255, 255, 255, ${(dim ? 0.12 : 0.7) * alpha})`;
         for (const sep of [...this._seps, ...this._rowSeps])
             sep.set_style(haiku ? `background-color: rgba(${this._edge}, ${alpha}); box-shadow: ${groove};`
-                : `background-color: rgba(${fg}, 0.25);`);
-        this._dressBoxes(this._boxes, haiku, 1, alpha);
+                : `background-color: rgba(${fg}, ${this._islands && this._seps.includes(sep) ? 0 : 0.25});`);
+        this._dressBoxes(this._boxes, haiku, 1, alpha, !haiku && !this._islands && fg);
     }
 
     // Haiku: the menu on the yellow leaf, from the field box on an inset field (clock and tray, in the top bar the tray).
     // Painted here, the surface fades with the bar.
-    _dressBoxes(boxes, haiku, field = 1, alpha = 1) {
+    // pill: Silver Dock's tray on a faint pill of this color.
+    _dressBoxes(boxes, haiku, field = 1, alpha = 1, pill = null) {
         const dim = this._surface?.dim;
         boxes.forEach((box, i) => {
             setClass(box, 'silver-dock-leaf', haiku && i === 0);
             setClass(box, 'silver-dock-field', haiku && i >= field);
-            if (!haiku || (i > 0 && i < field))
+            if (pill && i === 2)
+                box.set_style(`background-color: rgba(${pill}, ${0.1 * alpha}); border-radius: 99px; ` +
+                    (this._vertical ? 'padding: 4px 0; margin: 0 7px;' : 'padding: 0 4px; margin: 7px 0;'));
+            else if (!haiku || (i > 0 && i < field))
                 box.set_style(null);
             else if (i === 0)
                 box.set_style('padding: 0 4px; background-gradient-direction: vertical; ' +
@@ -480,15 +503,33 @@ export class Dock {
         this._blurEffect.radius = this._settings.get_int('blur-radius') * scale;
     }
 
-    _placeBlur(x, y, width, height) {
+    _placeBlur(x, y, width, height, spans) {
         if (!this._blur)
             return;
         this._blur.set_position(x, y);
         this._blur.set_size(width, height);
         this._clone.set_position(this._wallpaper.x - x, this._wallpaper.y - y);
-        // St draws no radius beyond half the height.
-        const radius = this._radius() * this._scale;
-        this._mask.setShape(width, height, Math.min(radius, width / 2, height / 2));
+        this._mask.setShape(width, height, this._radius() * this._scale, this._vertical, spans);
+    }
+
+    // [start, length] of the three islands from the background's start: menu, apps, clock and tray. An empty
+    // one has no length. The gaps are the outer separators, less the islands' end padding inside them.
+    _islandSpans(startShift, endShift, total) {
+        const end = this._end * this._scale;
+        const [first, second] = this._seps.map(sep => {
+            const box = sep.get_allocation_box();
+            return this._vertical ? [box.y1, box.get_height()] : [box.x1, box.get_width()];
+        });
+        const filled = box => Boolean(box?.get_children().some(child => child.visible));
+        const [left, , right] = this._boxes;
+        const appsStart = first[0] + first[1] - end;
+        const appsEnd = second[0] + endShift - startShift + end;
+        const sysStart = second[0] + second[1] + endShift - startShift - end;
+        return [
+            filled(left) ? [0, first[0] + end] : [0, 0],
+            filled(left) ? [appsStart, appsEnd - appsStart] : [0, appsEnd],
+            filled(right) || filled(this._boxes[1]) ? [sysStart, total - sysStart] : [0, 0],
+        ];
     }
 
     _xy(along, across) {
@@ -606,6 +647,13 @@ export class Dock {
             restorePanel(this._bar, this._boxes);
             this._boxes = [];
         }
+        // Islands need the top bar's boxes, the bar holds only icons otherwise.
+        this._islands = !haiku && this._boxes.length > 0 && this._settings.get_boolean('islands');
+        this._clock?.destroy();
+        this._clock = null;
+        const label = this._boxes.length && !haiku && icon >= TWO_LINES * s ? clockLabel() : null;
+        if (label && this._bar.contains(label))
+            this._clock = new TwoLineClock(label, this._vertical);
         for (const key of ['lift-buttons', 'warp', 'glide'])
             setClass(this._bar, key, this._settings.get_boolean(key));
         setClass(this._bar, 'quiet-menus', !this._settings.get_boolean('open-highlight'));
@@ -617,10 +665,13 @@ export class Dock {
         for (const sep of [...this._seps, ...this._rowSeps])
             sep.set_size(...sepSize);
         for (const sep of this._seps) {
-            // Haiku's leaf and field bring their own edges.
-            sep.visible = this._settings.get_boolean('separators') && this._boxes.length > 0 && !haiku;
+            // Haiku's leaf and field bring their own edges. Between islands a clear gap with each island's end padding.
+            sep.visible = (this._settings.get_boolean('separators') || this._islands) && this._boxes.length > 0 && !haiku;
+            if (this._islands)
+                sep.set_size(...this._xy(ISLAND_GAP * s + 2 * end * s, 1));
+            const m = this._islands ? 0 : SEP_MARGIN * s;
             [sep.margin_left, sep.margin_right, sep.margin_top, sep.margin_bottom] = this._vertical
-                ? [0, 0, SEP_MARGIN * s, SEP_MARGIN * s] : [SEP_MARGIN * s, SEP_MARGIN * s, 0, 0];
+                ? [0, 0, m, m] : [m, m, 0, 0];
         }
         this._resetSlide();
         for (const actor of [...this._boxes, ...this._seps, ...this._rowSeps])
@@ -1652,7 +1703,16 @@ export class Dock {
         const bgSize = this._xy(length - startShift + endShift, thick - margin);
         this._bg.set_position(...bgAt);
         this._bg.set_size(...bgSize);
-        this._placeBlur(...bgAt, ...bgSize);
+        const spans = this._islands ? this._islandSpans(startShift, endShift, length - startShift + endShift)
+            : [[0, length - startShift + endShift]];
+        this._pieces.forEach((piece, i) => {
+            if (!this._islands)
+                return;
+            const [at, size] = spans[i];
+            piece.set_position(...this._xy(at, 0));
+            piece.set_size(...this._xy(size, thick - margin));
+        });
+        this._placeBlur(...bgAt, ...bgSize, spans);
         // Growth plus the highest lift (ripple, 0.3 slot) stays below one slot.
         const over = this._geom.big - this._geom.icon + slot;
         this._reach.set_position(...this._xy(along + startShift, this._edgeFirst ? across + thick : across - over));

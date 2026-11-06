@@ -122,6 +122,8 @@ export default class SilverDockPrefs extends ExtensionPreferences {
         });
         showIf(choice(bar, 'bar-width', _('Bar width'), [['full', _('Whole screen edge')], ['fit', _('As wide as its content')]]),
             () => is('design', 'haiku'), 'design');
+        showIf(toggle(bar, 'islands', _('Separate islands for menu, apps and clock')), () => !is('design', 'haiku'),
+            'design');
         spin(bar, 'margin', _('Distance from screen edge'), 0, 48, 1);
         // Haiku's bar is always square.
         showIf(spin(bar, 'radius', _('Corner radius'), 0, 48, 1), () => !is('design', 'haiku'), 'design');

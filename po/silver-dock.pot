@@ -148,6 +148,10 @@ msgstr ""
 msgid "Haiku"
 msgstr ""
 
+#: prefs.js
+msgid "Separate islands for menu, apps and clock"
+msgstr ""
+
 #: prefs.js:123
 msgid "Bar width"
 msgstr ""

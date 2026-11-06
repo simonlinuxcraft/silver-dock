@@ -2,11 +2,12 @@
 
 A dock for GNOME Shell 46 to 50, on Wayland and X11. At the bottom or top it also
 holds the top bar's menu, clock, tray and system menu. GNOME internals stay in `takeover.js`
-(`dock.js` only reads `_sourceActor` and `_delegate` of menus), version differences live in `compat.js`.
+(`dock.js` only reads `_delegate` of menus), version differences live in `compat.js`.
 
 - Any screen edge, on one monitor or all. On the left or right the top bar keeps its content, optionally in the dock's look
 - Dock look, an own color, the wallpaper's or the shell and GTK theme's colors, optionally tinted app icons. The wallpaper behind the bar blurred, the app in front on a soft tile
 - Two designs: Silver Dock's own and Haiku, a flat bevelled bar in Haiku's gray, like its Deskbar, with the menu on a yellow leaf, the clock and tray in an inset field, a light tile behind every icon (the active one turns yellow) and app names on a yellow tab. The bar is always square and spans the whole screen edge or only fits its content, as you choose. Distance, color and the other settings stay in use, picking the design makes the bar flush and solid
+- Silver Dock's design marks the focused app and the ArcMenu button in the system accent (GNOME 47 and later), shows the time over the date and the tray on a soft pill. Optionally the menu button, the apps and the clock with the tray sit on separate islands
 - Both designs light or dark: as the design has it, fixed, or following the system's dark style. Haiku's dark bar gets dark tiles, the leaf and the active tile stay yellow
 - Hover styles magnify, ripple, lift or none
 - Icons pop in and out, squash on click, rise in a wave after login, bounce until a starting app shows its window and wiggle when it asks for attention. Window dots glide, badges pop, windows minimize into their icon, top bar buttons lift, the ArcMenu button takes off
@@ -17,6 +18,7 @@ holds the top bar's menu, clock, tray and system menu. GNOME internals stay in `
 - Badges and progress bars (Unity LauncherEntry), the notification count for apps without their own
 - Media controls in the right click menu of apps that play something (MPRIS)
 - Trash and drives with open, empty and eject
+- Over a fullscreen window the bar stays out of the way. The ArcMenu key brings it along, after a click on the bar it stays for the volume and the other menus until Escape or a click back into the window
 - Separators, a soft shadow, autohide, opaque while a window touches the bar. A hidden bar comes back when the pointer pushes against the edge or an app asks for attention
 
 Every extra can be switched off in the preferences.

@@ -145,6 +145,10 @@ msgstr "Silver Dock"
 msgid "Haiku"
 msgstr "Haiku"
 
+#: prefs.js
+msgid "Separate islands for menu, apps and clock"
+msgstr "Eigene Inseln für Menü, Apps und Uhr"
+
 #: prefs.js:123
 msgid "Bar width"
 msgstr "Breite der Leiste"

@@ -52,6 +52,10 @@
       <default>'design'</default>
       <summary>The design's own colors light or dark: as the design has them (Silver Dock dark, Haiku light), fixed, or following the system's dark style</summary>
     </key>
+    <key name="islands" type="b">
+      <default>false</default>
+      <summary>Silver Dock design only: the menu button, the apps and the clock with the tray on separate islands</summary>
+    </key>
     <key name="bar-width" type="s">
       <choices>
         <choice value="full"/>

@@ -185,6 +185,7 @@ set_key all-monitors true
 sleep 1
 for key in pop squash glide intro badge-pop springy minimize-to-icon lift-buttons warp; do set_key "$key" false; done
 set_key separators false
+set_key islands true
 set_key shadow false
 set_key notification-badges false
 set_key poof false

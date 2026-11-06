@@ -1,4 +1,4 @@
-// GNOME Shell internals, check here first when a release breaks. dock.js also reads _sourceActor and _delegate of menus.
+// GNOME Shell internals, check here first when a release breaks. dock.js also reads _delegate of menus.
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 // The top bar's boxes while GNOME holds them, none if the internals changed.
@@ -24,6 +24,11 @@ export function takePanel(bar, before, after) {
     // Panel menus now open upwards, the stylesheet drops the theme's bottom margin on them.
     Main.uiGroup.add_style_class_name('silver-dock-panel');
     return boxes;
+}
+
+// The top bar clock's one line of date and time.
+export function clockLabel() {
+    return Main.panel.statusArea.dateMenu?._clockDisplay ?? null;
 }
 
 export function restorePanel(bar, boxes) {

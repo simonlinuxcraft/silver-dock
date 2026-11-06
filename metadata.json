@@ -10,6 +10,7 @@
     "49",
     "50"
   ],
+  "url": "https://github.com/simonlinuxcraft/silver-dock",
   "settings-schema": "org.gnome.shell.extensions.silver-dock",
   "gettext-domain": "silver-dock"
 }

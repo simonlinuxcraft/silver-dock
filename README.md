@@ -1,8 +1,22 @@
 # Silver Dock
 
 A dock for GNOME Shell 46 to 50, on Wayland and X11. At the bottom or top it also
-holds the top bar's menu, clock, tray and system menu. GNOME internals stay in `takeover.js`
-(`dock.js` only reads `_delegate` of menus), version differences live in `compat.js`.
+holds the top bar's menu, clock, tray and system menu.
+
+<p align="center">
+  <img src="screenshots/silver.png" alt="Silver design: one bar">
+  <br><sub>Silver</sub>
+</p>
+<p align="center">
+  <img src="screenshots/silver-islands.png" alt="Silver design with islands">
+  <br><sub>Silver with islands</sub>
+</p>
+<p align="center">
+  <img src="screenshots/float.png" alt="Floating design: icons without a bar, menu, clock and tray on chips">
+  <br><sub>Float</sub>
+</p>
+
+## Features
 
 - Any screen edge, on one monitor or all. On the left or right the top bar keeps its content, optionally in the dock's look
 - Dock look, an own color, the wallpaper's or the shell and GTK theme's colors, optionally tinted app icons. The wallpaper behind the bar blurred, the app in front on a soft tile
@@ -28,7 +42,7 @@ Every extra can be switched off in the preferences.
 Pack in this folder, the ZIP is named after `version-name` in `metadata.json`:
 
 ```
-gnome-extensions pack --force --podir=po $(ls *.js | grep -vE '^(extension|prefs)\.js$' | sed 's/^/--extra-source=/') .
+gnome-extensions pack --force --podir=po --extra-source=LICENSE $(ls *.js | grep -vE '^(extension|prefs)\.js$' | sed 's/^/--extra-source=/') .
 mv silver-dock@simonlinuxcraft.github.io.shell-extension.zip silverdock-v$(sed -n 's/.*"version-name": "\(.*\)".*/\1/p' metadata.json).zip
 ```
 
@@ -48,6 +62,9 @@ ln -s "$PWD" ~/.local/share/gnome-shell/extensions/silver-dock@simonlinuxcraft.g
 ```
 
 ## Test
+
+GNOME internals stay in `takeover.js` (`dock.js` only reads `_delegate` of menus), version
+differences live in `compat.js`.
 
 ```
 gjs -m test/layout-test.js   # hover math
@@ -70,3 +87,7 @@ msgmerge --update po/de.po po/silver-dock.pot
 ```
 
 A new language starts with `msginit -l <lang> -i po/silver-dock.pot -o po/<lang>.po`.
+
+## License
+
+GPL-2.0-or-later, see `LICENSE`.

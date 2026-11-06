@@ -141,6 +141,9 @@ export function wallpaperColor(settings, dark, onLoaded) {
                             onLoaded();
                         } catch {
                             failed();
+                        } finally {
+                            // GdkPixbuf leaves the file open.
+                            stream.close_async(GLib.PRIORITY_DEFAULT, null, null);
                         }
                     });
             } catch {

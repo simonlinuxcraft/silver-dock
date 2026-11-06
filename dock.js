@@ -131,6 +131,8 @@ export class Dock {
         this._pointer = 0;
         this._hidden = false;
         this._fullscreen = false;
+        this._hold = null;
+        this._menuShown = false;
         this._gaps = [];
         this._restWidth = 0;
         this._centers = [];
@@ -217,6 +219,7 @@ export class Dock {
     }
 
     destroy() {
+        this._release();
         this.stopListening();
         this._setBlur(false);
         // ArcMenu's actors go back as they were.
@@ -242,6 +245,8 @@ export class Dock {
     // Also at logout, when GNOME destroys the bar without disabling the extension.
     stopListening() {
         this._stopped = true;
+        // GNOME drops the grab of a destroyed bar itself.
+        this._hold = null;
         this._boxes.forEach(box => box.disconnectObject(this));
         this._row.disconnectObject(this);
         this._bar.disconnectObject(this);
@@ -907,7 +912,7 @@ export class Dock {
         trustHover(button);
         button.connect('notify::hover', () => {
             if (button.hover) {
-                if (app && this._settings.get_boolean('previews') && !this._dragging && !this._menuOpen())
+                if (app && this._settings.get_boolean('previews') && !this._dragging && !this._menuOpen() && !this._hold)
                     this._previews.hoverIcon(app, button, this._side);
                 this._showLabel(item);
             } else {
@@ -1380,16 +1385,36 @@ export class Dock {
     _updateFullscreen() {
         const windows = global.workspace_manager.get_active_workspace().list_windows()
             .filter(win => win.get_monitor() === this.monitorIndex && win.showing_on_its_workspace());
-        // GNOME places a menu only on a mapped source, ArcMenu's hotkey would open it where it last was.
-        const source = global.stage.get_grab_actor()?._sourceActor;
-        const fullscreen = !Main.overview.visible && !(source && this._bar.contains(source)) &&
+        const top = !Main.overview.visible &&
             Boolean(global.display.sort_windows_by_stacking(windows).at(-1)?.is_fullscreen());
+        const grab = global.stage.get_grab_actor();
+        // GNOME places a menu only on a mapped source, ArcMenu's hotkey would open it where it last was.
+        const source = grab?._delegate?.sourceActor;
+        const menu = Boolean(source && this._bar.contains(source));
+        // A menu of the bar closed by a click on the bar: the bar stays, like a menu, for the volume and the like.
+        // Only with no grab above, dropping one below a menu takes the menu's key focus and closes it.
+        const pointed = () => this._bar.contains(global.stage.get_actor_at_pos(
+            Clutter.PickMode.REACTIVE, ...global.get_pointer().slice(0, 2)));
+        if (!grab || grab === this._bar) {
+            if (!top || (this._menuShown && !pointed()))
+                this._release();
+            else if (this._menuShown && !this._hold)
+                this._hold = Main.pushModal(this._bar, {actionMode: Shell.ActionMode.NORMAL});
+        }
+        this._menuShown = top && menu;
+        const fullscreen = top && !menu && !this._hold;
         if (fullscreen === this._fullscreen)
             return;
         this._fullscreen = fullscreen;
         for (const actor of [this._bar, this._bg, this._blur].filter(Boolean))
             actor.visible = !fullscreen;
         this._updateBarrier();
+    }
+
+    _release() {
+        if (this._hold)
+            Main.popModal(this._hold);
+        this._hold = null;
     }
 
     queueAttention() {
@@ -1639,6 +1664,12 @@ export class Dock {
     _barEvent(event) {
         const type = event.type();
         const press = type === Clutter.EventType.BUTTON_PRESS || type === Clutter.EventType.TOUCH_BEGIN;
+        // The click that ends a hold does not reach the game.
+        if (this._hold && (type === Clutter.EventType.KEY_PRESS ? event.get_key_symbol() === Clutter.KEY_Escape
+            : press && !this._bar.contains(global.stage.get_event_actor(event)))) {
+            this._release();
+            return Clutter.EVENT_STOP;
+        }
         if (type !== Clutter.EventType.MOTION && !press)
             return Clutter.EVENT_PROPAGATE;
         let button = global.stage.get_event_actor(event);

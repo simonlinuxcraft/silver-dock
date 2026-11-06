@@ -403,42 +403,9 @@
     background-color: #1c1d21;
 }
 
-/* Silver Dock with the system accent (GNOME 47+): the focused app's dot and the menu button. After the ink rules. */
+/* Silver Dock with the system accent (GNOME 47+): the focused app's dot. After the ink rules. */
 #panel.silver-dock.accent .silver-dock-dots.focused .silver-dock-dot {
     background-color: -st-accent-color;
-}
-
-#panel.silver-dock.accent .arcmenu-panel-menu {
-    background-color: -st-accent-color;
-    color: -st-accent-fg-color;
-    border-radius: 99px;
-}
-
-/* Over the lift and quiet-menus rules, which clear button backgrounds. Open it stays plain accent. */
-#panel.silver-dock.accent .arcmenu-panel-menu:hover,
-#panel.silver-dock.accent.lift-buttons .arcmenu-panel-menu:hover,
-#panel.silver-dock.accent.warp .arcmenu-panel-menu:hover {
-    background-color: st-lighten(-st-accent-color, 8%);
-}
-
-#panel.silver-dock.accent .arcmenu-panel-menu:active,
-#panel.silver-dock.accent .arcmenu-panel-menu:checked,
-#panel.silver-dock.accent.quiet-menus .arcmenu-panel-menu:active,
-#panel.silver-dock.accent.quiet-menus .arcmenu-panel-menu:checked {
-    background-color: -st-accent-color;
-}
-
-#panel.silver-dock.accent .arcmenu-panel-menu {
-    margin: 7px 2px;
-}
-
-#panel.silver-dock.accent.vertical .arcmenu-panel-menu {
-    margin: 2px 7px;
-}
-
-#panel.silver-dock.accent .arcmenu-panel-menu StIcon {
-    color: -st-accent-fg-color;
-    icon-shadow: none;
 }
 
 .silver-dock-time {

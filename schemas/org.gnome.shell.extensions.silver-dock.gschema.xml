@@ -37,10 +37,10 @@
     <key name="design" type="s">
       <choices>
         <choice value="silver"/>
-        <choice value="haiku"/>
+        <choice value="float"/>
       </choices>
       <default>'silver'</default>
-      <summary>Design of the bar: Silver Dock's own, or Haiku with a bevelled bar, a light tile behind every icon and app names on a yellow tab</summary>
+      <summary>Design of the bar: Silver Dock's own, or floating icons without a bar, the menu button, the clock and the tray on chips of their own</summary>
     </key>
     <key name="scheme" type="s">
       <choices>
@@ -50,19 +50,11 @@
         <choice value="system"/>
       </choices>
       <default>'design'</default>
-      <summary>The design's own colors light or dark: as the design has them (Silver Dock dark, Haiku light), fixed, or following the system's dark style</summary>
+      <summary>The design's own colors light or dark: as the design has them (dark), fixed, or following the system's dark style</summary>
     </key>
     <key name="islands" type="b">
       <default>false</default>
-      <summary>Silver Dock design only: the menu button, the apps and the clock with the tray on separate islands</summary>
-    </key>
-    <key name="bar-width" type="s">
-      <choices>
-        <choice value="full"/>
-        <choice value="fit"/>
-      </choices>
-      <default>'full'</default>
-      <summary>Haiku design only: the bar spans the whole screen edge, or is only as wide as its icons, clock and tray</summary>
+      <summary>Silver Dock design only, floating has them anyway: the menu button, the apps and the clock with the tray on separate islands</summary>
     </key>
     <key name="blur" type="b">
       <default>true</default>
@@ -78,6 +70,7 @@
         <choice value="magnify"/>
         <choice value="ripple"/>
         <choice value="lift"/>
+        <choice value="rise"/>
         <choice value="none"/>
       </choices>
       <default>'magnify'</default>

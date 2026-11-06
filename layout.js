@@ -6,6 +6,7 @@ export const STYLES = {
     magnify: {zoom: 1, lift: 0, flat: 0, range: 3, spread: true},
     ripple: {zoom: 0.25, lift: 0.3, flat: 0, range: 3, spread: false},
     lift: {zoom: 0, lift: 0.2, flat: 0.5, range: 0.5, spread: false, eased: true},
+    rise: {zoom: 0.25, lift: 0.2, flat: 0.5, range: 0.5, spread: false, eased: true},
     none: {zoom: 0, lift: 0, flat: 0, range: 1, spread: false},
 };
 

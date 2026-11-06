@@ -73,6 +73,8 @@ settings.set_string('colors', 'dock');
 check(!rows['Color'].visible && rows['Background opacity (%)'].visible, 'wrong color rows for the dock colors');
 settings.set_string('animation', 'lift');
 check(!rows['Magnification'].visible, 'magnification shown for lift');
+settings.set_string('animation', 'rise');
+check(rows['Magnification'].visible, 'magnification hidden for lift and grow');
 settings.set_string('animation', 'magnify');
 check(rows['Magnification'].visible, 'magnification hidden for magnify');
 settings.set_string('position', 'bottom');
@@ -101,22 +103,12 @@ rows['Hide when a window overlaps the bar'].enable_expansion = true;
 check(settings.get_boolean('autohide'), 'autohide switch not written');
 rows['Bounce while an app starts'].active = false;
 check(!settings.get_boolean('bounce'), 'bounce switch not written');
+check(rows['Support Silver Dock']?.activatable, 'ko-fi row missing');
 rows['Design'].selected = 1;
-check(settings.get_string('design') === 'haiku', 'design combo not written');
-check(settings.get_int('margin') === 0 && settings.get_int('opacity') === 100 && !rows['Corner radius'].visible,
-    'haiku did not make the bar flush and solid or left the radius row');
-check(rows['Bar width'].visible, 'bar width hidden with the haiku design');
-rows['Bar width'].selected = 1;
-check(settings.get_string('bar-width') === 'fit', 'bar width combo not written');
+check(settings.get_string('design') === 'float', 'design combo not written');
+check(!rows['Separate islands for menu, apps and clock'].visible, 'islands row shown with the floating design');
 rows['Design'].selected = 0;
-check(!rows['Bar width'].visible && rows['Corner radius'].visible && settings.get_int('margin') === 8,
-    'silver design did not restore the distance or swapped the shape rows');
-// Written elsewhere (Design Manager, dconf) the design keeps the values it comes with.
-settings.set_int('margin', 20);
-settings.set_string('design', 'haiku');
-check(rows['Design'].selected === 1 && settings.get_int('margin') === 20, 'design preset ran on an outside change');
-rows['Design'].selected = 0;
-check(settings.get_int('margin') === 20, 'silver design reset an own distance');
+check(rows['Separate islands for menu, apps and clock'].visible, 'islands row hidden with the silver design');
 rows['Design'].selected = 1;
 rows['Screen edge'].selected = 3;
 check(settings.get_string('position') === 'right', 'position combo not written');

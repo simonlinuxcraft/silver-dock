@@ -141,7 +141,6 @@ export default class SilverDock extends Extension {
 
     _services() {
         this.previews.peek = this.settings.get_boolean('peek');
-        this.previews.haiku = this.settings.get_string('design') === 'haiku';
         if (this.settings.get_boolean('trash')) {
             this.trash ??= new TrashWatcher(() => this._each(dock => dock.updateTrash()));
         } else {

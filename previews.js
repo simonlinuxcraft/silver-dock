@@ -44,22 +44,6 @@ export class WindowPreviews {
         Main.layoutManager.addChrome(this.actor);
     }
 
-    // The Haiku design restyles the popup, see the stylesheet.
-    set haiku(on) {
-        if (on)
-            this.actor.add_style_class_name('haiku');
-        else
-            this.actor.remove_style_class_name('haiku');
-    }
-
-    // Dark with the dark Haiku bar.
-    set dim(on) {
-        if (on)
-            this.actor.add_style_class_name('dim');
-        else
-            this.actor.remove_style_class_name('dim');
-    }
-
     hoverIcon(app, anchor, side) {
         this._stop('hide');
         this._pending = anchor;

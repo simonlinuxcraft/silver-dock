@@ -178,7 +178,7 @@ switch Enable "$uuid"; expect ACTIVE
 set_key icon-size 48
 set_key zoom 1.0
 set_key margin 0
-for style in ripple lift none magnify; do set_key animation "$style"; done
+for style in ripple lift rise none magnify; do set_key animation "$style"; done
 set_key bounce false
 # A moment for both docks to be placed, or the next writes run before a frame.
 set_key all-monitors true
@@ -191,7 +191,7 @@ set_key notification-badges false
 set_key poof false
 set_key blur-radius 80
 set_key highlight-active false
-set_key design haiku
+set_key design float
 set_key click-action minimize
 set_key middle-click none
 set_key scroll-workspaces false
@@ -213,7 +213,6 @@ set_key tooltips false
 set_key position top
 set_key position left
 set_key blur false
-set_key bar-width fit
 set_key badges false
 set_key trash false
 set_key drives false
@@ -222,7 +221,6 @@ set_key dnd false
 set_key peek false
 set_key scroll false
 set_key previews false
-set_key bar-width full
 set_key position right
 set_key style-top-bar false
 # Too long for the side: the icons have to shrink.

@@ -98,4 +98,9 @@ check(dropIndex(drop, SLOT, drop[2] - 5, null, 5, 2) === null && dropIndex(drop,
     'dropping an icon next to itself moves it');
 check(dropIndex(drop, SLOT, drop[4] + 5, null, 5, 2) === 5, 'moving an icon to the end refused');
 
+// Lift and grow: only the hovered icon rises and grows, in place.
+r = hover('rise', N, SLOT, 3.5 * SLOT, ZOOM, 1);
+check(near(r.scales[3], 1 + (ZOOM - 1) * 0.25) && r.lifts[3] > 0 && near(r.shifts[3], 0), 'rise: hovered icon not lifted and grown');
+check(r.scales[2] === 1 && r.lifts[2] === 0 && r.scales[4] === 1, 'rise: neighbours moved');
+
 print('layout ok');

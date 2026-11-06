@@ -106,27 +106,30 @@ export default class SilverDockPrefs extends ExtensionPreferences {
         const hiding = group(general, _('Hiding'));
         toggle(fold(hiding, 'autohide', _('Hide when a window overlaps the bar')), 'edge-pressure',
             _('Only come back when the pointer pushes against the edge'));
+        const support = group(general, _('Support'));
+        const kofi = new Adw.ActionRow({title: _('Support Silver Dock'), subtitle: _('Optional, through Ko-fi'),
+            activatable: true});
+        kofi.add_prefix(new Gtk.Image({icon_name: 'emblem-favorite-symbolic'}));
+        kofi.add_suffix(new Gtk.Image({icon_name: 'adw-external-link-symbolic'}));
+        // Ko-fi opens in the browser, payment never touches the extension.
+        kofi.connect('activated', () => new Gtk.UriLauncher({uri: 'https://ko-fi.com/simonlinuxcraft'})
+            .launch(window, null, (launcher, result) => {
+                try {
+                    launcher.launch_finish(result);
+                } catch (e) {
+                    console.warn(`Silver Dock: ${e.message}`);
+                }
+            }));
+        support.add(kofi);
 
         const appearance = page(_('Appearance'), 'applications-graphics-symbolic');
         const bar = group(appearance, _('Bar'));
-        // Haiku's bar is solid and flush with the edge, Silver Dock's floats and lets the desktop through.
-        // Back on Silver Dock only values still at Haiku's go back.
-        const haikuBar = {margin: 0, opacity: 100};
-        choice(bar, 'design', _('Design'), [['silver', _('Silver Dock')], ['haiku', _('Haiku')]], () => {
-            for (const [key, value] of Object.entries(haikuBar)) {
-                if (is('design', 'haiku'))
-                    settings.set_int(key, value);
-                else if (settings.get_int(key) === value)
-                    settings.reset(key);
-            }
-        });
-        showIf(choice(bar, 'bar-width', _('Bar width'), [['full', _('Whole screen edge')], ['fit', _('As wide as its content')]]),
-            () => is('design', 'haiku'), 'design');
-        showIf(toggle(bar, 'islands', _('Separate islands for menu, apps and clock')), () => !is('design', 'haiku'),
+        choice(bar, 'design', _('Design'), [['silver', _('Silver Dock')], ['float', _('Floating')]]);
+        // Floating always has them.
+        showIf(toggle(bar, 'islands', _('Separate islands for menu, apps and clock')), () => is('design', 'silver'),
             'design');
         spin(bar, 'margin', _('Distance from screen edge'), 0, 48, 1);
-        // Haiku's bar is always square.
-        showIf(spin(bar, 'radius', _('Corner radius'), 0, 48, 1), () => !is('design', 'haiku'), 'design');
+        spin(bar, 'radius', _('Corner radius'), 0, 48, 1);
         toggle(bar, 'shadow', _('Shadow'));
         toggle(bar, 'separators', _('Separators'));
         spin(fold(bar, 'blur', _('Blur the wallpaper behind the bar')), 'blur-radius', _('Strength'), 5, 100, 5);
@@ -170,8 +173,10 @@ export default class SilverDockPrefs extends ExtensionPreferences {
         const motion = page(_('Animation'), 'media-playback-start-symbolic');
         const hover = group(motion, _('Hover'));
         choice(hover, 'animation', _('Hover animation'),
-            [['magnify', _('Magnify')], ['ripple', _('Ripple')], ['lift', _('Lift')], ['none', _('None')]]);
-        showIf(spin(hover, 'zoom', _('Magnification'), 1, 2.5, 0.1, 1), () => is('animation', 'magnify', 'ripple'), 'animation');
+            [['magnify', _('Magnify')], ['ripple', _('Ripple')], ['lift', _('Lift')], ['rise', _('Lift and grow')],
+                ['none', _('None')]]);
+        showIf(spin(hover, 'zoom', _('Magnification'), 1, 2.5, 0.1, 1), () => is('animation', 'magnify', 'ripple', 'rise'),
+            'animation');
         const moving = group(motion, _('Icon effects'));
         toggle(moving, 'pop', _('Apps pop in and out'));
         toggle(moving, 'bounce', _('Bounce while an app starts'));

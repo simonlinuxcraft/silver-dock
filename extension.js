@@ -104,7 +104,13 @@ export default class SilverDock extends Extension {
         this._watched?.forEach(win => win.set_icon_geometry(null));
         this._docks?.forEach(dock => dock.destroy());
         this.previews?.destroy();
-        this.settings = this._iface = this._background = this.volumes = this.previews = this._docks = this._watched = null;
+        this.settings = null;
+        this._iface = null;
+        this._background = null;
+        this.volumes = null;
+        this.previews = null;
+        this._docks = null;
+        this._watched = null;
     }
 
     // GNOME tears the stage down at logout without disabling extensions.

@@ -106,21 +106,6 @@ export default class SilverDockPrefs extends ExtensionPreferences {
         const hiding = group(general, _('Hiding'));
         toggle(fold(hiding, 'autohide', _('Hide when a window overlaps the bar')), 'edge-pressure',
             _('Only come back when the pointer pushes against the edge'));
-        const support = group(general, _('Support'));
-        const kofi = new Adw.ActionRow({title: _('Support Silver Dock'), subtitle: _('Optional, through Ko-fi'),
-            activatable: true});
-        kofi.add_prefix(new Gtk.Image({icon_name: 'emblem-favorite-symbolic'}));
-        kofi.add_suffix(new Gtk.Image({icon_name: 'adw-external-link-symbolic'}));
-        // Ko-fi opens in the browser, payment never touches the extension.
-        kofi.connect('activated', () => new Gtk.UriLauncher({uri: 'https://ko-fi.com/simonlinuxcraft'})
-            .launch(window, null, (launcher, result) => {
-                try {
-                    launcher.launch_finish(result);
-                } catch (e) {
-                    console.warn(`Silver Dock: ${e.message}`);
-                }
-            }));
-        support.add(kofi);
 
         const appearance = page(_('Appearance'), 'applications-graphics-symbolic');
         const bar = group(appearance, _('Bar'));
@@ -189,5 +174,25 @@ export default class SilverDockPrefs extends ExtensionPreferences {
         toggle(windows, 'springy', _('Bar springs back in after hiding'));
         toggle(windows, 'minimize-to-icon', _('Windows minimize into their icon'));
         showIf(toggle(windows, 'warp', _('Warp start for the ArcMenu button')), topBarInDock, 'position', 'keep-top-bar');
+
+        const support = new Adw.PreferencesGroup({
+            description: _('Silver Dock is made in my spare time. If it helps you, you can support it ' +
+                'with a voluntary payment on Ko-fi. Nothing gets unlocked by it.'),
+        });
+        page(_('Support'), 'emblem-favorite-symbolic').add(support);
+        const kofi = new Adw.ActionRow({title: _('Support Silver Dock'), subtitle: _('Optional, through Ko-fi'),
+            activatable: true});
+        kofi.add_prefix(new Gtk.Image({icon_name: 'emblem-favorite-symbolic'}));
+        kofi.add_suffix(new Gtk.Image({icon_name: 'adw-external-link-symbolic'}));
+        // Ko-fi opens in the browser, payment never touches the extension.
+        kofi.connect('activated', () => new Gtk.UriLauncher({uri: 'https://ko-fi.com/simonlinuxcraft'})
+            .launch(window, null, (launcher, result) => {
+                try {
+                    launcher.launch_finish(result);
+                } catch (e) {
+                    console.warn(`Silver Dock: ${e.message}`);
+                }
+            }));
+        support.add(kofi);
     }
 }

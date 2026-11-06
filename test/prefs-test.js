@@ -103,7 +103,8 @@ rows['Hide when a window overlaps the bar'].enable_expansion = true;
 check(settings.get_boolean('autohide'), 'autohide switch not written');
 rows['Bounce while an app starts'].active = false;
 check(!settings.get_boolean('bounce'), 'bounce switch not written');
-check(rows['Support Silver Dock']?.activatable, 'ko-fi row missing');
+check(rows['Support Silver Dock']?.activatable &&
+    rows['Support Silver Dock'].get_ancestor(Adw.PreferencesPage)?.title === 'Support', 'ko-fi row missing or not on its own page');
 rows['Design'].selected = 1;
 check(settings.get_string('design') === 'float', 'design combo not written');
 check(!rows['Separate islands for menu, apps and clock'].visible, 'islands row shown with the floating design');

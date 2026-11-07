@@ -1,11 +1,11 @@
 #!/bin/bash
-# test/smoke.sh on GNOME 46 to 49 (Ubuntu releases in podman), Wayland and X11 where it exists.
-# Usage: test/gnome.sh [46 47 48 49]
+# test/smoke.sh on GNOME 46 to 49 and 51 (Ubuntu releases in podman), Wayland and X11 where it exists.
+# Usage: test/gnome.sh [46 47 48 49 51]
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
-declare -A release=([46]=24.04 [47]=24.10 [48]=25.04 [49]=25.10)
+declare -A release=([46]=24.04 [47]=24.10 [48]=25.04 [49]=25.10 [51]=26.10)
 versions=("$@")
-(( $# )) || versions=(46 47 48 49)
+(( $# )) || versions=(46 47 48 49 51)
 for v in "${versions[@]}"; do
     image=silver-dock-gnome$v
     podman image exists "$image" ||

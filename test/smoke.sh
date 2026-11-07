@@ -233,10 +233,10 @@ gsettings --schemadir "$root/schemas" reset-recursively "$schema"
 sleep 1
 expect ACTIVE
 
-# GNOME's own noise: before 50 about moved top bar containers (at its startup too), on X11
+# GNOME's own noise: outside 50 about moved top bar containers (at its startup too), on X11
 # about window actors of a maximized window shrinking for any strut.
 noise='^$'
-if (( $(gnome-shell --version | sed 's/[^0-9]*\([0-9]*\).*/\1/') < 50 )); then
+if (( $(gnome-shell --version | sed 's/[^0-9]*\([0-9]*\).*/\1/') != 50 )); then
     noise="Can't update stage views actor unnamed \[StBin\]"
 fi
 if [[ $x11 ]]; then

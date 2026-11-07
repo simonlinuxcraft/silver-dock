@@ -38,11 +38,11 @@ export default class SilverDock extends Extension {
         this._iface = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
         this._background = new Gio.Settings({schema_id: 'org.gnome.desktop.background'});
         this.volumes = Gio.VolumeMonitor.get();
-        this.launcher = new LauncherEntries(() => this._each(dock => dock.queueBadges()));
-        this.notifications = new NotificationCounts(() => this._each(dock => dock.queueBadges()));
+        const badges = () => this._each(dock => dock.queueBadges());
+        this.launcher = new LauncherEntries(badges);
+        this.notifications = new NotificationCounts(badges);
         this.media = new MediaPlayers();
         this.previews = new WindowPreviews(() => this._each(dock => dock.previewsChanged()));
-        this.trash = null;
         this._docks = [];
         this._watched = new Set();
 

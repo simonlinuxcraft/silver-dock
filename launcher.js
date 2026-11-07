@@ -10,7 +10,6 @@ const entries = new Map();
 
 export class LauncherEntries {
     constructor(onChange) {
-        this._entries = entries;
         this._onChange = onChange;
         const bus = Gio.DBus.session;
         this._subscriptions = [
@@ -31,14 +30,10 @@ export class LauncherEntries {
         const senders = new Set([...entries.values()].map(entry => entry.sender));
         if (senders.size) {
             bus.call('org.freedesktop.DBus', '/org/freedesktop/DBus', 'org.freedesktop.DBus', 'ListNames', null, null,
-                Gio.DBusCallFlags.NONE, -1, null, (c, result) => {
-                    try {
-                        const [names] = c.call_finish(result).deepUnpack();
-                        senders.forEach(sender => names.includes(sender) || this._ownerChanged(sender, sender, ''));
-                    } catch (e) {
-                        console.log(`Silver Dock: launcher entries (${e.message})`);
-                    }
-                });
+                Gio.DBusCallFlags.NONE, -1, null).then(reply => {
+                const [names] = reply.deepUnpack();
+                senders.forEach(sender => names.includes(sender) || this._ownerChanged(sender, sender, ''));
+            }).catch(e => console.log(`Silver Dock: launcher entries (${e.message})`));
         }
     }
 
@@ -51,21 +46,20 @@ export class LauncherEntries {
     }
 
     get(appId) {
-        return this._entries.get(appId);
+        return entries.get(appId);
     }
 
-    // Only known keys of installed apps are kept.
     _update(sender, uri, props) {
         const id = String(uri).replace(/^\w+:\/\//, '');
         if (!Shell.AppSystem.get_default().lookup_app(id))
             return;
-        const entry = this._entries.get(id) ?? {};
+        const entry = entries.get(id) ?? {};
         for (const key of KEYS) {
             if (Object.hasOwn(props, key))
                 entry[key] = props[key];
         }
         entry.sender = sender;
-        this._entries.set(id, entry);
+        entries.set(id, entry);
         this._onChange();
     }
 
@@ -73,9 +67,9 @@ export class LauncherEntries {
         if (newOwner)
             return;
         let changed = false;
-        for (const [id, entry] of this._entries) {
+        for (const [id, entry] of entries) {
             if (entry.sender === name) {
-                this._entries.delete(id);
+                entries.delete(id);
                 changed = true;
             }
         }

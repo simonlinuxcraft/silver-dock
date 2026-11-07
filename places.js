@@ -11,7 +11,6 @@ function isRemovable(mount) {
     return mount.can_eject() || Boolean(mount.get_drive()?.is_removable());
 }
 
-// Internal drives are a sub-switch of drives in the prefs.
 export function driveMounts(monitor, removable, internal) {
     return removable ? monitor.get_mounts().filter(mount => !mount.is_shadowed() &&
         (isRemovable(mount) || internal && mount.get_root().is_native())) : [];
@@ -50,13 +49,7 @@ export function placeActions(place) {
 function emptyTrash() {
     Gio.DBus.session.call('org.gnome.Nautilus', '/org/gnome/Nautilus/FileOperations2',
         'org.gnome.Nautilus.FileOperations2', 'EmptyTrash', new GLib.Variant('(ba{sv})', [true, {}]),
-        null, Gio.DBusCallFlags.NONE, -1, null, (bus, result) => {
-            try {
-                bus.call_finish(result);
-            } catch (e) {
-                Main.notifyError(_('Cannot empty the trash'), e.message);
-            }
-        });
+        null, Gio.DBusCallFlags.NONE, -1, null).catch(e => Main.notifyError(_('Cannot empty the trash'), e.message));
 }
 
 function eject(mount) {

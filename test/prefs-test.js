@@ -18,13 +18,10 @@ const window = new Adw.PreferencesWindow();
 await prefs.fillPreferencesWindow(window);
 
 const rows = {};
-const groups = {};
 const walk = widget => {
     for (let child = widget.get_first_child(); child; child = child.get_next_sibling()) {
         if (child instanceof Adw.PreferencesRow)
             rows[child.title] ??= child; // an expander holds a header row of the same title
-        if (child instanceof Adw.PreferencesGroup)
-            groups[child.title] = child;
         walk(child);
     }
 };

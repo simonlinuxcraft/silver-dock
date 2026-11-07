@@ -8,7 +8,7 @@ const NAMED = {black: '0, 0, 0', white: '255, 255, 255'};
 // "r, g, b" or null
 export function parseColor(value) {
     value = value.trim().toLowerCase();
-    if (NAMED[value])
+    if (Object.hasOwn(NAMED, value))
         return NAMED[value];
     let m = value.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/);
     if (m) {
@@ -78,17 +78,15 @@ function loadThemeCss(name, dark, done) {
         }
         const file = Gio.File.new_for_path(GLib.build_filenamev([bases[base], variants[variant]]));
         file.load_contents_async(null, (f, result) => {
-            let text = null;
+            let text;
             try {
                 text = new TextDecoder().decode(f.load_contents_finish(result)[1]);
             } catch {
-            }
-            if (text === null) {
                 next(variant, base + 1);
-            } else {
-                files.push(text);
-                next(variant + 1, 0);
+                return;
             }
+            files.push(text);
+            next(variant + 1, 0);
         });
     };
     next(0, 0);

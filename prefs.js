@@ -43,8 +43,7 @@ export default class SilverDockPrefs extends ExtensionPreferences {
             g.add(row);
             return row;
         };
-        // picked: only when the user picks, not when the key changes elsewhere (Design Manager, dconf).
-        const choice = (g, key, title, options, picked) => {
+        const choice = (g, key, title, options) => {
             const row = new Adw.ComboRow({title, model: Gtk.StringList.new(options.map(([, label]) => label))});
             let showing = false;
             const show = () => {
@@ -58,7 +57,6 @@ export default class SilverDockPrefs extends ExtensionPreferences {
                 if (showing)
                     return;
                 settings.set_string(key, options[row.selected][0]);
-                picked?.();
             });
             g.add(row);
             return row;

@@ -35,7 +35,7 @@ export class MediaPlayers {
 
     // Resolved late, a player may come up before its window.
     forApp(app) {
-        return [...this._players.values()].filter(player => player?.proxy && [
+        return [...this._players.values()].filter(player => player.proxy && [
             typeof player.entry === 'string' && Shell.AppSystem.get_default().lookup_app(`${player.entry}.desktop`),
             Shell.WindowTracker.get_default().get_app_from_pid(player.pid),
         ].includes(app));
@@ -49,15 +49,8 @@ export class MediaPlayers {
                 'GetConnectionUnixProcessID', new GLib.Variant('(s)', [name]));
             const [entry] = await this._call(name, PATH, 'org.freedesktop.DBus.Properties', 'Get',
                 new GLib.Variant('(ss)', [MPRIS, 'DesktopEntry'])).catch(() => []);
-            const proxy = await new Promise((resolve, reject) => Gio.DBusProxy.new(Gio.DBus.session,
-                Gio.DBusProxyFlags.DO_NOT_AUTO_START, null, name, PATH, `${MPRIS}.Player`, this._cancellable,
-                (o, result) => {
-                    try {
-                        resolve(Gio.DBusProxy.new_finish(result));
-                    } catch (e) {
-                        reject(e);
-                    }
-                }));
+            const proxy = await Gio.DBusProxy.new(Gio.DBus.session, Gio.DBusProxyFlags.DO_NOT_AUTO_START, null,
+                name, PATH, `${MPRIS}.Player`, this._cancellable);
             // Gone or replaced meanwhile.
             if (this._players.get(name) === token)
                 this._players.set(name, {entry, pid, proxy});
@@ -66,15 +59,10 @@ export class MediaPlayers {
         }
     }
 
-    _call(name, path, iface, method, args) {
-        return new Promise((resolve, reject) => Gio.DBus.session.call(name, path, iface, method, args, null,
-            Gio.DBusCallFlags.NONE, -1, this._cancellable, (bus, result) => {
-                try {
-                    resolve(bus.call_finish(result).recursiveUnpack());
-                } catch (e) {
-                    reject(e);
-                }
-            }));
+    async _call(name, path, iface, method, args) {
+        const reply = await Gio.DBus.session.call(name, path, iface, method, args, null,
+            Gio.DBusCallFlags.NONE, -1, this._cancellable);
+        return reply.recursiveUnpack();
     }
 
     _log(e) {

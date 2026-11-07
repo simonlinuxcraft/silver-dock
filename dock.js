@@ -156,6 +156,7 @@ export class Dock {
         this._reach = new St.Widget({visible: false});
         // Named like the top bar, the moved panel buttons keep their theme styling.
         this._bar = new St.BoxLayout({name: 'panel', style_class: 'silver-dock', reactive: true, track_hover: true});
+        setClass(this._bar, 'accent', HAS_ACCENT);
         this._row = new St.Widget({reactive: true, track_hover: true});
         [this._bar, this._row].forEach(trustHover);
         this._label = new St.Label({style_class: 'dash-label', visible: false});
@@ -242,7 +243,6 @@ export class Dock {
         this._items.forEach(item => this._destroyItem(item));
         this._dockMenu?.destroy();
         this._clock?.destroy();
-        this._clock = null;
         // The panel boxes would die with the bar.
         restorePanel(this._bar, this._boxes);
         this._undress();
@@ -260,11 +260,7 @@ export class Dock {
         this._amount.disconnectObject(this);
         Object.values(this._laters).forEach(id => id && global.compositor.get_laters().remove(id));
         this._laters = {};
-        for (const timer of ['_hideTimer', '_wiggleTimer', '_revealTimer', '_settleTimer']) {
-            if (this[timer])
-                GLib.source_remove(this[timer]);
-            this[timer] = 0;
-        }
+        ['_hideTimer', '_wiggleTimer', '_revealTimer', '_settleTimer'].forEach(name => this._stop(name));
         if (this._dragMonitor)
             DND.removeDragMonitor(this._dragMonitor);
         this._dragMonitor = null;
@@ -313,7 +309,6 @@ export class Dock {
         this._accent = colors.accent ?? null;
         // The stylesheet's system accent needs GNOME 47.
         setClass(this._bar, 'themed', themed && HAS_ACCENT);
-        setClass(this._bar, 'accent', HAS_ACCENT);
         const shadow = this._settings.get_boolean('shadow');
         setClass(this._bg, 'silver-dock-shadow', shadow && !this._islands && !this._float);
         this._pieces.forEach(piece => setClass(piece, 'silver-dock-shadow', shadow));
@@ -432,16 +427,15 @@ export class Dock {
         this._mask.setShape(width, height, this._settings.get_int('radius') * this._scale, this._vertical, spans);
     }
 
-    // [start, length] of the four islands from the background's start: menu, apps, clock with the tray, and the tray
-    // alone when floating (then the clock alone, the apps none). An empty one has no length. The gaps are the outer
-    // separators and the tray's margin, less the islands' end padding inside them.
+    // [start, length] of menu, apps, clock (with the tray) and tray from the background's start, empty ones zero.
+    // Floating, the clock and tray split and the apps have no island.
     _islandSpans(startShift, endShift, total) {
         const end = this._end * this._scale;
         const [first, second] = this._seps.map(sep => {
             const box = sep.get_allocation_box();
             return this._vertical ? [box.y1, box.get_height()] : [box.x1, box.get_width()];
         });
-        const filled = box => Boolean(box?.get_children().some(child => child.visible));
+        const filled = box => box.get_children().some(child => child.visible);
         const [left, center, right] = this._boxes;
         const shift = endShift - startShift;
         const appsStart = first[0] + first[1] - end;
@@ -456,14 +450,14 @@ export class Dock {
                 [0, 0],
             ];
         }
+        const clock = filled(center);
+        if (!filled(right))
+            return [menu, [0, 0], clock ? [sysStart, total - sysStart] : [0, 0], [0, 0]];
         const box = right.get_allocation_box();
         const trayStart = (this._vertical ? box.y1 : box.x1) + shift - end;
         const gap = (ISLAND_GAP + 2 * this._end) * this._scale;
-        if (!filled(right))
-            return [menu, [0, 0], filled(center) ? [sysStart, total - sysStart] : [0, 0], [0, 0]];
-        return [menu, [0, 0],
-            filled(center) ? [sysStart, trayStart + 2 * end - gap - sysStart] : [0, 0],
-            [filled(center) ? trayStart : sysStart, total - (filled(center) ? trayStart : sysStart)]];
+        const tray = clock ? trayStart : sysStart;
+        return [menu, [0, 0], clock ? [sysStart, trayStart + 2 * end - gap - sysStart] : [0, 0], [tray, total - tray]];
     }
 
     _xy(along, across) {
@@ -526,7 +520,7 @@ export class Dock {
             inner: INNER * s,
             outer: OUTER * s,
             slot: icon + Math.round(icon / 5),
-            big: Math.round(icon * peak / s) * s, // rendered at the largest size and scaled down, stays sharp
+            big: Math.round(icon * peak / s) * s,
             thick: (INNER + OUTER) * s + icon,
         };
         // Room around the icon, at rest as wide as a slot.
@@ -710,16 +704,10 @@ export class Dock {
             return item.section === 1 && !item.leaving && !item.app.is_window_backed() &&
                 now - item.born < STARTUP && now - item.goneAt < SETTLE;
         });
-        if (this._settleTimer)
-            GLib.source_remove(this._settleTimer);
-        this._settleTimer = 0;
+        this._stop('_settleTimer');
         if (settling.length) {
             const wait = Math.min(...settling.map(item => item.goneAt + SETTLE - now));
-            this._settleTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, Math.ceil(wait) + 1, () => {
-                this._settleTimer = 0;
-                this.sync();
-                return GLib.SOURCE_REMOVE;
-            });
+            this._start('_settleTimer', Math.ceil(wait) + 1, () => this.sync());
         }
         return settling;
     }
@@ -918,10 +906,12 @@ export class Dock {
             gaps[i + 1] -= (1 - room) * slot / 2;
         });
         this._restNoDrop = rest(n, slot, gaps);
-        if (this._dropIndex !== null)
+        let {centers, width} = this._restNoDrop;
+        if (this._dropIndex !== null) {
             gaps[this._dropIndex] += slot;
+            ({centers, width} = rest(n, slot, gaps));
+        }
         this._gaps = gaps;
-        const {centers, width} = rest(n, slot, gaps);
         this._centers = centers;
         this._restWidth = width;
 
@@ -1121,14 +1111,23 @@ export class Dock {
         }
     }
 
-    _reveal() {
-        if (this._revealTimer)
-            GLib.source_remove(this._revealTimer);
-        this._revealTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, REVEAL_TIME, () => {
-            this._revealTimer = 0;
-            this._updateAutohide();
+    _stop(name) {
+        if (this[name])
+            GLib.source_remove(this[name]);
+        this[name] = 0;
+    }
+
+    _start(name, delay, fn) {
+        this._stop(name);
+        this[name] = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
+            this[name] = 0;
+            fn();
             return GLib.SOURCE_REMOVE;
         });
+    }
+
+    _reveal() {
+        this._start('_revealTimer', REVEAL_TIME, () => this._updateAutohide());
         this._updateAutohide();
     }
 
@@ -1377,7 +1376,6 @@ export class Dock {
     }
 
     iconRect(app) {
-        // Places have no app either.
         const button = app && this._items.find(item => item.app === app && !item.leaving)?.button;
         if (!button?.get_stage())
             return null;
@@ -1416,9 +1414,7 @@ export class Dock {
             left: [m.x, centerY],
             right: [m.x + m.width - w, centerY],
         }[this._position];
-        // The bar always takes its place at once, a popping icon grows the row every frame. Anything else
-        // resizing it at once (a tray icon) glides: an offset along the bar eases out, also when the row
-        // grows meanwhile and also from the middle of an earlier glide.
+        // Popping icons resize the bar every frame and move it at once, other jumps (a tray icon) glide.
         const [prop, along, across] = this._vertical ? ['y', y, x] : ['x', x, y];
         const glide = this._along.replace('_', '-');
         const size = this._vertical ? 'height' : 'width';
@@ -1472,13 +1468,7 @@ export class Dock {
         if (key === this._barrierKey)
             return;
         if (!now && key && this._barrierKey) {
-            if (this._barrierTimer)
-                GLib.source_remove(this._barrierTimer);
-            this._barrierTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, MOVE_TIME, () => {
-                this._barrierTimer = 0;
-                this._updateBarrier(true);
-                return GLib.SOURCE_REMOVE;
-            });
+            this._start('_barrierTimer', MOVE_TIME, () => this._updateBarrier(true));
             return;
         }
         this._removeBarrier();
@@ -1505,9 +1495,7 @@ export class Dock {
     }
 
     _removeBarrier() {
-        if (this._barrierTimer)
-            GLib.source_remove(this._barrierTimer);
-        this._barrierTimer = 0;
+        this._stop('_barrierTimer');
         this._pressure?.destroy();
         this._barrier?.destroy();
         this._pressure = this._barrier = this._barrierKey = null;
@@ -1559,9 +1547,8 @@ export class Dock {
                 this._pointer = this._vertical ? y : x;
         }
         const hovered = eased ? Number(this._row.hover || this._keyFocus !== null) : this._amount.value;
-        const {scales, lifts, left, right, ...spread} = hover(
+        const {scales, lifts, shifts, left, right} = hover(
             this._style, n, slot, this._pointer, zoom, this._dragging ? 0 : hovered, this._gaps);
-        const {shifts} = spread;
 
         this._items.forEach((item, i) => {
             const {button, indicator} = item;
@@ -1601,24 +1588,24 @@ export class Dock {
         // Where a glide has it now.
         const along = rest + this._bar[this._along];
         const bgAt = this._xy(along + startShift, across + (this._edgeFirst ? margin : 0));
-        const bgSize = this._xy(length - startShift + endShift, thick - margin);
+        const width = length - startShift + endShift;
+        const bgSize = this._xy(width, thick - margin);
         this._bg.set_position(...bgAt);
         this._bg.set_size(...bgSize);
-        const spans = this._islands ? this._islandSpans(startShift, endShift, length - startShift + endShift)
-            : this._float ? [] : [[0, length - startShift + endShift]];
-        this._pieces.forEach((piece, i) => {
-            if (!this._islands)
-                return;
-            const [at, size] = spans[i];
-            piece.set_position(...this._xy(at, 0));
-            piece.set_size(...this._xy(size, thick - margin));
-        });
+        const spans = this._islands ? this._islandSpans(startShift, endShift, width) : this._float ? [] : [[0, width]];
+        if (this._islands) {
+            this._pieces.forEach((piece, i) => {
+                const [at, size] = spans[i];
+                piece.set_position(...this._xy(at, 0));
+                piece.set_size(...this._xy(size, thick - margin));
+            });
+        }
         // The blur mask takes three, at most three have a length.
         this._placeBlur(...bgAt, ...bgSize, spans.filter(([, size]) => size > 0));
         // Growth plus the highest lift (ripple, 0.3 slot) stays below one slot.
         const over = this._geom.big - this._geom.icon + slot;
         this._reach.set_position(...this._xy(along + startShift, this._edgeFirst ? across + thick : across - over));
-        this._reach.set_size(...this._xy(length - startShift + endShift, over));
+        this._reach.set_size(...this._xy(width, over));
         this._placeLabel();
     }
 
@@ -1656,9 +1643,15 @@ export class Dock {
             this._liftButton(this._hovered, false, immediate);
         }
         this._hovered = button;
-        button?.connectObject('destroy', () => (this._hovered = null), this);
-        if (button)
+        if (button) {
+            button.connectObject('destroy', () => (this._hovered = null), this);
             this._liftButton(button, true);
+        }
+    }
+
+    _rocketPose(up) {
+        const scale = up ? 1.12 : 1;
+        return {translation_y: up ? this._dir * WARP_LIFT * this._scale : 0, scale_x: scale, scale_y: scale};
     }
 
     // Off hover back to rest, whatever the settings say by now.
@@ -1674,11 +1667,8 @@ export class Dock {
             settle(content, {[this._across]: lift ? this._dir * BUTTON_LIFT * this._scale : 0}, immediate, params);
         if (warp)
             this._useRocket(rocket);
-        if (rocket && (immediate || !this._flying)) {
-            const scale = warp ? 1.12 : 1;
-            const y = warp ? this._dir * WARP_LIFT * this._scale : 0;
-            settle(rocket, {translation_y: y, scale_x: scale, scale_y: scale}, immediate, params);
-        }
+        if (rocket && (immediate || !this._flying))
+            settle(rocket, this._rocketPose(warp), immediate, params);
     }
 
     _useRocket(rocket) {
@@ -1686,12 +1676,14 @@ export class Dock {
             return;
         if (this._rocket) {
             this._rocket.disconnectObject(this);
-            settle(this._rocket, {translation_y: 0, scale_x: 1, scale_y: 1, opacity: 255}, true);
+            settle(this._rocket, {...this._rocketPose(false), opacity: 255}, true);
             this._rocket.set_pivot_point(0, 0);
         }
         this._rocket = rocket;
-        rocket?.set_pivot_point(0.5, 0.5);
-        rocket?.connectObject('destroy', () => (this._rocket = null), this);
+        if (rocket) {
+            rocket.set_pivot_point(0.5, 0.5);
+            rocket.connectObject('destroy', () => (this._rocket = null), this);
+        }
     }
 
     _launch(rocket) {
@@ -1716,11 +1708,9 @@ export class Dock {
 
     _land(rocket, from) {
         this._flying = false;
-        const up = rocketOf(this._hovered) === rocket;
-        const scale = up ? 1.12 : 1;
         Object.assign(rocket, {translation_y: from, scale_x: 1, scale_y: 1});
         rocket.ease({
-            translation_y: up ? this._dir * WARP_LIFT * this._scale : 0, scale_x: scale, scale_y: scale,
+            ...this._rocketPose(rocketOf(this._hovered) === rocket),
             duration: 380, mode: Clutter.AnimationMode.EASE_OUT_BACK,
         });
         rocket.ease({opacity: 255, duration: 200, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
@@ -1931,19 +1921,15 @@ export class Dock {
 
     _updateAutohide() {
         if (!this._shouldHide()) {
-            if (this._hideTimer)
-                GLib.source_remove(this._hideTimer);
-            this._hideTimer = 0;
+            this._stop('_hideTimer');
             this._slide(false);
             return;
         }
         if (this._hidden || this._hideTimer)
             return;
-        this._hideTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, HIDE_DELAY, () => {
-            this._hideTimer = 0;
+        this._start('_hideTimer', HIDE_DELAY, () => {
             if (this._shouldHide())
                 this._slide(true);
-            return GLib.SOURCE_REMOVE;
         });
     }
 

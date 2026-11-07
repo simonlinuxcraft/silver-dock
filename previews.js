@@ -99,7 +99,7 @@ export class WindowPreviews {
         this._onChange();
     }
 
-    // Off the stage before the children go, see Dock.destroy().
+    // Flush a pending relayout and leave the stage before the children go, see Dock.destroy().
     destroy() {
         this._stop('show');
         this._stop('hide');

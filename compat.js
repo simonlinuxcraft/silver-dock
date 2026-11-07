@@ -1,4 +1,4 @@
-// Differences between GNOME 46 and 50, next to takeover.js the place to check first.
+// Differences between GNOME 46 and 51, next to takeover.js the place to check first.
 import Clutter from 'gi://Clutter';
 import Cogl from 'gi://Cogl';
 import Meta from 'gi://Meta';

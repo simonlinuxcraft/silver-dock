@@ -1,18 +1,18 @@
+import Cairo from 'cairo';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
 
 const EVERY = 2;
-const HISTORY = 8;
 
 function read(path) {
     const [, bytes] = GLib.file_get_contents(path);
     return new TextDecoder().decode(bytes);
 }
 
-// CPU share of the last HISTORY samples and the memory in use, each 0 to 1.
+// CPU share, smoothed over the last samples, and the memory in use, each 0 to 1.
 export class SystemLoad {
     constructor(onChange) {
-        this.cpu = new Array(HISTORY).fill(0);
+        this.cpu = 0;
         this.memory = 0;
         this._last = null;
         this._sample();
@@ -31,8 +31,8 @@ export class SystemLoad {
             const total = ticks.reduce((sum, t) => sum + t, 0);
             if (this._last) {
                 const spent = total - this._last.total;
-                this.cpu.shift();
-                this.cpu.push(spent > 0 ? 1 - (idle - this._last.idle) / spent : 0);
+                const now = spent > 0 ? 1 - (idle - this._last.idle) / spent : 0;
+                this.cpu = (this.cpu + now) / 2;
             }
             this._last = {idle, total};
             const mem = Object.fromEntries(read('/proc/meminfo').split('\n').map(line => {
@@ -50,8 +50,8 @@ export class SystemLoad {
     }
 }
 
-// CPU history as bars, the memory as the wider bar on the right. Its own opaque tile like an app icon:
-// the floating design has no bar behind it.
+// CPU as the outer ring with its percentage inside, memory as the inner ring. Its own opaque tile like
+// an app icon: the floating design has no bar behind it.
 export function loadGraph(load, size) {
     const area = new St.DrawingArea({width: size, height: size});
     area.connect('repaint', () => {
@@ -68,18 +68,28 @@ export function loadGraph(load, size) {
         cr.setSourceRGB(0.17, 0.18, 0.21);
         cr.fill();
 
-        const pad = w * 0.16;
-        const inner = h - 2 * pad;
-        const step = (w - 2 * pad) / (HISTORY + 3);
-        const bar = (x, width, share) => {
-            const height = Math.max(1, Math.min(1, share) * inner);
-            cr.rectangle(x, h - pad - height, width, height);
-            cr.fill();
+        const cx = w / 2, cy = h / 2;
+        const ring = (radius, width, share, [red, green, blue]) => {
+            cr.setLineWidth(width);
+            cr.setSourceRGBA(1, 1, 1, 0.1);
+            cr.arc(cx, cy, radius, 0, 2 * Math.PI);
+            cr.stroke();
+            cr.setSourceRGB(red, green, blue);
+            cr.arc(cx, cy, radius, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * Math.min(1, share));
+            cr.stroke();
         };
-        cr.setSourceRGB(0.4, 0.85, 0.6);
-        load.cpu.forEach((share, i) => bar(pad + i * step, step * 0.7, share));
-        cr.setSourceRGB(0.55, 0.7, 0.95);
-        bar(pad + (HISTORY + 1) * step, step * 2, load.memory);
+        // Green, then amber above 60 %, red above 85 %.
+        const cpuColor = load.cpu > 0.85 ? [0.95, 0.35, 0.3] : load.cpu > 0.6 ? [0.98, 0.72, 0.25] : [0.4, 0.85, 0.6];
+        ring(w * 0.34, w * 0.07, load.cpu, cpuColor);
+        ring(w * 0.25, w * 0.04, load.memory, [0.55, 0.7, 0.95]);
+
+        const text = `${Math.round(load.cpu * 100)}`;
+        cr.selectFontFace('Sans', Cairo.FontSlant.NORMAL, Cairo.FontWeight.BOLD);
+        cr.setFontSize(w * (text.length > 2 ? 0.17 : 0.21));
+        const ext = cr.textExtents(text);
+        cr.setSourceRGB(0.93, 0.94, 0.96);
+        cr.moveTo(cx - ext.width / 2 - ext.xBearing, cy - ext.height / 2 - ext.yBearing);
+        cr.showText(text);
         cr.$dispose();
     });
     return area;

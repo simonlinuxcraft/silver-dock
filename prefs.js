@@ -1,7 +1,9 @@
 import Adw from 'gi://Adw';
 import Gdk from 'gi://Gdk';
 import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
 import Gtk from 'gi://Gtk';
+import Soup from 'gi://Soup?version=3.0';
 
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
@@ -58,7 +60,7 @@ export default class SilverDockPrefs extends ExtensionPreferences {
                     return;
                 settings.set_string(key, options[row.selected][0]);
             });
-            g.add(row);
+            put(g, row);
             return row;
         };
         const showIf = (row, test, ...keys) => {
@@ -84,6 +86,36 @@ export default class SilverDockPrefs extends ExtensionPreferences {
             return row;
         };
         const is = (key, ...values) => values.includes(settings.get_string(key));
+        const session = new Soup.Session({timeout: 20});
+        const setPlace = (name, lat = 0, lon = 0) =>
+            settings.set_value('weather-location', new GLib.Variant('(sdd)', [name, lat, lon]));
+        // The typed name to coordinates, the first hit is the biggest place of that name.
+        const findPlace = row => {
+            const name = row.text.trim();
+            row.remove_css_class('error');
+            if (!name)
+                return setPlace('');
+            if (name === settings.get_value('weather-location').deepUnpack()[0])
+                return;
+            const lang = GLib.get_language_names()[0].match(/^[a-z]{2}/)?.[0] ?? 'en';
+            const message = Soup.Message.new('GET', 'https://geocoding-api.open-meteo.com/v1/search' +
+                `?count=1&language=${lang}&name=${encodeURIComponent(name)}`);
+            session.send_and_read_async(message, GLib.PRIORITY_DEFAULT, null, (s, result) => {
+                let found;
+                try {
+                    found = JSON.parse(new TextDecoder().decode(s.send_and_read_finish(result).get_data())).results?.[0];
+                } catch (e) {
+                    console.warn(`Silver Dock: ${e.message}`);
+                }
+                if (!found) {
+                    row.add_css_class('error');
+                    return;
+                }
+                const label = [found.name, found.country].filter(Boolean).join(', ');
+                setPlace(label, found.latitude, found.longitude);
+                row.text = label;
+            });
+        };
 
         const topBarInDock = () => is('position', 'top') || is('position', 'bottom') && !settings.get_boolean('keep-top-bar');
 
@@ -101,8 +133,12 @@ export default class SilverDockPrefs extends ExtensionPreferences {
             'position', 'keep-top-bar');
         showIf(toggle(topBar, 'open-highlight', _('Light up the button of an open menu')), topBarInDock,
             'position', 'keep-top-bar');
-        showIf(toggle(topBar, 'weather', _('Weather next to the clock (needs GNOME Weather)')), topBarInDock,
-            'position', 'keep-top-bar');
+        const weather = fold(topBar, 'weather', _('Weather next to the clock'));
+        const place = new Adw.EntryRow({title: _('Place, the weather comes from Open-Meteo'), show_apply_button: true,
+            text: settings.get_value('weather-location').deepUnpack()[0]});
+        place.connect('apply', () => findPlace(place));
+        weather.add_row(place);
+        choice(weather, 'weather-unit', _('Unit'), [['celsius', _('Celsius, km/h')], ['fahrenheit', _('Fahrenheit, mph')]]);
         const hiding = group(general, _('Hiding'));
         toggle(fold(hiding, 'autohide', _('Hide when a window overlaps the bar')), 'edge-pressure',
             _('Only come back when the pointer pushes against the edge'));
@@ -113,6 +149,7 @@ export default class SilverDockPrefs extends ExtensionPreferences {
         // Floating always has them, and they split the top bar's content: none without it in the dock.
         showIf(toggle(bar, 'islands', _('Separate islands for menu, apps and clock')),
             () => is('design', 'silver') && topBarInDock(), 'design', 'position', 'keep-top-bar');
+        showIf(toggle(bar, 'tray-pill', _('Pill behind the tray icons')), topBarInDock, 'position', 'keep-top-bar');
         spin(bar, 'margin', _('Distance from screen edge'), 0, 48, 1);
         spin(bar, 'radius', _('Corner radius'), 0, 48, 1);
         toggle(bar, 'shadow', _('Shadow'));

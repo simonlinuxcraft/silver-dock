@@ -5,28 +5,52 @@ import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import {trayBox, trayIcons} from './takeover.js';
+import {trayBox, trayIcons, trayIndicator} from './takeover.js';
 
 const GAP = 6;
 
 // Tray icons that are not pinned wait behind an arrow, a click on it shows them in a flyout.
 export class TrayOverflow {
-    constructor(settings) {
+    constructor(settings, onToggle) {
         this._settings = settings;
+        this._onToggle = onToggle;
+        this.open = false;
         this._box = trayBox();
         this._arrow = new St.Button({
-            style_class: 'panel-button silver-dock-tray-arrow',
+            style_class: 'panel-button',
             child: new St.Icon({icon_name: 'pan-up-symbolic', style_class: 'system-status-icon'}),
             accessible_name: _('Show hidden icons'),
             can_focus: true,
             visible: false,
         });
-        this._arrow.connect('clicked', () => (this._flyout.visible ? this._close() : this._open()));
+        this._arrow.connect('clicked', () => (this.open ? this._close() : this._open()));
         // Named like the top bar so the theme's panel button styles still reach the icons.
         this._flyout = new St.BoxLayout({name: 'panel', style_class: 'silver-dock-tray-flyout', reactive: true, visible: false});
-        Main.layoutManager.addTopChrome(this._flyout);
+        // Not on top: under the menus of its icons, and at logout gone before them like the top bar is.
+        Main.layoutManager.addChrome(this._flyout);
+        // A click on a window never reaches the stage. Over the windows while the flyout is open, this takes it.
+        this._sheet = new St.Widget({reactive: true, visible: false});
+        Main.layoutManager.addChrome(this._sheet);
+        Main.uiGroup.set_child_above_sibling(this._sheet, global.window_group);
         this._box.insert_child_at_index(this._arrow, 0);
-        this._box.connectObject('child-added', () => this._sort(), this);
+        // AppIndicator adds an icon before it knows its id, and hides the button of a passive one.
+        this._watched = new Map();
+        const watch = child => {
+            const button = child.get_first_child();
+            if (!button || this._watched.has(button))
+                return;
+            const indicator = trayIndicator(button);
+            this._watched.set(button, indicator);
+            button.connectObject('notify::visible', () => this._sort(), 'destroy', () => this._unwatch(button), this);
+            indicator?.connectObject('ready', () => this._sort(), this);
+        };
+        this._box.get_children().forEach(watch);
+        this._box.connectObject('child-added', (box, child) => {
+            watch(child);
+            this._sort();
+        }, this);
+        // An app that quits takes its icon out of the flyout.
+        this._flyout.connectObject('child-removed', () => this._showArrow(), this);
         settings.connectObject('changed::tray-pinned', () => this._sort(),
             'changed::position', () => this._close(), 'changed::keep-top-bar', () => this._close(), this);
         this._sort();
@@ -52,17 +76,28 @@ export class TrayOverflow {
                 this._unhide(container, menu);
             }
         }
-        this._arrow.visible = this._flyout.get_n_children() > 0;
-        this._point(false);
+        this._showArrow();
+        this._sorting = false;
+    }
+
+    _unwatch(button) {
+        button.disconnectObject(this);
+        this._watched.get(button)?.disconnectObject(this);
+        this._watched.delete(button);
+    }
+
+    _showArrow() {
+        this._arrow.visible = this._flyout.get_children().some(child => child.visible);
+        this._point(this.open);
         if (!this._arrow.visible)
             this._close();
-        this._sorting = false;
     }
 
     _unhide(container, menu) {
         menu?.disconnectObject(this);
         this._flyout.remove_child(container);
-        this._box.insert_child_above(container, this._arrow);
+        // Where AppIndicator puts its icons: behind GNOME's first indicator, the arrow counted.
+        this._box.insert_child_at_index(container, 2);
     }
 
     // For the preferences, which cannot see the shell's icons. Written only when a new one shows up.
@@ -75,10 +110,14 @@ export class TrayOverflow {
     }
 
     _open() {
+        this.open = true;
+        this._sheet.set_size(global.stage.width, global.stage.height);
+        this._sheet.show();
         this._flyout.show();
         this._place();
         this._arrow.add_style_pseudo_class('checked');
         global.stage.connectObject('captured-event', (stage, event) => this._outside(event), this);
+        this._onToggle();
     }
 
     _monitor() {
@@ -119,20 +158,28 @@ export class TrayOverflow {
 
     _close() {
         this._point(false);
-        if (!this._flyout.visible)
+        if (!this.open)
             return;
+        this.open = false;
         global.stage.disconnectObject(this);
         this._arrow.remove_style_pseudo_class('checked');
-        // After the click that closed a menu has been handled.
+        // After the click that closed a menu has been handled. Opened again by then, it stays.
         GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-            this._flyout?.hide();
+            if (!this.open) {
+                this._flyout?.hide();
+                this._sheet?.hide();
+            }
             return GLib.SOURCE_REMOVE;
         });
+        this._onToggle();
     }
 
     destroy() {
+        this.open = false;
         global.stage.disconnectObject(this);
         this._box.disconnectObject(this);
+        this._flyout.disconnectObject(this);
+        [...this._watched.keys()].forEach(button => this._unwatch(button));
         this._settings.disconnectObject(this);
         this._sorting = true;
         for (const {container, menu} of trayIcons()) {
@@ -140,8 +187,11 @@ export class TrayOverflow {
                 this._unhide(container, menu);
         }
         this._arrow.destroy();
-        Main.layoutManager.removeChrome(this._flyout);
-        this._flyout.destroy();
+        for (const actor of [this._flyout, this._sheet]) {
+            Main.layoutManager.removeChrome(actor);
+            actor.destroy();
+        }
         this._flyout = null;
+        this._sheet = null;
     }
 }

@@ -3,7 +3,7 @@ import Clutter from 'gi://Clutter';
 import Cogl from 'gi://Cogl';
 import GObject from 'gi://GObject';
 
-// Rounded box distance over up to three boxes along the bar, one pixel of soft edge on premultiplied color.
+// Rounded box distance over up to four boxes along the bar, one pixel of soft edge on premultiplied color.
 const DECLARATIONS = `
 uniform float width;
 uniform float height;
@@ -15,6 +15,8 @@ uniform float a1;
 uniform float l1;
 uniform float a2;
 uniform float l2;
+uniform float a3;
+uniform float l3;
 
 float box(vec2 p, float a, float l) {
     if (l < 1.0)
@@ -28,7 +30,7 @@ float box(vec2 p, float a, float l) {
 
 const MASK = `
     vec2 p = cogl_tex_coord_in[0].xy * vec2(width, height);
-    float d = min(box(p, a0, l0), min(box(p, a1, l1), box(p, a2, l2)));
+    float d = min(min(box(p, a0, l0), box(p, a1, l1)), min(box(p, a2, l2), box(p, a3, l3)));
     cogl_color_out *= clamp(0.5 - d, 0.0, 1.0);`;
 
 // Mutter 51 dropped set_shader_source for a snippet the subclass hands over once.
@@ -48,9 +50,9 @@ void main() {
 
     // spans: [start, length] along the bar. Uniform writes repaint, and GJS passes whole numbers as int.
     setShape(width, height, radius, vertical, spans) {
-        const [s0 = [0, 0], s1 = [0, 0], s2 = [0, 0]] = spans;
+        const [s0 = [0, 0], s1 = [0, 0], s2 = [0, 0], s3 = [0, 0]] = spans;
         const values = {width, height, radius, vertical: Number(vertical),
-            a0: s0[0], l0: s0[1], a1: s1[0], l1: s1[1], a2: s2[0], l2: s2[1]};
+            a0: s0[0], l0: s0[1], a1: s1[0], l1: s1[1], a2: s2[0], l2: s2[1], a3: s3[0], l3: s3[1]};
         const shape = Object.values(values).join(' ');
         if (shape === this._shape)
             return;

@@ -82,7 +82,7 @@ check(rows['Top bar in the dock\'s look'].visible, 'top bar look hidden with a k
 settings.set_string('position', 'left');
 check(!rows['Keep the top bar'].visible && rows['Top bar in the dock\'s look'].visible, 'top bar rows wrong on the left');
 const inDock = ['Buttons lift on hover instead of lighting up', 'Light up the button of an open menu',
-    'Warp start for the ArcMenu button'];
+    'Warp start for the ArcMenu button', 'Pill behind the tray icons'];
 settings.set_string('position', 'top');
 check(!rows['Keep the top bar'].visible && inDock.every(title => rows[title].visible), 'top bar rows wrong at the top');
 settings.set_string('position', 'bottom');
@@ -128,7 +128,7 @@ for (const [title, key] of [['Separators', 'separators'], ['Shadow', 'shadow'],
     ['Apps pop in and out', 'pop'], ['Squash on click', 'squash'], ['Window dots glide', 'glide'],
     ['Rise in a wave after login and unlock', 'intro'], ['Badges pop up', 'badge-pop'],
     ['Bar springs back in after hiding', 'springy'], ['Windows minimize into their icon', 'minimize-to-icon'],
-    ['Warp start for the ArcMenu button', 'warp'],
+    ['Warp start for the ArcMenu button', 'warp'], ['Pill behind the tray icons', 'tray-pill'],
     ['Buttons lift on hover instead of lighting up', 'lift-buttons'], ['Light up the button of an open menu', 'open-highlight'], ['Internal drives too', 'internal-drives'],
     ['Show only that window while on its preview', 'peek'], ['A dock on every monitor', 'all-monitors'], ['Scroll over an icon to switch its windows', 'scroll']]) {
     const prop = rows[title] instanceof Adw.ExpanderRow ? 'enable_expansion' : 'active';
@@ -152,5 +152,32 @@ trayRows.find(row => row.title === 'Discord').active = true;
 check(settings.get_strv('tray-pinned').join() === 'discord', 'tray pin not written');
 trayRows.find(row => row.title === 'Discord').active = false;
 check(settings.get_strv('tray-pinned').length === 0, 'tray unpin not written');
+
+// An empty place clears the weather location without asking the network.
+settings.set_value('weather-location', new GLib.Variant('(sdd)', ['Berlin, Germany', 52.52, 13.41]));
+rows['Place, the weather comes from Open-Meteo'].text = '';
+rows['Place, the weather comes from Open-Meteo'].emit('apply');
+check(settings.get_value('weather-location').deepUnpack()[0] === '', 'empty place not written');
+
+// The lookup needs Open-Meteo, offline or on a timeout it is skipped, only a wrong answer fails.
+const placeRow = rows['Place, the weather comes from Open-Meteo'];
+placeRow.text = 'Berlin';
+placeRow.emit('apply');
+const loop = new GLib.MainLoop(null, false);
+let waited = 0;
+GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
+    const done = settings.get_value('weather-location').deepUnpack()[0] || placeRow.has_css_class('error');
+    if (done || ++waited > 50) {
+        loop.quit();
+        return GLib.SOURCE_REMOVE;
+    }
+    return GLib.SOURCE_CONTINUE;
+});
+loop.run();
+const [found, lat] = settings.get_value('weather-location').deepUnpack();
+if (found)
+    check(found.startsWith('Berlin') && Math.abs(lat - 52.5) < 0.5, `wrong place for Berlin: ${found} ${lat}`);
+else
+    print('place lookup skipped, no answer from Open-Meteo');
 
 print('prefs ok');

@@ -13,6 +13,8 @@ import {LauncherEntries, NotificationCounts} from './launcher.js';
 import {TrashWatcher} from './places.js';
 import {SystemLoad} from './sysload.js';
 import {TrayOverflow} from './tray.js';
+import {Weather, WeatherButton} from './weather.js';
+import {clockButton} from './takeover.js';
 import {MediaPlayers} from './media.js';
 import {WindowPreviews} from './previews.js';
 
@@ -50,7 +52,8 @@ export default class SilverDock extends Extension {
         this._watched = new Set();
 
         const sync = () => this._each(dock => dock.sync());
-        const check = () => this._each(dock => dock.queueCheck());
+        this._check = () => this._each(dock => dock.queueCheck());
+        const check = this._check;
         const recolor = () => this._recolor();
         Shell.AppSystem.get_default().connectObject(
             'app-state-changed', (appSystem, app) => this._each(dock => dock.onAppState(app)),
@@ -60,8 +63,8 @@ export default class SilverDock extends Extension {
         this.settings.connectObject(
             'changed::autohide', () => this._each(dock => dock.trackBar()),
             'changed', (settings, key) => {
-                // The tray handles its own, the shell writes tray-known.
-                if (key === 'tray-known' || key === 'tray-pinned')
+                // The tray and the weather handle their own, the shell writes tray-known.
+                if (['tray-known', 'tray-pinned', 'weather-location', 'weather-unit'].includes(key))
                     return;
                 if (key === 'all-monitors')
                     this._build(false);
@@ -117,10 +120,14 @@ export default class SilverDock extends Extension {
         this.previews = null;
         this._docks = null;
         this._watched = null;
+        this._check = null;
     }
 
-    // GNOME tears the stage down at logout without disabling extensions.
+    // GNOME tears the stage down at logout without disabling extensions. The tray's and the weather's
+    // actors in the top bar are gone by then.
     lost() {
+        this.tray = null;
+        this._panelWeather = null;
         this._stopListening();
         this._each(dock => dock.stopListening());
     }
@@ -140,13 +147,10 @@ export default class SilverDock extends Extension {
         St.ThemeContext.get_for_stage(global.stage).disconnectObject(this);
         this._watched?.forEach(win => win.disconnectObject(this));
         this.volumes?.disconnectObject(this);
-        this.launcher?.destroy();
-        this.notifications?.destroy();
-        this.media?.destroy();
-        this.trash?.destroy();
-        this.load?.destroy();
-        this.tray?.destroy();
-        this.launcher = this.notifications = this.media = this.trash = this.load = this.tray = null;
+        for (const name of ['launcher', 'notifications', 'media', 'trash', 'load', 'tray', '_panelWeather', 'weather']) {
+            this[name]?.destroy();
+            this[name] = null;
+        }
         this.settings?.disconnectObject(this);
         this._iface?.disconnectObject(this);
         this._background?.disconnectObject(this);
@@ -158,23 +162,22 @@ export default class SilverDock extends Extension {
 
     _services() {
         this.previews.peek = this.settings.get_boolean('peek');
-        if (this.settings.get_boolean('trash')) {
-            this.trash ??= new TrashWatcher(() => this._each(dock => dock.updateTrash()));
-        } else {
-            this.trash?.destroy();
-            this.trash = null;
-        }
-        if (this.settings.get_boolean('tray-overflow')) {
-            this.tray ??= new TrayOverflow(this.settings);
-        } else {
-            this.tray?.destroy();
-            this.tray = null;
-        }
-        if (this.settings.get_boolean('system-monitor')) {
-            this.load ??= new SystemLoad(() => this._each(dock => dock.updateLoad()));
-        } else {
-            this.load?.destroy();
-            this.load = null;
+        for (const [name, key, create] of [
+            ['trash', 'trash', () => new TrashWatcher(() => this._each(dock => dock.updateTrash()))],
+            // The docks stay out while the flyout is open.
+            ['tray', 'tray-overflow', () => new TrayOverflow(this.settings, this._check)],
+            ['weather', 'weather', () => new Weather(this.settings, () => {
+                this._each(dock => dock.updateWeather());
+                this._panelWeather?.update();
+            })],
+            ['load', 'system-monitor', () => new SystemLoad(() => this._each(dock => dock.updateLoad()))],
+        ]) {
+            if (this.settings.get_boolean(key)) {
+                this[name] ??= create();
+            } else {
+                this[name]?.destroy();
+                this[name] = null;
+            }
         }
     }
 
@@ -186,8 +189,20 @@ export default class SilverDock extends Extension {
             this._refreshId = 0;
             this._services();
             this._each(dock => dock.refresh(true));
+            this._syncPanelWeather();
             return GLib.SOURCE_REMOVE;
         });
+    }
+
+    // Where the top bar stays GNOME's own, the weather goes next to its clock there.
+    _syncPanelWeather() {
+        const want = this.weather && !this._docks.some(dock => dock.holdsPanel()) && clockButton();
+        if (want && !this._panelWeather) {
+            this._panelWeather = new WeatherButton(this.weather, clockButton(), St.Side.TOP);
+        } else if (!want && this._panelWeather) {
+            this._panelWeather.destroy();
+            this._panelWeather = null;
+        }
     }
 
     // The primary monitor's dock first, it takes the top bar content.
@@ -203,12 +218,13 @@ export default class SilverDock extends Extension {
             this._docks.push(dock);
             dock.refresh(true);
         }
+        this._syncPanelWeather();
     }
 
     // born: 0 for windows from before the extension.
     _watchWindow(win, born = GLib.get_monotonic_time()) {
         this._watched.add(win);
-        const check = () => this._each(dock => dock.queueCheck());
+        const check = this._check;
         // Fires every frame while a window is dragged, only overlap needs it. Fullscreen has its own signal.
         const moved = () => (this.settings.get_boolean('autohide') || this.settings.get_boolean('dynamic-opacity')) &&
             check();

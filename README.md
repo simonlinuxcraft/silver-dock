@@ -1,6 +1,6 @@
 # Silver Dock
 
-A dock for GNOME Shell 46 to 50, on Wayland and X11. At the bottom or top it also
+A dock for GNOME Shell 46 to 51, on Wayland and X11. At the bottom or top it also
 holds the top bar's menu, clock, tray and system menu.
 
 <p align="center">
@@ -31,7 +31,10 @@ holds the top bar's menu, clock, tray and system menu.
 - Drag to rearrange, pin and unpin, an unpinned app goes up in a little cloud
 - Badges and progress bars (Unity LauncherEntry), the notification count for apps without their own
 - Media controls in the right click menu of apps that play something (MPRIS)
-- Trash and drives with open, empty and eject
+- Trash and drives with open, empty and eject, the downloads folder with its newest files, the system load as a small gauge
+- Recent files in an app's right click menu
+- The weather next to the clock with a forecast on click (Open-Meteo, for a place you type in)
+- Tray icons collected behind an arrow, the ones you pick stay in the bar
 - Over a fullscreen window the bar stays out of the way. The ArcMenu key brings it along, after a click on the bar it stays for the volume and the other menus until Escape or a click back into the window
 - Separators, a soft shadow, autohide, opaque while a window touches the bar. A hidden bar comes back when the pointer pushes against the edge or an app asks for attention
 
@@ -71,7 +74,7 @@ gjs -m test/layout-test.js   # hover math
 gjs -m test/colors-test.js   # GTK theme colors
 test/smoke.sh                # headless GNOME Shell: enable/disable, settings, prefs, demo apps
 test/smoke.sh --show         # the same in a window (needs mutter-dev-bin)
-test/gnome.sh [46..49]       # smoke.sh on GNOME 46 to 49 in podman, X11 too up to 48
+test/gnome.sh [46 47 ...]    # smoke.sh on GNOME 46 to 49 and 51 in podman, X11 too up to 48
 ```
 
 The test shell has its own D-Bus and settings, the running session is not touched.
@@ -82,7 +85,7 @@ For a new GNOME release add it to `shell-version` in `metadata.json` and run the
 `po/` holds the catalogs, `test/smoke.sh` compiles them into `locale/`. After changing texts:
 
 ```
-xgettext --from-code=UTF-8 --language=JavaScript --keyword=_ --package-name=silver-dock -o po/silver-dock.pot dock.js files.js places.js prefs.js tray.js
+xgettext --from-code=UTF-8 --language=JavaScript --keyword=_ --package-name=silver-dock -o po/silver-dock.pot dock.js files.js places.js prefs.js tray.js weather.js
 msgmerge --update po/de.po po/silver-dock.pot
 ```
 

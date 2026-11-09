@@ -218,7 +218,23 @@
     </key>
     <key name="weather" type="b">
       <default>false</default>
-      <summary>Show the weather of GNOME Weather next to the clock</summary>
+      <summary>Show the weather of weather-location next to the clock</summary>
+    </key>
+    <key name="weather-unit" type="s">
+      <choices>
+        <choice value="celsius"/>
+        <choice value="fahrenheit"/>
+      </choices>
+      <default>'celsius'</default>
+      <summary>Temperature unit of the weather, wind in km/h or mph with it</summary>
+    </key>
+    <key name="weather-location" type="(sdd)">
+      <default>('', 0, 0)</default>
+      <summary>Place name, latitude and longitude for the weather, set in the preferences</summary>
+    </key>
+    <key name="tray-pill" type="b">
+      <default>false</default>
+      <summary>A faint pill behind the tray icons</summary>
     </key>
     <key name="tray-overflow" type="b">
       <default>false</default>

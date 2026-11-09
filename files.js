@@ -50,7 +50,7 @@ function newest(dir, cancellable, done) {
             let batch;
             try {
                 batch = c.next_files_finish(res);
-            } catch (e) {
+            } catch {
                 return;
             }
             if (batch.length) {
@@ -96,7 +96,7 @@ function recentFiles(types) {
     const bookmarks = new GLib.BookmarkFile();
     try {
         bookmarks.load_from_file(GLib.build_filenamev([GLib.get_user_data_dir(), 'recently-used.xbel']));
-    } catch (e) {
+    } catch {
         return [];
     }
     const entries = [];
@@ -107,7 +107,7 @@ function recentFiles(types) {
             const mime = bookmarks.get_mime_type(uri);
             if (opens(types, mime))
                 entries.push({uri, mime, time: bookmarks.get_modified_date_time(uri).to_unix()});
-        } catch (e) {
+        } catch {
             // An entry without a type or date.
         }
     }

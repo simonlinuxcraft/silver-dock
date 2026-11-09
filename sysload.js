@@ -50,6 +50,10 @@ export class SystemLoad {
     }
 }
 
+export function loadText(load) {
+    return `CPU ${Math.round(load.cpu * 100)} %    RAM ${Math.round(load.memory * 100)} %`;
+}
+
 // CPU as the outer ring with its percentage inside, memory as the inner ring. Its own opaque tile like
 // an app icon: the floating design has no bar behind it.
 export function loadGraph(load, size) {
@@ -78,7 +82,6 @@ export function loadGraph(load, size) {
             cr.arc(cx, cy, radius, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * Math.min(1, share));
             cr.stroke();
         };
-        // Green, then amber above 60 %, red above 85 %.
         const cpuColor = load.cpu > 0.85 ? [0.95, 0.35, 0.3] : load.cpu > 0.6 ? [0.98, 0.72, 0.25] : [0.4, 0.85, 0.6];
         ring(w * 0.34, w * 0.07, load.cpu, cpuColor);
         ring(w * 0.25, w * 0.04, load.memory, [0.55, 0.7, 0.95]);

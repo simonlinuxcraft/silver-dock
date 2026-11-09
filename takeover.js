@@ -16,7 +16,7 @@ export function panelBoxes() {
     return boxes.every(box => box?.get_parent() === panel) ? boxes : [];
 }
 
-// Returns the moved boxes, none if the internals changed.
+// Returns the moved boxes.
 export function takePanel(bar, before, after) {
     const panel = Main.panel;
     const boxes = panelBoxes();
@@ -35,19 +35,25 @@ export function takePanel(bar, before, after) {
     return boxes;
 }
 
-// The top bar clock's one line of date and time.
-export function clockLabel() {
-    return Main.panel.statusArea.dateMenu?._clockDisplay ?? null;
+// The date menu's button, the weather goes next to it.
+export function clockButton() {
+    return Main.panel.statusArea.dateMenu?.container ?? null;
 }
 
-// The date menu's own client, GNOME's has no destroy() and a second one would leak.
-export function weatherClient() {
-    return Main.panel.statusArea.dateMenu?._weatherItem?._weatherClient ?? null;
+export function clockLabel() {
+    return Main.panel.statusArea.dateMenu?._clockDisplay ?? null;
 }
 
 // The top bar's right box, wherever it is, and the AppIndicator icons in it or in the flyout.
 export function trayBox() {
     return Main.panel._rightBox;
+}
+
+// AppIndicator's own object behind a tray button, it emits 'ready' once it knows the icon's id.
+// Other extensions keep an icon under the same name.
+export function trayIndicator(button) {
+    const indicator = button._indicator;
+    return indicator && 'isReady' in indicator ? indicator : null;
 }
 
 // The StatusNotifierItem id stays the same across restarts, the status area key does not.

@@ -39,6 +39,12 @@ GLib.timeout_add(1000, ask_attention)
 # Repeated, a dock only hears updates sent while it is enabled.
 bus = Gio.bus_get_sync(Gio.BusType.SESSION)
 step = 0
+# Counted for the app in its desktop-entry hint. From here, GNOME drops a notification whose sender is gone
+# before it has looked it up.
+bus.call('org.freedesktop.Notifications', '/org/freedesktop/Notifications', 'org.freedesktop.Notifications', 'Notify',
+         GLib.Variant('(susssasa{sv}i)', ('demo', 0, '', 'Silver Dock test', '', [],
+                                          {'desktop-entry': GLib.Variant('s', 'org.gnome.TextEditor')}, 0)),
+         None, Gio.DBusCallFlags.NONE, -1, None, None)
 
 
 def launcher_entry():

@@ -19,13 +19,14 @@ import {luma, mix, parseColor} from './colors.js';
 import {Color, HAS_ACCENT, setVertical, trustHover} from './compat.js';
 import {badgeOf, countText, progressOf} from './launcher.js';
 import {dropIndex, hover, rest, STYLES} from './layout.js';
-import {TwoLineClock, WeatherLabel} from './clock.js';
+import {TwoLineClock} from './clock.js';
 import {RoundedMask} from './mask.js';
 import {mediaSection} from './media.js';
 import {DOWNLOADS, SYSMON, TRASH, driveMounts, openPlace, placeActions, placeIcon, placeName} from './places.js';
 import {downloadsSection, recentSection} from './files.js';
-import {loadGraph} from './sysload.js';
-import {clockLabel, panelBoxes, restorePanel, takePanel, weatherClient} from './takeover.js';
+import {loadGraph, loadText} from './sysload.js';
+import {clockButton, clockLabel, panelBoxes, restorePanel, takePanel} from './takeover.js';
+import {WeatherButton} from './weather.js';
 
 // Logical px, times the shell's scale factor on actors. CSS and icon sizes stay logical.
 // px from the icons to the bar's inner side and to the screen edge (window dots)
@@ -147,7 +148,7 @@ export class Dock {
         this._scale = 1;
 
         this._bg = new St.Widget({style_class: 'silver-dock-bg'});
-        // The islands' backgrounds, the bar's own stays clear then: menu, apps, clock (with the tray), tray.
+        // The islands' backgrounds, the bar's own stays clear then: menu, apps, clock, tray.
         this._pieces = [0, 1, 2, 3].map(() => new St.Widget({visible: false}));
         this._pieces.forEach(piece => this._bg.add_child(piece));
         this._islands = false;
@@ -340,7 +341,7 @@ export class Dock {
         this._bg.set_style(this._islands || this._float ? null : surface);
         this._pieces.forEach((piece, i) => {
             piece.set_style(surface);
-            piece.visible = this._islands && i !== (this._float ? 1 : 3);
+            piece.visible = this._islands && !(this._float && i === 1);
         });
         this._bg.remove_transition('opacity');
         this._bg.opacity = this._bgOpacity = Math.round(255 * opacity);
@@ -358,20 +359,21 @@ export class Dock {
     _paintSurface(alpha) {
         for (const sep of [...this._seps, ...this._rowSeps])
             sep.set_style(`background-color: rgba(${this._fg}, ${this._islands && this._seps.includes(sep) ? 0 : 0.25});`);
-        this._dressBoxes(this._boxes, alpha, !this._islands && this._fg,
-            this._float && this._islands ? ISLAND_GAP + 2 * this._end : 0);
+        this._dressBoxes(this._boxes, alpha, this._settings.get_boolean('tray-pill') && this._fg,
+            this._islands ? ISLAND_GAP + 2 * this._end : 0);
     }
 
     // pill: the tray on a faint pill of this color. gap: logical px between the clock and the tray.
     _dressBoxes(boxes, alpha = 1, pill = null, gap = 0) {
         boxes.forEach((box, i) => {
-            if (pill && i === 2)
-                box.set_style(`background-color: rgba(${pill}, ${0.1 * alpha}); border-radius: 99px; ` +
-                    (this._vertical ? 'padding: 4px 0; margin: 0 7px;' : 'padding: 0 4px; margin: 7px 0;'));
-            else if (gap && i === 2)
-                box.set_style(`margin-${this._vertical ? 'top' : 'left'}: ${gap}px;`);
-            else
+            if (i !== 2)
                 box.set_style(null);
+            else if (pill)
+                box.set_style(`background-color: rgba(${pill}, ${0.1 * alpha}); border-radius: 99px; ` +
+                    (this._vertical ? 'padding: 4px 0; margin: 0 7px;' : 'padding: 0 4px; margin: 7px 0;') +
+                    (gap ? `margin-${this._vertical ? 'top' : 'left'}: ${gap}px;` : ''));
+            else
+                box.set_style(gap ? `margin-${this._vertical ? 'top' : 'left'}: ${gap}px;` : null);
         });
     }
 
@@ -383,7 +385,6 @@ export class Dock {
 
     _separator() {
         return new St.Widget({
-            style_class: 'silver-dock-separator',
             x_align: Clutter.ActorAlign.CENTER,
             y_align: Clutter.ActorAlign.CENTER,
         });
@@ -431,8 +432,8 @@ export class Dock {
         this._mask.setShape(width, height, this._settings.get_int('radius') * this._scale, this._vertical, spans);
     }
 
-    // [start, length] of menu, apps, clock (with the tray) and tray from the background's start, empty ones zero.
-    // Floating, the clock and tray split and the apps have no island.
+    // [start, length] of menu, apps, clock and tray from the background's start, empty ones zero.
+    // Floating, the apps have no island.
     _islandSpans(startShift, endShift, total) {
         const end = this._end * this._scale;
         const [first, second] = this._seps.map(sep => {
@@ -446,22 +447,15 @@ export class Dock {
         const appsEnd = second[0] + shift + end;
         const sysStart = second[0] + second[1] + shift - end;
         const menu = filled(left) ? [0, first[0] + end] : [0, 0];
-        if (!this._float) {
-            return [
-                menu,
-                filled(left) ? [appsStart, appsEnd - appsStart] : [0, appsEnd],
-                filled(right) || filled(center) ? [sysStart, total - sysStart] : [0, 0],
-                [0, 0],
-            ];
-        }
+        const apps = this._float ? [0, 0] : filled(left) ? [appsStart, appsEnd - appsStart] : [0, appsEnd];
         const clock = filled(center);
         if (!filled(right))
-            return [menu, [0, 0], clock ? [sysStart, total - sysStart] : [0, 0], [0, 0]];
+            return [menu, apps, clock ? [sysStart, total - sysStart] : [0, 0], [0, 0]];
         const box = right.get_allocation_box();
         const trayStart = (this._vertical ? box.y1 : box.x1) + shift - end;
         const gap = (ISLAND_GAP + 2 * this._end) * this._scale;
         const tray = clock ? trayStart : sysStart;
-        return [menu, [0, 0], clock ? [sysStart, trayStart + 2 * end - gap - sysStart] : [0, 0], [tray, total - tray]];
+        return [menu, apps, clock ? [sysStart, trayStart + 2 * end - gap - sysStart] : [0, 0], [tray, total - tray]];
     }
 
     _xy(along, across) {
@@ -566,10 +560,9 @@ export class Dock {
         if (label && this._bar.contains(label))
             this._clock = new TwoLineClock(label, this._vertical);
         const clock = this._boxes.length ? clockLabel() : null;
-        const client = weatherClient();
         // A side bar is too narrow for it.
-        if (this._settings.get_boolean('weather') && !this._vertical && client && clock && this._bar.contains(clock))
-            this._weather = new WeatherLabel(client, this._clock?.actor ?? clock);
+        if (this._ext.weather && !this._vertical && clock && this._bar.contains(clock))
+            this._weather = new WeatherButton(this._ext.weather, clockButton(), this._side);
         for (const key of ['lift-buttons', 'warp', 'glide'])
             setClass(this._bar, key, this._settings.get_boolean(key));
         setClass(this._bar, 'quiet-menus', !this._settings.get_boolean('open-highlight'));
@@ -615,7 +608,8 @@ export class Dock {
             .sort((a, b) => (pos.get(a) ?? last) - (pos.get(b) ?? last));
         const places = [
             ...this._settings.get_boolean('downloads') ? [DOWNLOADS] : [],
-            ...this._settings.get_boolean('system-monitor') ? [SYSMON] : [],
+            // Several settings written at once: the icon waits for its service.
+            ...this._settings.get_boolean('system-monitor') && this._ext.load ? [SYSMON] : [],
             ...this._settings.get_boolean('trash') ? [TRASH] : [],
             ...driveMounts(this._ext.volumes, this._settings.get_boolean('drives'),
                 this._settings.get_boolean('internal-drives')),
@@ -1053,8 +1047,20 @@ export class Dock {
         }
     }
 
+    holdsPanel() {
+        return this._boxes.length > 0;
+    }
+
+    updateWeather() {
+        this._weather?.update();
+    }
+
     updateLoad() {
         this._items.find(i => i.key === SYSMON)?.icon.queue_repaint();
+        if (this._labelItem?.key === SYSMON) {
+            this._label.text = loadText(this._ext.load);
+            this._placeLabel();
+        }
     }
 
     updateTrash() {
@@ -1162,7 +1168,7 @@ export class Dock {
             this._previews.shown)
             return;
         this._labelItem = item;
-        this._label.text = item.name;
+        this._label.text = item.key === SYSMON ? loadText(this._ext.load) : item.name;
         if (!this._label.visible) {
             this._label.opacity = 0;
             this._label.show();
@@ -1321,8 +1327,12 @@ export class Dock {
             this._launched(item);
         if (middle)
             app.open_new_window(-1);
-        else if (!windows.length || action === 'raise' || Shell.WindowTracker.get_default().focus_app !== app)
+        else if (!windows.length || action === 'raise' || Shell.WindowTracker.get_default().focus_app !== app) {
+            // All put away by the click before: activate() alone brings back one.
+            if (action === 'minimize' && windows.every(win => win.minimized))
+                windows.forEach(win => win.unminimize());
             app.activate();
+        }
         else if (action === 'minimize' || windows.length === 1)
             windows.forEach(win => win.minimize());
         else
@@ -1630,7 +1640,6 @@ export class Dock {
                 piece.set_size(...this._xy(size, thick - margin));
             });
         }
-        // The blur mask takes three, at most three have a length.
         this._placeBlur(...bgAt, ...bgSize, spans.filter(([, size]) => size > 0));
         // Growth plus the highest lift (ripple, 0.3 slot) stays below one slot.
         const over = this._geom.big - this._geom.icon + slot;
@@ -1647,6 +1656,11 @@ export class Dock {
         if (this._hold && (type === Clutter.EventType.KEY_PRESS ? event.get_key_symbol() === Clutter.KEY_Escape
             : press && !this._bar.contains(global.stage.get_event_actor(event)))) {
             this._release();
+            return Clutter.EVENT_STOP;
+        }
+        // On the strip of a hidden bar a press brings it out, the button under it stays untouched.
+        if (this._hidden && press) {
+            this._reveal();
             return Clutter.EVENT_STOP;
         }
         if (type !== Clutter.EventType.MOTION && !press)
@@ -1946,7 +1960,7 @@ export class Dock {
         // With a barrier up, the pointer on the 1 px strip needs to push first.
         const hover = this._bar.hover && !(this._hidden && this._barrier);
         return this._settings.get_boolean('autohide') && !hover && !this._dragging && !this._menuOpen() &&
-            !this._ownsPreviews() && !this._revealTimer && !(focus && this._bar.contains(focus)) &&
+            !this._ext.tray?.open && !this._ownsPreviews() && !this._revealTimer && !(focus && this._bar.contains(focus)) &&
             !Main.overview.visible && this._windowsOverlap();
     }
 

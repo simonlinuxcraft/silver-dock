@@ -252,11 +252,23 @@
 
 .silver-dock-weather-box {
     spacing: 4px;
-    padding-left: 8px;
 }
 
 .silver-dock-weather-icon {
     icon-size: 16px;
+}
+
+.silver-dock-forecast {
+    spacing: 8px;
+}
+
+.silver-dock-forecast-column {
+    spacing: 4px;
+    min-width: 52px;
+}
+
+.silver-dock-forecast-dim {
+    font-size: 0.85em;
 }
 
 #panel.silver-dock-tray-flyout {

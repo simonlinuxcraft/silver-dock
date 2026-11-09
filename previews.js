@@ -222,7 +222,7 @@ export class WindowPreviews {
     }
 
     _preview(win, width) {
-        const box = new St.BoxLayout({style_class: 'silver-dock-preview-box', width});
+        const box = new St.BoxLayout({width});
         setVertical(box, true);
 
         const header = new St.BoxLayout({style_class: 'silver-dock-preview-header'});

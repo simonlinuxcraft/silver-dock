@@ -1,11 +1,30 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import Shell from 'gi://Shell';
 import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 export const TRASH = 'trash';
+export const DOWNLOADS = 'downloads';
+export const SYSMON = 'system-monitor';
+
+const MONITORS = ['org.gnome.SystemMonitor.desktop', 'gnome-system-monitor.desktop', 'net.nokyan.Resources.desktop'];
+
+export function downloadsDir() {
+    return GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_DOWNLOAD) ??
+        GLib.build_filenamev([GLib.get_home_dir(), 'Downloads']);
+}
+
+function monitorApp() {
+    const apps = Shell.AppSystem.get_default();
+    const known = MONITORS.map(id => apps.lookup_app(id)).find(Boolean);
+    if (known)
+        return known;
+    const info = Gio.AppInfo.get_all().find(i => i.should_show() && i.get_categories?.()?.split(';').includes('Monitor'));
+    return info ? apps.lookup_app(info.get_id()) : null;
+}
 
 function isRemovable(mount) {
     return mount.can_eject() || Boolean(mount.get_drive()?.is_removable());
@@ -17,17 +36,34 @@ export function driveMounts(monitor, removable, internal) {
 }
 
 export function placeName(place) {
-    return place === TRASH ? _('Trash') : place.get_name();
+    if (place === TRASH)
+        return _('Trash');
+    if (place === DOWNLOADS)
+        return _('Downloads');
+    if (place === SYSMON)
+        return _('System Load');
+    return place.get_name();
 }
 
 export function placeIcon(place, size, trashFull) {
-    return place === TRASH
-        ? new St.Icon({icon_name: trashFull ? 'user-trash-full' : 'user-trash', icon_size: size})
-        : new St.Icon({gicon: place.get_icon(), icon_size: size});
+    if (place === TRASH)
+        return new St.Icon({icon_name: trashFull ? 'user-trash-full' : 'user-trash', icon_size: size});
+    if (place === DOWNLOADS)
+        return new St.Icon({icon_name: 'folder-download', icon_size: size});
+    return new St.Icon({gicon: place.get_icon(), icon_size: size});
 }
 
 export function openPlace(place) {
-    const uri = place === TRASH ? 'trash:///' : place.get_root().get_uri();
+    if (place === SYSMON) {
+        const app = monitorApp();
+        if (app)
+            app.activate();
+        else
+            Main.notifyError(_('No system monitor installed'), _('Install GNOME System Monitor or Resources.'));
+        return;
+    }
+    const uri = {[TRASH]: 'trash:///', [DOWNLOADS]: Gio.File.new_for_path(downloadsDir()).get_uri()}[place] ??
+        place.get_root().get_uri();
     try {
         Gio.AppInfo.launch_default_for_uri(uri, global.create_app_launch_context(0, -1));
     } catch (e) {
@@ -36,11 +72,11 @@ export function openPlace(place) {
 }
 
 export function placeActions(place) {
-    const actions = [[_('Open'), () => openPlace(place)]];
+    const actions = [[place === DOWNLOADS ? _('Open Folder') : _('Open'), () => openPlace(place)]];
     if (place === TRASH)
         actions.push([_('Empty Trash'), emptyTrash]);
     // Unmounting an internal disk from the dock is too easy a slip.
-    else if (isRemovable(place) && (place.can_eject() || place.can_unmount()))
+    else if (typeof place === 'object' && isRemovable(place) && (place.can_eject() || place.can_unmount()))
         actions.push([place.can_eject() ? _('Eject') : _('Unmount'), () => eject(place)]);
     return actions;
 }

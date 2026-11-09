@@ -1,5 +1,13 @@
 // GNOME Shell internals, check here first when a release breaks. dock.js also reads _delegate of menus.
+import Clutter from 'gi://Clutter';
+
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+
+// GNOME stretches these pills to the bar's height, in the taller dock they turn into circles.
+function pills() {
+    const area = Main.panel.statusArea;
+    return [area.screenRecording, area.screenSharing].filter(Boolean);
+}
 
 // The top bar's boxes while GNOME holds them, none if the internals changed.
 export function panelBoxes() {
@@ -21,6 +29,7 @@ export function takePanel(bar, before, after) {
     bar.insert_child_above(right, after);
     bar.insert_child_above(center, after);
     panel.hide();
+    pills().forEach(pill => (pill.y_align = Clutter.ActorAlign.CENTER));
     // Panel menus now open upwards, the stylesheet drops the theme's bottom margin on them.
     Main.uiGroup.add_style_class_name('silver-dock-panel');
     return boxes;
@@ -29,6 +38,11 @@ export function takePanel(bar, before, after) {
 // The top bar clock's one line of date and time.
 export function clockLabel() {
     return Main.panel.statusArea.dateMenu?._clockDisplay ?? null;
+}
+
+// The date menu's own client, GNOME's has no destroy() and a second one would leak.
+export function weatherClient() {
+    return Main.panel.statusArea.dateMenu?._weatherItem?._weatherClient ?? null;
 }
 
 export function restorePanel(bar, boxes) {
@@ -42,6 +56,7 @@ export function restorePanel(bar, boxes) {
     }
     if (boxes.length) {
         Main.panel.show();
+        pills().forEach(pill => (pill.y_align = Clutter.ActorAlign.FILL));
         Main.uiGroup.remove_style_class_name('silver-dock-panel');
     }
 }

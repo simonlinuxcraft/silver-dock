@@ -204,6 +204,22 @@
       <default>false</default>
       <summary>Also show internal drives (open only, no unmount from the dock)</summary>
     </key>
+    <key name="downloads" type="b">
+      <default>false</default>
+      <summary>Show the downloads folder, a click lists its newest files</summary>
+    </key>
+    <key name="system-monitor" type="b">
+      <default>false</default>
+      <summary>Show CPU and memory load as an icon</summary>
+    </key>
+    <key name="recent-files" type="b">
+      <default>false</default>
+      <summary>Recently used files the app can open in its right click menu</summary>
+    </key>
+    <key name="weather" type="b">
+      <default>false</default>
+      <summary>Show the weather of GNOME Weather next to the clock</summary>
+    </key>
     <key name="previews" type="b">
       <default>true</default>
       <summary>Show thumbnails of an app's windows when hovering its icon</summary>

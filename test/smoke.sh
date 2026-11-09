@@ -196,6 +196,9 @@ set_key click-action minimize
 set_key middle-click none
 set_key scroll-workspaces false
 set_key media false
+for key in downloads system-monitor recent-files weather; do set_key "$key" true; done
+# A few load samples get painted.
+sleep 5
 set_key keep-top-bar true
 set_key colors custom
 set_key color "'rgb(236,1,1)'"
@@ -215,6 +218,8 @@ set_key position left
 set_key blur false
 set_key badges false
 set_key trash false
+set_key downloads false
+set_key system-monitor false
 set_key drives false
 set_key internal-drives true
 set_key dnd false

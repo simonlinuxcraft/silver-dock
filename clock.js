@@ -46,3 +46,34 @@ export class TwoLineClock {
         this._label.show();
     }
 }
+
+// Icon and temperature from GNOME Weather after the clock, hidden while it has nothing to show.
+export class WeatherLabel {
+    constructor(client, after) {
+        this._client = client;
+        this._icon = new St.Icon({style_class: 'silver-dock-weather-icon', y_align: Clutter.ActorAlign.CENTER});
+        this._temp = new St.Label({style_class: 'silver-dock-weather', y_align: Clutter.ActorAlign.CENTER});
+        this.actor = new St.BoxLayout({style_class: 'silver-dock-weather-box', y_align: Clutter.ActorAlign.CENTER});
+        this.actor.add_child(this._icon);
+        this.actor.add_child(this._temp);
+        after.get_parent().insert_child_above(this.actor, after);
+        client.connectObject('changed', () => this._update(), this);
+        this._update();
+        client.update();
+    }
+
+    _update() {
+        const info = this._client.info;
+        const ok = this._client.available && this._client.hasLocation && info?.is_valid();
+        this.actor.visible = Boolean(ok);
+        if (ok) {
+            this._icon.icon_name = info.get_symbolic_icon_name();
+            this._temp.text = info.get_temp_summary();
+        }
+    }
+
+    destroy() {
+        this._client.disconnectObject(this);
+        this.actor.destroy();
+    }
+}

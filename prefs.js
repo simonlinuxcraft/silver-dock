@@ -101,6 +101,8 @@ export default class SilverDockPrefs extends ExtensionPreferences {
             'position', 'keep-top-bar');
         showIf(toggle(topBar, 'open-highlight', _('Light up the button of an open menu')), topBarInDock,
             'position', 'keep-top-bar');
+        showIf(toggle(topBar, 'weather', _('Weather next to the clock (needs GNOME Weather)')), topBarInDock,
+            'position', 'keep-top-bar');
         const hiding = group(general, _('Hiding'));
         toggle(fold(hiding, 'autohide', _('Hide when a window overlaps the bar')), 'edge-pressure',
             _('Only come back when the pointer pushes against the edge'));
@@ -108,9 +110,9 @@ export default class SilverDockPrefs extends ExtensionPreferences {
         const appearance = page(_('Appearance'), 'applications-graphics-symbolic');
         const bar = group(appearance, _('Bar'));
         choice(bar, 'design', _('Design'), [['silver', _('Silver Dock')], ['float', _('Floating')]]);
-        // Floating always has them.
-        showIf(toggle(bar, 'islands', _('Separate islands for menu, apps and clock')), () => is('design', 'silver'),
-            'design');
+        // Floating always has them, and they split the top bar's content: none without it in the dock.
+        showIf(toggle(bar, 'islands', _('Separate islands for menu, apps and clock')),
+            () => is('design', 'silver') && topBarInDock(), 'design', 'position', 'keep-top-bar');
         spin(bar, 'margin', _('Distance from screen edge'), 0, 48, 1);
         spin(bar, 'radius', _('Corner radius'), 0, 48, 1);
         toggle(bar, 'shadow', _('Shadow'));
@@ -149,9 +151,12 @@ export default class SilverDockPrefs extends ExtensionPreferences {
         toggle(badges, 'notification-badges', _('Count notifications of apps without their own badge'));
         toggle(badges, 'badge-pop', _('Badges pop up'));
         toggle(extras, 'media', _('Media controls in the right click menu'));
+        toggle(extras, 'recent-files', _('Recent files in the right click menu'));
         const places = group(behavior, _('Places'));
         toggle(places, 'trash', _('Trash'));
         toggle(fold(places, 'drives', _('Removable drives (USB sticks, SD cards)')), 'internal-drives', _('Internal drives too'));
+        toggle(places, 'downloads', _('Downloads'));
+        toggle(places, 'system-monitor', _('System load'));
 
         const motion = page(_('Animation'), 'media-playback-start-symbolic');
         const hover = group(motion, _('Hover'));

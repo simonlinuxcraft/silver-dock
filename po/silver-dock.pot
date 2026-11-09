@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: silver-dock\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-06 11:24+0100\n"
+"POT-Creation-Date: 2026-11-09 15:36+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,103 +17,135 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: dock.js:223
+#: dock.js:227
 msgid "Dock"
 msgstr ""
 
-#: dock.js:1205
+#: dock.js:1234
 msgid "Dock Settings"
 msgstr ""
 
-#: places.js:21 prefs.js:155
-msgid "Trash"
-msgstr ""
-
-#: places.js:35
+#: files.js:24 places.js:70
 #, javascript-format
 msgid "Cannot open %s"
 msgstr ""
 
-#: places.js:40
+#: files.js:82
+msgid "No files"
+msgstr ""
+
+#: files.js:137
+msgid "Recent Files"
+msgstr ""
+
+#: places.js:40 prefs.js:156
+msgid "Trash"
+msgstr ""
+
+#: places.js:42 prefs.js:158
+msgid "Downloads"
+msgstr ""
+
+#: places.js:44
+msgid "System Load"
+msgstr ""
+
+#: places.js:62
+msgid "No system monitor installed"
+msgstr ""
+
+#: places.js:62
+msgid "Install GNOME System Monitor or Resources."
+msgstr ""
+
+#: places.js:75
+msgid "Open Folder"
+msgstr ""
+
+#: places.js:75
 msgid "Open"
 msgstr ""
 
-#: places.js:42
+#: places.js:77
 msgid "Empty Trash"
 msgstr ""
 
-#: places.js:45
+#: places.js:80
 msgid "Eject"
 msgstr ""
 
-#: places.js:45
+#: places.js:80
 msgid "Unmount"
 msgstr ""
 
-#: places.js:57
+#: places.js:88
 msgid "Cannot empty the trash"
 msgstr ""
 
-#: places.js:64
+#: places.js:93
 #, javascript-format
 msgid "Cannot eject %s"
 msgstr ""
 
-#: places.js:65
+#: places.js:94
 #, javascript-format
 msgid "Cannot unmount %s"
 msgstr ""
 
-#: prefs.js:92
+#: prefs.js:90
 msgid "General"
 msgstr ""
 
-#: prefs.js:93
+#: prefs.js:91
 msgid "Position"
 msgstr ""
 
-#: prefs.js:94
+#: prefs.js:92
 msgid "Screen edge"
 msgstr ""
 
-#: prefs.js:95
+#: prefs.js:93
 msgid "Bottom"
 msgstr ""
 
-#: prefs.js:95
+#: prefs.js:93
 msgid "Top"
 msgstr ""
 
-#: prefs.js:95
+#: prefs.js:93
 msgid "Left"
 msgstr ""
 
-#: prefs.js:95
+#: prefs.js:93
 msgid "Right"
 msgstr ""
 
-#: prefs.js:96
+#: prefs.js:94
 msgid "A dock on every monitor"
 msgstr ""
 
-#: prefs.js:98
+#: prefs.js:96
 msgid "Top bar"
 msgstr ""
 
-#: prefs.js:99
+#: prefs.js:97
 msgid "Keep the top bar"
 msgstr ""
 
-#: prefs.js:100
+#: prefs.js:98
 msgid "Top bar in the dock's look"
 msgstr ""
 
-#: prefs.js:102
+#: prefs.js:100
 msgid "Buttons lift on hover instead of lighting up"
 msgstr ""
 
-#: prefs.js:104
+#: prefs.js:102
 msgid "Light up the button of an open menu"
+msgstr ""
+
+#: prefs.js:104
+msgid "Weather next to the clock (needs GNOME Weather)"
 msgstr ""
 
 #: prefs.js:106
@@ -345,115 +377,123 @@ msgid "Media controls in the right click menu"
 msgstr ""
 
 #: prefs.js:154
+msgid "Recent files in the right click menu"
+msgstr ""
+
+#: prefs.js:155
 msgid "Places"
 msgstr ""
 
-#: prefs.js:156
+#: prefs.js:157
 msgid "Removable drives (USB sticks, SD cards)"
 msgstr ""
 
-#: prefs.js:156
+#: prefs.js:157
 msgid "Internal drives too"
 msgstr ""
 
-#: prefs.js:158
+#: prefs.js:159
+msgid "System load"
+msgstr ""
+
+#: prefs.js:161
 msgid "Animation"
 msgstr ""
 
-#: prefs.js:159
+#: prefs.js:162
 msgid "Hover"
 msgstr ""
 
-#: prefs.js:160
+#: prefs.js:163
 msgid "Hover animation"
 msgstr ""
 
-#: prefs.js:161
+#: prefs.js:164
 msgid "Magnify"
 msgstr ""
 
-#: prefs.js:161
+#: prefs.js:164
 msgid "Ripple"
 msgstr ""
 
-#: prefs.js:161
+#: prefs.js:164
 msgid "Lift"
 msgstr ""
 
-#: prefs.js:161
+#: prefs.js:164
 msgid "Lift and grow"
 msgstr ""
 
-#: prefs.js:162
+#: prefs.js:165
 msgid "None"
 msgstr ""
 
-#: prefs.js:163
+#: prefs.js:166
 msgid "Magnification"
 msgstr ""
 
-#: prefs.js:165
+#: prefs.js:168
 msgid "Icon effects"
 msgstr ""
 
-#: prefs.js:166
+#: prefs.js:169
 msgid "Apps pop in and out"
 msgstr ""
 
-#: prefs.js:167
+#: prefs.js:170
 msgid "Bounce while an app starts"
 msgstr ""
 
-#: prefs.js:168
+#: prefs.js:171
 msgid "Wiggle when an app asks for attention"
 msgstr ""
 
-#: prefs.js:169
+#: prefs.js:172
 msgid "Squash on click"
 msgstr ""
 
-#: prefs.js:170
+#: prefs.js:173
 msgid "A little cloud when an app is dragged off"
 msgstr ""
 
-#: prefs.js:171
+#: prefs.js:174
 msgid "Window dots glide"
 msgstr ""
 
-#: prefs.js:172
+#: prefs.js:175
 msgid "Rise in a wave after login and unlock"
 msgstr ""
 
-#: prefs.js:173
+#: prefs.js:176
 msgid "Bar and windows"
 msgstr ""
 
-#: prefs.js:174
+#: prefs.js:177
 msgid "Bar springs back in after hiding"
 msgstr ""
 
-#: prefs.js:175
+#: prefs.js:178
 msgid "Windows minimize into their icon"
 msgstr ""
 
-#: prefs.js:176
+#: prefs.js:179
 msgid "Warp start for the ArcMenu button"
 msgstr ""
 
-#: prefs.js:179
+#: prefs.js:182
 msgid ""
 "Silver Dock is made in my spare time. If it helps you, you can support it "
 "with a voluntary payment on Ko-fi. Nothing gets unlocked by it."
 msgstr ""
 
-#: prefs.js:182
+#: prefs.js:185
 msgid "Support"
 msgstr ""
 
-#: prefs.js:183
+#: prefs.js:186
 msgid "Support Silver Dock"
 msgstr ""
 
-#: prefs.js:183
+#: prefs.js:186
 msgid "Optional, through Ko-fi"
 msgstr ""

@@ -19,11 +19,13 @@ import {luma, mix, parseColor} from './colors.js';
 import {Color, HAS_ACCENT, setVertical, trustHover} from './compat.js';
 import {badgeOf, countText, progressOf} from './launcher.js';
 import {dropIndex, hover, rest, STYLES} from './layout.js';
-import {TwoLineClock} from './clock.js';
+import {TwoLineClock, WeatherLabel} from './clock.js';
 import {RoundedMask} from './mask.js';
 import {mediaSection} from './media.js';
-import {TRASH, driveMounts, openPlace, placeActions, placeIcon, placeName} from './places.js';
-import {clockLabel, panelBoxes, restorePanel, takePanel} from './takeover.js';
+import {DOWNLOADS, SYSMON, TRASH, driveMounts, openPlace, placeActions, placeIcon, placeName} from './places.js';
+import {downloadsSection, recentSection} from './files.js';
+import {loadGraph} from './sysload.js';
+import {clockLabel, panelBoxes, restorePanel, takePanel, weatherClient} from './takeover.js';
 
 // Logical px, times the shell's scale factor on actors. CSS and icon sizes stay logical.
 // px from the icons to the bar's inner side and to the screen edge (window dots)
@@ -151,6 +153,7 @@ export class Dock {
         this._islands = false;
         this._float = false;
         this._clock = null;
+        this._weather = null;
         this._blur = null;
         // X11 only sends the pointer to tracked chrome, this covers the magnified icons.
         this._reach = new St.Widget({visible: false});
@@ -242,6 +245,7 @@ export class Dock {
         actors.forEach(actor => actor.get_parent() && Main.layoutManager.removeChrome(actor));
         this._items.forEach(item => this._destroyItem(item));
         this._dockMenu?.destroy();
+        this._weather?.destroy();
         this._clock?.destroy();
         // The panel boxes would die with the bar.
         restorePanel(this._bar, this._boxes);
@@ -554,11 +558,18 @@ export class Dock {
         }
         // Islands need the top bar's boxes, the bar holds only icons otherwise.
         this._islands = this._boxes.length > 0 && (this._float || this._settings.get_boolean('islands'));
+        this._weather?.destroy();
+        this._weather = null;
         this._clock?.destroy();
         this._clock = null;
         const label = this._boxes.length && icon >= TWO_LINES * s ? clockLabel() : null;
         if (label && this._bar.contains(label))
             this._clock = new TwoLineClock(label, this._vertical);
+        const clock = this._boxes.length ? clockLabel() : null;
+        const client = weatherClient();
+        // A side bar is too narrow for it.
+        if (this._settings.get_boolean('weather') && !this._vertical && client && clock && this._bar.contains(clock))
+            this._weather = new WeatherLabel(client, this._clock?.actor ?? clock);
         for (const key of ['lift-buttons', 'warp', 'glide'])
             setClass(this._bar, key, this._settings.get_boolean(key));
         setClass(this._bar, 'quiet-menus', !this._settings.get_boolean('open-highlight'));
@@ -603,6 +614,8 @@ export class Dock {
             .filter(app => !favIds.has(app.get_id()))
             .sort((a, b) => (pos.get(a) ?? last) - (pos.get(b) ?? last));
         const places = [
+            ...this._settings.get_boolean('downloads') ? [DOWNLOADS] : [],
+            ...this._settings.get_boolean('system-monitor') ? [SYSMON] : [],
             ...this._settings.get_boolean('trash') ? [TRASH] : [],
             ...driveMounts(this._ext.volumes, this._settings.get_boolean('drives'),
                 this._settings.get_boolean('internal-drives')),
@@ -774,7 +787,13 @@ export class Dock {
         const s = this._scale;
         const app = key instanceof Shell.App ? key : null;
         const name = app ? app.get_name() : placeName(key);
-        const icon = app ? app.create_icon_texture(big / s) : placeIcon(key, big / s, this._ext.trash?.full);
+        let icon;
+        if (app)
+            icon = app.create_icon_texture(big / s);
+        else if (key === SYSMON)
+            icon = loadGraph(this._ext.load, big);
+        else
+            icon = placeIcon(key, big / s, this._ext.trash?.full);
         icon.set_pivot_point(0.5, 0.5);
         // Drawn smaller than rendered while at rest, mipmaps keep the edges from aliasing.
         const smooth = child => child.set_content_scaling_filters(Clutter.ScalingFilter.TRILINEAR, Clutter.ScalingFilter.LINEAR);
@@ -846,6 +865,8 @@ export class Dock {
                 this._openMenu(item);
             } else if (app) {
                 this._activate(item, mouseButton);
+            } else if (key === DOWNLOADS) {
+                this._openMenu(item);
             } else {
                 this._previews.hide();
                 openPlace(key);
@@ -1032,6 +1053,10 @@ export class Dock {
         }
     }
 
+    updateLoad() {
+        this._items.find(i => i.key === SYSMON)?.icon.queue_repaint();
+    }
+
     updateTrash() {
         const item = this._items.find(i => i.key === TRASH);
         if (item)
@@ -1184,16 +1209,21 @@ export class Dock {
             if (item.app) {
                 item.menu = new AppMenu(item.button, this._side, {favoritesSection: true, showSingleWindows: true});
                 item.menu.setApp(item.app);
+                if (this._settings.get_boolean('recent-files'))
+                    item.fillMenu = recentSection(item.menu, item.app);
                 if (this._settings.get_boolean('media'))
                     item.fillMedia = mediaSection(item.menu, this._ext.media, item.app);
             } else {
                 item.menu = new PopupMenu.PopupMenu(item.button, 0.5, this._side);
                 placeActions(item.key).forEach(([label, action]) => item.menu.addAction(label, action));
+                if (item.key === DOWNLOADS)
+                    item.fillMenu = downloadsSection(item.menu);
             }
             Main.uiGroup.add_child(item.menu.actor);
             // One manager each: a shared one opens the menu of whatever icon or bar spot the pointer enters.
             new PopupMenu.PopupMenuManager(item.button).addMenu(item.menu);
         }
+        item.fillMenu?.();
         item.fillMedia?.();
         item.menu.open(BoxPointer.PopupAnimation.FULL);
     }

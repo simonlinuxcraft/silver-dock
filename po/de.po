@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: silver-dock\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-06 11:24+0100\n"
+"POT-Creation-Date: 2026-11-09 15:36+0100\n"
 "PO-Revision-Date: 2026-09-19 10:07+0200\n"
 "Last-Translator: \n"
 "Language-Team: none\n"
@@ -14,104 +14,136 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: dock.js:223
+#: dock.js:227
 msgid "Dock"
 msgstr "Dock"
 
-#: dock.js:1205
+#: dock.js:1234
 msgid "Dock Settings"
 msgstr "Dock-Einstellungen"
 
-#: places.js:21 prefs.js:155
-msgid "Trash"
-msgstr "Papierkorb"
-
-#: places.js:35
+#: files.js:24 places.js:70
 #, javascript-format
 msgid "Cannot open %s"
 msgstr "%s kann nicht geöffnet werden"
 
-#: places.js:40
+#: files.js:82
+msgid "No files"
+msgstr "Keine Dateien"
+
+#: files.js:137
+msgid "Recent Files"
+msgstr "Zuletzt geöffnet"
+
+#: places.js:40 prefs.js:156
+msgid "Trash"
+msgstr "Papierkorb"
+
+#: places.js:42 prefs.js:158
+msgid "Downloads"
+msgstr "Downloads"
+
+#: places.js:44
+msgid "System Load"
+msgstr "Systemlast"
+
+#: places.js:62
+msgid "No system monitor installed"
+msgstr "Keine Systemüberwachung installiert"
+
+#: places.js:62
+msgid "Install GNOME System Monitor or Resources."
+msgstr "GNOME Systemüberwachung oder Ressourcen installieren."
+
+#: places.js:75
+msgid "Open Folder"
+msgstr "Ordner öffnen"
+
+#: places.js:75
 msgid "Open"
 msgstr "Öffnen"
 
-#: places.js:42
+#: places.js:77
 msgid "Empty Trash"
 msgstr "Papierkorb leeren"
 
-#: places.js:45
+#: places.js:80
 msgid "Eject"
 msgstr "Auswerfen"
 
-#: places.js:45
+#: places.js:80
 msgid "Unmount"
 msgstr "Aushängen"
 
-#: places.js:57
+#: places.js:88
 msgid "Cannot empty the trash"
 msgstr "Der Papierkorb kann nicht geleert werden"
 
-#: places.js:64
+#: places.js:93
 #, javascript-format
 msgid "Cannot eject %s"
 msgstr "%s kann nicht ausgeworfen werden"
 
-#: places.js:65
+#: places.js:94
 #, javascript-format
 msgid "Cannot unmount %s"
 msgstr "%s kann nicht ausgehängt werden"
 
-#: prefs.js:92
+#: prefs.js:90
 msgid "General"
 msgstr "Allgemein"
 
-#: prefs.js:93
+#: prefs.js:91
 msgid "Position"
 msgstr "Position"
 
-#: prefs.js:94
+#: prefs.js:92
 msgid "Screen edge"
 msgstr "Bildschirmrand"
 
-#: prefs.js:95
+#: prefs.js:93
 msgid "Bottom"
 msgstr "Unten"
 
-#: prefs.js:95
+#: prefs.js:93
 msgid "Top"
 msgstr "Oben"
 
-#: prefs.js:95
+#: prefs.js:93
 msgid "Left"
 msgstr "Links"
 
-#: prefs.js:95
+#: prefs.js:93
 msgid "Right"
 msgstr "Rechts"
 
-#: prefs.js:96
+#: prefs.js:94
 msgid "A dock on every monitor"
 msgstr "Ein Dock auf jedem Monitor"
 
-#: prefs.js:98
+#: prefs.js:96
 msgid "Top bar"
 msgstr "Obere Leiste"
 
-#: prefs.js:99
+#: prefs.js:97
 msgid "Keep the top bar"
 msgstr "Obere Leiste behalten"
 
-#: prefs.js:100
+#: prefs.js:98
 msgid "Top bar in the dock's look"
 msgstr "Obere Leiste im Look des Docks"
 
-#: prefs.js:102
+#: prefs.js:100
 msgid "Buttons lift on hover instead of lighting up"
 msgstr "Knöpfe heben sich beim Überfahren, statt aufzuleuchten"
 
-#: prefs.js:104
+#: prefs.js:102
 msgid "Light up the button of an open menu"
 msgstr "Knopf eines offenen Menüs hervorheben"
+
+#: prefs.js:104
+msgid "Weather next to the clock (needs GNOME Weather)"
+msgstr "Wetter neben der Uhr (braucht GNOME Wetter)"
 
 #: prefs.js:106
 msgid "Hiding"
@@ -342,118 +374,126 @@ msgid "Media controls in the right click menu"
 msgstr "Mediensteuerung im Rechtsklickmenü"
 
 #: prefs.js:154
+msgid "Recent files in the right click menu"
+msgstr "Zuletzt geöffnete Dateien im Rechtsklickmenü"
+
+#: prefs.js:155
 msgid "Places"
 msgstr "Orte"
 
-#: prefs.js:156
+#: prefs.js:157
 msgid "Removable drives (USB sticks, SD cards)"
 msgstr "Wechseldatenträger (USB-Sticks, SD-Karten)"
 
-#: prefs.js:156
+#: prefs.js:157
 msgid "Internal drives too"
 msgstr "Auch interne Laufwerke"
 
-#: prefs.js:158
+#: prefs.js:159
+msgid "System load"
+msgstr "Systemlast"
+
+#: prefs.js:161
 msgid "Animation"
 msgstr "Animation"
 
-#: prefs.js:159
+#: prefs.js:162
 msgid "Hover"
 msgstr "Überfahren"
 
-#: prefs.js:160
+#: prefs.js:163
 msgid "Hover animation"
 msgstr "Animation beim Überfahren"
 
-#: prefs.js:161
+#: prefs.js:164
 msgid "Magnify"
 msgstr "Vergrößern"
 
-#: prefs.js:161
+#: prefs.js:164
 msgid "Ripple"
 msgstr "Welle"
 
-#: prefs.js:161
+#: prefs.js:164
 msgid "Lift"
 msgstr "Anheben"
 
-#: prefs.js:161
+#: prefs.js:164
 msgid "Lift and grow"
 msgstr "Anheben und vergrößern"
 
-#: prefs.js:162
+#: prefs.js:165
 msgid "None"
 msgstr "Keine"
 
-#: prefs.js:163
+#: prefs.js:166
 msgid "Magnification"
 msgstr "Vergrößerung"
 
-#: prefs.js:165
+#: prefs.js:168
 msgid "Icon effects"
 msgstr "Icon-Effekte"
 
-#: prefs.js:166
+#: prefs.js:169
 msgid "Apps pop in and out"
 msgstr "Apps springen herein und schrumpfen weg"
 
-#: prefs.js:167
+#: prefs.js:170
 msgid "Bounce while an app starts"
 msgstr "Hüpfen, während eine App startet"
 
-#: prefs.js:168
+#: prefs.js:171
 msgid "Wiggle when an app asks for attention"
 msgstr "Wackeln, wenn eine App Aufmerksamkeit anfordert"
 
-#: prefs.js:169
+#: prefs.js:172
 msgid "Squash on click"
 msgstr "Beim Klick stauchen"
 
-#: prefs.js:170
+#: prefs.js:173
 msgid "A little cloud when an app is dragged off"
 msgstr "Wölkchen, wenn eine App abgezogen wird"
 
-#: prefs.js:171
+#: prefs.js:174
 msgid "Window dots glide"
 msgstr "Fensterpunkte gleiten"
 
-#: prefs.js:172
+#: prefs.js:175
 msgid "Rise in a wave after login and unlock"
 msgstr "Nach Anmelden und Entsperren als Welle aufsteigen"
 
-#: prefs.js:173
+#: prefs.js:176
 msgid "Bar and windows"
 msgstr "Leiste und Fenster"
 
-#: prefs.js:174
+#: prefs.js:177
 msgid "Bar springs back in after hiding"
 msgstr "Leiste federt beim Wiedereinblenden"
 
-#: prefs.js:175
+#: prefs.js:178
 msgid "Windows minimize into their icon"
 msgstr "Fenster ins Icon minimieren"
 
-#: prefs.js:176
+#: prefs.js:179
 msgid "Warp start for the ArcMenu button"
 msgstr "Warp-Start für den ArcMenu-Knopf"
 
-#: prefs.js:179
+#: prefs.js:182
 msgid ""
 "Silver Dock is made in my spare time. If it helps you, you can support it "
 "with a voluntary payment on Ko-fi. Nothing gets unlocked by it."
 msgstr ""
-"Silver Dock entsteht in meiner Freizeit. Wenn es dir hilft, kannst du es "
-"mit einer freiwilligen Zahlung über Ko-fi unterstützen. Dadurch wird nichts "
+"Silver Dock entsteht in meiner Freizeit. Wenn es dir hilft, kannst du es mit "
+"einer freiwilligen Zahlung über Ko-fi unterstützen. Dadurch wird nichts "
 "freigeschaltet."
 
-#: prefs.js:182
+#: prefs.js:185
 msgid "Support"
 msgstr "Unterstützen"
 
-#: prefs.js:183
+#: prefs.js:186
 msgid "Support Silver Dock"
 msgstr "Silver Dock unterstützen"
 
-#: prefs.js:183
+#: prefs.js:186
 msgid "Optional, through Ko-fi"
 msgstr "Freiwillig über Ko-fi"

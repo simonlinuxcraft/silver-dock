@@ -11,6 +11,7 @@ import {gtkColors, wallpaperColor} from './colors.js';
 import {COLORS, Dock} from './dock.js';
 import {LauncherEntries, NotificationCounts} from './launcher.js';
 import {TrashWatcher} from './places.js';
+import {SystemLoad} from './sysload.js';
 import {MediaPlayers} from './media.js';
 import {WindowPreviews} from './previews.js';
 
@@ -138,7 +139,8 @@ export default class SilverDock extends Extension {
         this.notifications?.destroy();
         this.media?.destroy();
         this.trash?.destroy();
-        this.launcher = this.notifications = this.media = this.trash = null;
+        this.load?.destroy();
+        this.launcher = this.notifications = this.media = this.trash = this.load = null;
         this.settings?.disconnectObject(this);
         this._iface?.disconnectObject(this);
         this._background?.disconnectObject(this);
@@ -155,6 +157,12 @@ export default class SilverDock extends Extension {
         } else {
             this.trash?.destroy();
             this.trash = null;
+        }
+        if (this.settings.get_boolean('system-monitor')) {
+            this.load ??= new SystemLoad(() => this._each(dock => dock.updateLoad()));
+        } else {
+            this.load?.destroy();
+            this.load = null;
         }
     }
 

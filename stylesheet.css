@@ -143,6 +143,25 @@
     background-color: transparent;
 }
 
+/* Centered in the dock (takeover.js). Their height is the inner box's, the button's own padding is ignored. */
+#panel.silver-dock .panel-button.screen-recording-indicator StBoxLayout,
+#panel.silver-dock .panel-button.screen-sharing-indicator StBoxLayout {
+    padding: 6px 0;
+}
+
+/* The recording and sharing pills keep their color, it is all they are for. */
+#panel.silver-dock.lift-buttons .panel-button.screen-recording-indicator:hover,
+#panel.silver-dock.quiet-menus .panel-button.screen-recording-indicator:active,
+#panel.silver-dock.quiet-menus .panel-button.screen-recording-indicator:checked {
+    box-shadow: inset 0 0 0 100px #d61f2d;
+}
+
+#panel.silver-dock.lift-buttons .panel-button.screen-sharing-indicator:hover,
+#panel.silver-dock.quiet-menus .panel-button.screen-sharing-indicator:active,
+#panel.silver-dock.quiet-menus .panel-button.screen-sharing-indicator:checked {
+    box-shadow: inset 0 0 0 100px #ff861a;
+}
+
 .silver-dock.themed .silver-dock-dot {
     background-color: st-transparentize(-st-accent-color, 0.45);
 }
@@ -229,4 +248,13 @@
 
 .silver-dock-date {
     font-size: 0.8em;
+}
+
+.silver-dock-weather-box {
+    spacing: 4px;
+    padding-left: 8px;
+}
+
+.silver-dock-weather-icon {
+    icon-size: 16px;
 }

@@ -1843,7 +1843,8 @@ export class Dock {
 
     _dragOver(source, along) {
         const app = source?.app;
-        if (!this._settings.get_boolean('dnd') || !(app instanceof Shell.App))
+        // GNOME cannot store a favorite without a .desktop file.
+        if (!this._settings.get_boolean('dnd') || !(app instanceof Shell.App) || app.is_window_backed())
             return DND.DragMotionResult.NO_DROP;
         this.startDrag(global.stage.get_grab_actor());
         this._setDropIndex(this._dropIndexAt(app, along));

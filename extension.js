@@ -120,6 +120,9 @@ export default class SilverDock extends Extension {
     }
 
     _stopListening() {
+        if (this._refreshId)
+            GLib.source_remove(this._refreshId);
+        this._refreshId = 0;
         Shell.AppSystem.get_default().disconnectObject(this);
         Shell.WindowTracker.get_default().disconnectObject(this);
         AppFavorites.getAppFavorites().disconnectObject(this);
@@ -155,9 +158,16 @@ export default class SilverDock extends Extension {
         }
     }
 
+    // A held spin button writes many steps per second, rebuild once after the last.
     _refresh() {
-        this._services();
-        this._each(dock => dock.refresh(true));
+        if (this._refreshId)
+            GLib.source_remove(this._refreshId);
+        this._refreshId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
+            this._refreshId = 0;
+            this._services();
+            this._each(dock => dock.refresh(true));
+            return GLib.SOURCE_REMOVE;
+        });
     }
 
     // The primary monitor's dock first, it takes the top bar content.

@@ -39,6 +39,8 @@ export class TwoLineClock {
     destroy() {
         this._wall.disconnectObject(this);
         this._iface.disconnectObject(this);
+        // Stops its minute timer now instead of at garbage collection.
+        this._wall.run_dispose();
         this._wall = this._iface = null;
         this.actor.destroy();
         this._label.show();

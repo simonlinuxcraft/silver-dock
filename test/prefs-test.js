@@ -136,4 +136,21 @@ for (const [title, key] of [['Separators', 'separators'], ['Shadow', 'shadow'],
     check(rows[title][prop] === settings.get_boolean(key), `${key} switch not written`);
 }
 
+// The tray list follows tray-known, written by the shell, and writes tray-pinned.
+settings.set_strv('tray-known', ['steam\tSteam', 'discord\tDiscord']);
+const trayRows = [];
+const findTray = widget => {
+    for (let child = widget.get_first_child(); child; child = child.get_next_sibling()) {
+        if (child instanceof Adw.SwitchRow && ['Steam', 'Discord'].includes(child.title))
+            trayRows.push(child);
+        findTray(child);
+    }
+};
+findTray(window);
+check(trayRows.length === 2, `tray rows not built from tray-known (${trayRows.length})`);
+trayRows.find(row => row.title === 'Discord').active = true;
+check(settings.get_strv('tray-pinned').join() === 'discord', 'tray pin not written');
+trayRows.find(row => row.title === 'Discord').active = false;
+check(settings.get_strv('tray-pinned').length === 0, 'tray unpin not written');
+
 print('prefs ok');

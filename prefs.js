@@ -157,6 +157,24 @@ export default class SilverDockPrefs extends ExtensionPreferences {
         toggle(fold(places, 'drives', _('Removable drives (USB sticks, SD cards)')), 'internal-drives', _('Internal drives too'));
         toggle(places, 'downloads', _('Downloads'));
         toggle(places, 'system-monitor', _('System load'));
+        const tray = fold(group(behavior, _('Tray')), 'tray-overflow', _('Collect tray icons behind an arrow'));
+        let pins = [];
+        const fillTray = () => {
+            pins.forEach(row => tray.remove(row));
+            const known = settings.get_strv('tray-known').map(entry => entry.split('\t'));
+            pins = known.length ? known.map(([id, title]) => {
+                const row = new Adw.SwitchRow({title: title || id, subtitle: _('Shown in the bar'),
+                    active: settings.get_strv('tray-pinned').includes(id)});
+                row.connect('notify::active', () => {
+                    const pinned = settings.get_strv('tray-pinned').filter(p => p !== id);
+                    settings.set_strv('tray-pinned', row.active ? [...pinned, id] : pinned);
+                });
+                return row;
+            }) : [new Adw.ActionRow({title: _('Tray icons show up here once their apps ran with this on')})];
+            pins.forEach(row => tray.add_row(row));
+        };
+        fillTray();
+        settings.connect('changed::tray-known', fillTray);
 
         const motion = page(_('Animation'), 'media-playback-start-symbolic');
         const hover = group(motion, _('Hover'));

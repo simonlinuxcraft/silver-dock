@@ -196,7 +196,8 @@ set_key click-action minimize
 set_key middle-click none
 set_key scroll-workspaces false
 set_key media false
-for key in downloads system-monitor recent-files weather; do set_key "$key" true; done
+for key in downloads system-monitor recent-files weather tray-overflow; do set_key "$key" true; done
+set_key tray-pinned "['silver-dock-demo-1']"
 # A few load samples get painted.
 sleep 5
 set_key keep-top-bar true

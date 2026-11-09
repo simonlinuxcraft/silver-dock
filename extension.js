@@ -12,6 +12,7 @@ import {COLORS, Dock} from './dock.js';
 import {LauncherEntries, NotificationCounts} from './launcher.js';
 import {TrashWatcher} from './places.js';
 import {SystemLoad} from './sysload.js';
+import {TrayOverflow} from './tray.js';
 import {MediaPlayers} from './media.js';
 import {WindowPreviews} from './previews.js';
 
@@ -21,7 +22,8 @@ const OPENING = 5000;
 const quiet = new Set();
 // Read where they are used. A rebuild would only close open menus and bring a hidden bar out.
 const LIVE = new Set(['tooltips', 'previews', 'peek', 'click-action', 'middle-click', 'scroll', 'scroll-workspaces',
-    'bounce', 'squash', 'poof', 'intro', 'springy', 'minimize-to-icon', 'badge-pop', 'pop']);
+    'bounce', 'squash', 'poof', 'intro', 'springy', 'minimize-to-icon', 'badge-pop', 'pop',
+    'tray-overflow']);
 
 export default class SilverDock extends Extension {
     enable() {
@@ -58,6 +60,9 @@ export default class SilverDock extends Extension {
         this.settings.connectObject(
             'changed::autohide', () => this._each(dock => dock.trackBar()),
             'changed', (settings, key) => {
+                // The tray handles its own, the shell writes tray-known.
+                if (key === 'tray-known' || key === 'tray-pinned')
+                    return;
                 if (key === 'all-monitors')
                     this._build(false);
                 else if (LIVE.has(key))
@@ -140,7 +145,8 @@ export default class SilverDock extends Extension {
         this.media?.destroy();
         this.trash?.destroy();
         this.load?.destroy();
-        this.launcher = this.notifications = this.media = this.trash = this.load = null;
+        this.tray?.destroy();
+        this.launcher = this.notifications = this.media = this.trash = this.load = this.tray = null;
         this.settings?.disconnectObject(this);
         this._iface?.disconnectObject(this);
         this._background?.disconnectObject(this);
@@ -157,6 +163,12 @@ export default class SilverDock extends Extension {
         } else {
             this.trash?.destroy();
             this.trash = null;
+        }
+        if (this.settings.get_boolean('tray-overflow')) {
+            this.tray ??= new TrayOverflow(this.settings);
+        } else {
+            this.tray?.destroy();
+            this.tray = null;
         }
         if (this.settings.get_boolean('system-monitor')) {
             this.load ??= new SystemLoad(() => this._each(dock => dock.updateLoad()));

@@ -220,6 +220,18 @@
       <default>false</default>
       <summary>Show the weather of GNOME Weather next to the clock</summary>
     </key>
+    <key name="tray-overflow" type="b">
+      <default>false</default>
+      <summary>Collect tray icons behind an arrow, the pinned ones stay in the bar</summary>
+    </key>
+    <key name="tray-pinned" type="as">
+      <default>[]</default>
+      <summary>Ids of the tray icons that stay in the bar</summary>
+    </key>
+    <key name="tray-known" type="as">
+      <default>[]</default>
+      <summary>Tray icons seen so far as id and title split by a tab, kept by the extension for the preferences</summary>
+    </key>
     <key name="previews" type="b">
       <default>true</default>
       <summary>Show thumbnails of an app's windows when hovering its icon</summary>

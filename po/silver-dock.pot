@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: silver-dock\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-09 15:36+0100\n"
+"POT-Creation-Date: 2026-11-09 17:11+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -396,104 +396,124 @@ msgstr ""
 msgid "System load"
 msgstr ""
 
-#: prefs.js:161
-msgid "Animation"
+#: prefs.js:160
+msgid "Tray"
 msgstr ""
 
-#: prefs.js:162
-msgid "Hover"
-msgstr ""
-
-#: prefs.js:163
-msgid "Hover animation"
-msgstr ""
-
-#: prefs.js:164
-msgid "Magnify"
-msgstr ""
-
-#: prefs.js:164
-msgid "Ripple"
-msgstr ""
-
-#: prefs.js:164
-msgid "Lift"
-msgstr ""
-
-#: prefs.js:164
-msgid "Lift and grow"
-msgstr ""
-
-#: prefs.js:165
-msgid "None"
+#: prefs.js:160
+msgid "Collect tray icons behind an arrow"
 msgstr ""
 
 #: prefs.js:166
-msgid "Magnification"
-msgstr ""
-
-#: prefs.js:168
-msgid "Icon effects"
-msgstr ""
-
-#: prefs.js:169
-msgid "Apps pop in and out"
-msgstr ""
-
-#: prefs.js:170
-msgid "Bounce while an app starts"
-msgstr ""
-
-#: prefs.js:171
-msgid "Wiggle when an app asks for attention"
-msgstr ""
-
-#: prefs.js:172
-msgid "Squash on click"
+msgid "Shown in the bar"
 msgstr ""
 
 #: prefs.js:173
-msgid "A little cloud when an app is dragged off"
-msgstr ""
-
-#: prefs.js:174
-msgid "Window dots glide"
-msgstr ""
-
-#: prefs.js:175
-msgid "Rise in a wave after login and unlock"
-msgstr ""
-
-#: prefs.js:176
-msgid "Bar and windows"
-msgstr ""
-
-#: prefs.js:177
-msgid "Bar springs back in after hiding"
-msgstr ""
-
-#: prefs.js:178
-msgid "Windows minimize into their icon"
+msgid "Tray icons show up here once their apps ran with this on"
 msgstr ""
 
 #: prefs.js:179
-msgid "Warp start for the ArcMenu button"
+msgid "Animation"
+msgstr ""
+
+#: prefs.js:180
+msgid "Hover"
+msgstr ""
+
+#: prefs.js:181
+msgid "Hover animation"
 msgstr ""
 
 #: prefs.js:182
+msgid "Magnify"
+msgstr ""
+
+#: prefs.js:182
+msgid "Ripple"
+msgstr ""
+
+#: prefs.js:182
+msgid "Lift"
+msgstr ""
+
+#: prefs.js:182
+msgid "Lift and grow"
+msgstr ""
+
+#: prefs.js:183
+msgid "None"
+msgstr ""
+
+#: prefs.js:184
+msgid "Magnification"
+msgstr ""
+
+#: prefs.js:186
+msgid "Icon effects"
+msgstr ""
+
+#: prefs.js:187
+msgid "Apps pop in and out"
+msgstr ""
+
+#: prefs.js:188
+msgid "Bounce while an app starts"
+msgstr ""
+
+#: prefs.js:189
+msgid "Wiggle when an app asks for attention"
+msgstr ""
+
+#: prefs.js:190
+msgid "Squash on click"
+msgstr ""
+
+#: prefs.js:191
+msgid "A little cloud when an app is dragged off"
+msgstr ""
+
+#: prefs.js:192
+msgid "Window dots glide"
+msgstr ""
+
+#: prefs.js:193
+msgid "Rise in a wave after login and unlock"
+msgstr ""
+
+#: prefs.js:194
+msgid "Bar and windows"
+msgstr ""
+
+#: prefs.js:195
+msgid "Bar springs back in after hiding"
+msgstr ""
+
+#: prefs.js:196
+msgid "Windows minimize into their icon"
+msgstr ""
+
+#: prefs.js:197
+msgid "Warp start for the ArcMenu button"
+msgstr ""
+
+#: prefs.js:200
 msgid ""
 "Silver Dock is made in my spare time. If it helps you, you can support it "
 "with a voluntary payment on Ko-fi. Nothing gets unlocked by it."
 msgstr ""
 
-#: prefs.js:185
+#: prefs.js:203
 msgid "Support"
 msgstr ""
 
-#: prefs.js:186
+#: prefs.js:204
 msgid "Support Silver Dock"
 msgstr ""
 
-#: prefs.js:186
+#: prefs.js:204
 msgid "Optional, through Ko-fi"
+msgstr ""
+
+#: tray.js:20
+msgid "Show hidden icons"
 msgstr ""

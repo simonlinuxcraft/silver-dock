@@ -82,7 +82,7 @@ For a new GNOME release add it to `shell-version` in `metadata.json` and run the
 `po/` holds the catalogs, `test/smoke.sh` compiles them into `locale/`. After changing texts:
 
 ```
-xgettext --from-code=UTF-8 --language=JavaScript --keyword=_ --package-name=silver-dock -o po/silver-dock.pot dock.js files.js places.js prefs.js
+xgettext --from-code=UTF-8 --language=JavaScript --keyword=_ --package-name=silver-dock -o po/silver-dock.pot dock.js files.js places.js prefs.js tray.js
 msgmerge --update po/de.po po/silver-dock.pot
 ```
 

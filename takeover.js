@@ -45,6 +45,19 @@ export function weatherClient() {
     return Main.panel.statusArea.dateMenu?._weatherItem?._weatherClient ?? null;
 }
 
+// The top bar's right box, wherever it is, and the AppIndicator icons in it or in the flyout.
+export function trayBox() {
+    return Main.panel._rightBox;
+}
+
+// The StatusNotifierItem id stays the same across restarts, the status area key does not.
+export function trayIcons() {
+    return Object.values(Main.panel.statusArea)
+        .filter(item => item?._indicator?.id && item.container)
+        .map(item => ({id: item._indicator.id, title: item._indicator.title || item._indicator.id,
+            container: item.container, menu: item.menu}));
+}
+
 export function restorePanel(bar, boxes) {
     for (const box of boxes) {
         box.translation_x = box.translation_y = 0;

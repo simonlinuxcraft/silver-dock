@@ -258,3 +258,10 @@
 .silver-dock-weather-icon {
     icon-size: 16px;
 }
+
+#panel.silver-dock-tray-flyout {
+    background-color: rgba(28, 29, 33, 0.96);
+    border: 1px solid rgba(214, 218, 226, 0.3);
+    border-radius: 12px;
+    padding: 4px;
+}

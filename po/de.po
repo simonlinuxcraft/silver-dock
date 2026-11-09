@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: silver-dock\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-09 15:36+0100\n"
+"POT-Creation-Date: 2026-11-09 17:11+0100\n"
 "PO-Revision-Date: 2026-09-19 10:07+0200\n"
 "Last-Translator: \n"
 "Language-Team: none\n"
@@ -393,91 +393,107 @@ msgstr "Auch interne Laufwerke"
 msgid "System load"
 msgstr "Systemlast"
 
-#: prefs.js:161
+#: prefs.js:160
+msgid "Tray"
+msgstr "Tray"
+
+#: prefs.js:160
+msgid "Collect tray icons behind an arrow"
+msgstr "Tray-Symbole hinter einem Pfeil sammeln"
+
+#: prefs.js:166
+msgid "Shown in the bar"
+msgstr "In der Leiste zeigen"
+
+#: prefs.js:173
+msgid "Tray icons show up here once their apps ran with this on"
+msgstr "Tray-Symbole erscheinen hier, sobald ihre Apps bei eingeschalteter Option liefen"
+
+#: prefs.js:179
 msgid "Animation"
 msgstr "Animation"
 
-#: prefs.js:162
+#: prefs.js:180
 msgid "Hover"
 msgstr "Überfahren"
 
-#: prefs.js:163
+#: prefs.js:181
 msgid "Hover animation"
 msgstr "Animation beim Überfahren"
 
-#: prefs.js:164
+#: prefs.js:182
 msgid "Magnify"
 msgstr "Vergrößern"
 
-#: prefs.js:164
+#: prefs.js:182
 msgid "Ripple"
 msgstr "Welle"
 
-#: prefs.js:164
+#: prefs.js:182
 msgid "Lift"
 msgstr "Anheben"
 
-#: prefs.js:164
+#: prefs.js:182
 msgid "Lift and grow"
 msgstr "Anheben und vergrößern"
 
-#: prefs.js:165
+#: prefs.js:183
 msgid "None"
 msgstr "Keine"
 
-#: prefs.js:166
+#: prefs.js:184
 msgid "Magnification"
 msgstr "Vergrößerung"
 
-#: prefs.js:168
+#: prefs.js:186
 msgid "Icon effects"
 msgstr "Icon-Effekte"
 
-#: prefs.js:169
+#: prefs.js:187
 msgid "Apps pop in and out"
 msgstr "Apps springen herein und schrumpfen weg"
 
-#: prefs.js:170
+#: prefs.js:188
 msgid "Bounce while an app starts"
 msgstr "Hüpfen, während eine App startet"
 
-#: prefs.js:171
+#: prefs.js:189
 msgid "Wiggle when an app asks for attention"
 msgstr "Wackeln, wenn eine App Aufmerksamkeit anfordert"
 
-#: prefs.js:172
+#: prefs.js:190
 msgid "Squash on click"
 msgstr "Beim Klick stauchen"
 
-#: prefs.js:173
+#: prefs.js:191
 msgid "A little cloud when an app is dragged off"
 msgstr "Wölkchen, wenn eine App abgezogen wird"
 
-#: prefs.js:174
+#: prefs.js:192
 msgid "Window dots glide"
 msgstr "Fensterpunkte gleiten"
 
-#: prefs.js:175
+#: prefs.js:193
 msgid "Rise in a wave after login and unlock"
 msgstr "Nach Anmelden und Entsperren als Welle aufsteigen"
 
-#: prefs.js:176
+#: prefs.js:194
 msgid "Bar and windows"
 msgstr "Leiste und Fenster"
 
-#: prefs.js:177
+#: prefs.js:195
 msgid "Bar springs back in after hiding"
 msgstr "Leiste federt beim Wiedereinblenden"
 
-#: prefs.js:178
+#: prefs.js:196
 msgid "Windows minimize into their icon"
 msgstr "Fenster ins Icon minimieren"
 
-#: prefs.js:179
+#: prefs.js:197
 msgid "Warp start for the ArcMenu button"
 msgstr "Warp-Start für den ArcMenu-Knopf"
 
-#: prefs.js:182
+#: prefs.js:200
 msgid ""
 "Silver Dock is made in my spare time. If it helps you, you can support it "
 "with a voluntary payment on Ko-fi. Nothing gets unlocked by it."
@@ -486,14 +502,18 @@ msgstr ""
 "einer freiwilligen Zahlung über Ko-fi unterstützen. Dadurch wird nichts "
 "freigeschaltet."
 
-#: prefs.js:185
+#: prefs.js:203
 msgid "Support"
 msgstr "Unterstützen"
 
-#: prefs.js:186
+#: prefs.js:204
 msgid "Support Silver Dock"
 msgstr "Silver Dock unterstützen"
 
-#: prefs.js:186
+#: prefs.js:204
 msgid "Optional, through Ko-fi"
 msgstr "Freiwillig über Ko-fi"
+
+#: tray.js:20
+msgid "Show hidden icons"
+msgstr "Ausgeblendete Symbole anzeigen"

@@ -90,7 +90,10 @@ export default class SilverDockPrefs extends ExtensionPreferences {
         const setPlace = (name, lat = 0, lon = 0) =>
             settings.set_value('weather-location', new GLib.Variant('(sdd)', [name, lat, lon]));
         // The typed name to coordinates, the first hit is the biggest place of that name.
+        let search = null;
         const findPlace = row => {
+            // A slower answer to an earlier name must not win.
+            search?.cancel();
             const name = row.text.trim();
             row.remove_css_class('error');
             if (!name)
@@ -100,11 +103,14 @@ export default class SilverDockPrefs extends ExtensionPreferences {
             const lang = GLib.get_language_names()[0].match(/^[a-z]{2}/)?.[0] ?? 'en';
             const message = Soup.Message.new('GET', 'https://geocoding-api.open-meteo.com/v1/search' +
                 `?count=1&language=${lang}&name=${encodeURIComponent(name)}`);
-            session.send_and_read_async(message, GLib.PRIORITY_DEFAULT, null, (s, result) => {
+            search = new Gio.Cancellable();
+            session.send_and_read_async(message, GLib.PRIORITY_DEFAULT, search, (s, result) => {
                 let found;
                 try {
                     found = JSON.parse(new TextDecoder().decode(s.send_and_read_finish(result).get_data())).results?.[0];
                 } catch (e) {
+                    if (e.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
+                        return;
                     console.warn(`Silver Dock: ${e.message}`);
                 }
                 if (!found) {

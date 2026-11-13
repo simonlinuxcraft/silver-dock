@@ -1100,10 +1100,12 @@ export class Dock {
         const now = GLib.get_monotonic_time();
         let fresh = false;
         for (const item of this._items) {
-            const was = item.attention;
-            item.attention = enabled && Boolean(item.app) &&
+            const attention = enabled && Boolean(item.app) &&
                 (Boolean(this._ext.launcher?.get(item.app.get_id())?.urgent) ||
                  item.app.get_windows().some(win => this._ext.wantsAttention(win)));
+            // A rebuild forgets the state, a request still standing is not a new one.
+            const was = item.attention ?? (!item.born && attention);
+            item.attention = attention;
             if (was && !item.attention)
                 item.calm = now;
             // Steam flashes its urgent flag on and off, that is one request.

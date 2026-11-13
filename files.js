@@ -50,7 +50,10 @@ function newest(dir, cancellable, done) {
             let batch;
             try {
                 batch = c.next_files_finish(res);
-            } catch {
+            } catch (e) {
+                children.close_async(GLib.PRIORITY_DEFAULT, null, null);
+                if (!e.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
+                    done([]);
                 return;
             }
             if (batch.length) {

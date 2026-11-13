@@ -96,6 +96,12 @@ function opens(types, mime) {
 
 // Parsed per right click, a few ms at the usual few hundred entries.
 function recentFiles(types) {
+    // The file keeps entries that GTK hides by these settings.
+    const privacy = new Gio.Settings({schema_id: 'org.gnome.desktop.privacy'});
+    if (!privacy.get_boolean('remember-recent-files'))
+        return [];
+    const days = privacy.get_int('recent-files-max-age');
+    const oldest = days < 0 ? 0 : Date.now() / 1000 - days * 86400;
     const bookmarks = new GLib.BookmarkFile();
     try {
         bookmarks.load_from_file(GLib.build_filenamev([GLib.get_user_data_dir(), 'recently-used.xbel']));
@@ -108,8 +114,9 @@ function recentFiles(types) {
             continue;
         try {
             const mime = bookmarks.get_mime_type(uri);
-            if (opens(types, mime))
-                entries.push({uri, mime, time: bookmarks.get_modified_date_time(uri).to_unix()});
+            const time = bookmarks.get_modified_date_time(uri).to_unix();
+            if (time >= oldest && opens(types, mime))
+                entries.push({uri, mime, time});
         } catch {
             // An entry without a type or date.
         }

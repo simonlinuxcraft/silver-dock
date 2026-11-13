@@ -26,7 +26,8 @@ export class WindowPreviews {
         this._onChange = onChange;
         this._timers = {};
         this.peek = false;
-        this._peeked = new Set();
+        // Faded window actors and the opacity they had.
+        this._peeked = new Map();
         // False while fading out.
         this.shown = false;
         this.app = null;
@@ -119,7 +120,7 @@ export class WindowPreviews {
             const other = actor.meta_window;
             const fade = other !== win && actor.visible && !other.is_skip_taskbar();
             if (fade && !this._peeked.has(actor)) {
-                this._peeked.add(actor);
+                this._peeked.set(actor, actor.opacity);
                 actor.connectObject('destroy', () => this._peeked.delete(actor), this);
             } else if (!fade && this._peeked.has(actor)) {
                 this._restore(actor, false);
@@ -132,17 +133,22 @@ export class WindowPreviews {
     _endPeek(immediate = false) {
         this._stop('peek');
         this._stop('unpeek');
-        this._peeked.forEach(actor => this._restore(actor, immediate));
+        this._peeked.forEach((opacity, actor) => this._restore(actor, immediate));
     }
 
+    // Forgotten only once back, a peek meanwhile would take the opacity halfway.
     _restore(actor, immediate) {
-        actor.disconnectObject(this);
-        this._peeked.delete(actor);
+        const opacity = this._peeked.get(actor);
+        const done = () => {
+            actor.disconnectObject(this);
+            this._peeked.delete(actor);
+        };
         if (immediate) {
             actor.remove_transition('opacity');
-            actor.opacity = 255;
+            actor.opacity = opacity;
+            done();
         } else {
-            actor.ease({opacity: 255, duration: PEEK_TIME, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+            actor.ease({opacity, duration: PEEK_TIME, mode: Clutter.AnimationMode.EASE_OUT_QUAD, onComplete: done});
         }
     }
 

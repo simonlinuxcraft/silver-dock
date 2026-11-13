@@ -17,12 +17,13 @@ const ICONS = [[1, 'clear'], [2, 'few-clouds'], [3, 'overcast'], [48, 'fog'], [6
     [82, 'showers'], [86, 'snow'], [99, 'storm']];
 
 function weatherIcon(code, day = true) {
-    const name = ICONS.find(([last]) => code <= last)?.[1] ?? 'overcast';
+    // Open-Meteo sends null for an hour its model has no value for.
+    const name = (code != null && ICONS.find(([last]) => code <= last)?.[1]) || 'overcast';
     const night = !day && (name === 'clear' || name === 'few-clouds');
     return `weather-${name}${night ? '-night' : ''}-symbolic`;
 }
 
-const degrees = t => `${Math.round(t)}°`;
+const degrees = t => t == null ? '-' : `${Math.round(t)}°`;
 
 // The weather of the place in the settings from Open-Meteo, no key or account needed.
 export class Weather {

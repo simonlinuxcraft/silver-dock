@@ -140,6 +140,7 @@ export default class SilverDockPrefs extends ExtensionPreferences {
         showIf(toggle(topBar, 'open-highlight', _('Light up the button of an open menu')), topBarInDock,
             'position', 'keep-top-bar');
         const weather = fold(topBar, 'weather', _('Weather next to the clock'));
+        weather.subtitle = _('The place you type in and your IP address go to Open-Meteo');
         const place = new Adw.EntryRow({title: _('Place, the weather comes from Open-Meteo'), show_apply_button: true,
             text: settings.get_value('weather-location').deepUnpack()[0]});
         place.connect('apply', () => findPlace(place));

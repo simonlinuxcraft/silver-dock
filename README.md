@@ -33,7 +33,7 @@ holds the top bar's menu, clock, tray and system menu.
 - Media controls in the right click menu of apps that play something (MPRIS)
 - Trash and drives with open, empty and eject, the downloads folder with its newest files, the system load as a small gauge
 - Recent files in an app's right click menu
-- The weather next to the clock with a forecast on click (Open-Meteo, for a place you type in)
+- The weather next to the clock with a forecast on click (Open-Meteo, for a place you type in). Off by default, when on, Open-Meteo sees the place and your IP address
 - Tray icons collected behind an arrow, the ones you pick stay in the bar
 - Over a fullscreen window the bar stays out of the way. The ArcMenu key brings it along, after a click on the bar it stays for the volume and the other menus until Escape or a click back into the window
 - Separators, a soft shadow, autohide, opaque while a window touches the bar. A hidden bar comes back when the pointer pushes against the edge or an app asks for attention

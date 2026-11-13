@@ -114,32 +114,46 @@ function recentFiles(types) {
             // An entry without a type or date.
         }
     }
-    entries.sort((a, b) => b.time - a.time);
-    const files = [];
-    for (const {uri, mime} of entries) {
-        const file = Gio.File.new_for_uri(uri);
-        if (file.query_exists(null))
-            files.push({file, mime});
-        if (files.length === SHOWN / 2)
-            break;
-    }
-    return files;
+    return entries.sort((a, b) => b.time - a.time);
+}
+
+// Not query_exists: a file on a hung network disk would freeze the shell.
+function existing(entries, cancellable, done, files = [], i = 0) {
+    if (i === entries.length || files.length === SHOWN / 2)
+        return done(files);
+    const file = Gio.File.new_for_uri(entries[i].uri);
+    file.query_info_async('standard::type', Gio.FileQueryInfoFlags.NONE, GLib.PRIORITY_DEFAULT, cancellable, (f, result) => {
+        try {
+            f.query_info_finish(result);
+            files.push({file, mime: entries[i].mime});
+        } catch (e) {
+            if (e.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
+                return;
+        }
+        existing(entries, cancellable, done, files, i + 1);
+    });
 }
 
 export function recentSection(menu, app) {
     const section = new PopupMenu.PopupMenuSection();
     menu.addMenuItem(section, 0);
+    let cancellable = null;
+    section.connect('destroy', () => cancellable?.cancel());
     return () => {
+        cancellable?.cancel();
+        cancellable = new Gio.Cancellable();
         section.removeAll();
         const appInfo = app.get_app_info();
         const types = appInfo?.get_supported_types() ?? [];
         // Without types it would list nothing, a file manager would list every folder.
-        const files = types.length && !types.includes('inode/directory') ? recentFiles(types) : [];
-        if (!files.length)
-            return;
-        section.addMenuItem(new PopupMenu.PopupSeparatorMenuItem(_('Recent Files')));
-        for (const {file, mime} of files)
-            addFile(section, file, file.get_basename(), Gio.content_type_get_symbolic_icon(mime), appInfo);
-        section.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        const entries = types.length && !types.includes('inode/directory') ? recentFiles(types) : [];
+        existing(entries, cancellable, files => {
+            if (!files.length)
+                return;
+            section.addMenuItem(new PopupMenu.PopupSeparatorMenuItem(_('Recent Files')));
+            for (const {file, mime} of files)
+                addFile(section, file, file.get_basename(), Gio.content_type_get_symbolic_icon(mime), appInfo);
+            section.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        });
     };
 }

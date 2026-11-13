@@ -104,7 +104,8 @@ export class TrayOverflow {
     _remember(icons) {
         const known = this._settings.get_strv('tray-known');
         const ids = new Set(known.map(entry => entry.split('\t')[0]));
-        const fresh = icons.filter(icon => !ids.has(icon.id)).map(icon => `${icon.id}\t${icon.title}`);
+        // Icons of one Wine prefix share their window class, so their id.
+        const fresh = icons.filter(icon => !ids.has(icon.id) && ids.add(icon.id)).map(icon => `${icon.id}\t${icon.title}`);
         if (fresh.length)
             this._settings.set_strv('tray-known', [...known, ...fresh]);
     }

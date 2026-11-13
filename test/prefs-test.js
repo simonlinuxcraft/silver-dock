@@ -137,17 +137,18 @@ for (const [title, key] of [['Separators', 'separators'], ['Shadow', 'shadow'],
 }
 
 // The tray list follows tray-known, written by the shell, and writes tray-pinned.
-settings.set_strv('tray-known', ['steam\tSteam', 'discord\tDiscord']);
+settings.set_strv('tray-known', ['steam\tSteam & Co', 'discord\tDiscord']);
 const trayRows = [];
 const findTray = widget => {
     for (let child = widget.get_first_child(); child; child = child.get_next_sibling()) {
-        if (child instanceof Adw.SwitchRow && ['Steam', 'Discord'].includes(child.title))
+        if (child instanceof Adw.SwitchRow && ['Steam & Co', 'Discord'].includes(child.title))
             trayRows.push(child);
         findTray(child);
     }
 };
 findTray(window);
 check(trayRows.length === 2, `tray rows not built from tray-known (${trayRows.length})`);
+check(trayRows.every(row => !row.use_markup), 'tray titles read as markup');
 trayRows.find(row => row.title === 'Discord').active = true;
 check(settings.get_strv('tray-pinned').join() === 'discord', 'tray pin not written');
 trayRows.find(row => row.title === 'Discord').active = false;

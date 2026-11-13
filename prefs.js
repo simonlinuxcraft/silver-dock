@@ -200,7 +200,8 @@ export default class SilverDockPrefs extends ExtensionPreferences {
             pins.forEach(row => tray.remove(row));
             const known = settings.get_strv('tray-known').map(entry => entry.split('\t'));
             pins = known.length ? known.map(([id, title]) => {
-                const row = new Adw.SwitchRow({title: title || id, subtitle: _('Shown in the bar'),
+                // Titles come from the apps, an & would break the markup.
+                const row = new Adw.SwitchRow({title: title || id, subtitle: _('Shown in the bar'), use_markup: false,
                     active: settings.get_strv('tray-pinned').includes(id)});
                 row.connect('notify::active', () => {
                     const pinned = settings.get_strv('tray-pinned').filter(p => p !== id);

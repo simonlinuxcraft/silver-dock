@@ -41,7 +41,7 @@ export function averageColor(pixels, width, height, rowstride, channels) {
 }
 
 export function definedColor(css, names) {
-    const defs = new Map([...css.matchAll(/@define-color\s+([\w-]+)\s+([^;]+);/g)]
+    const defs = new Map([...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/@define-color\s+([\w-]+)\s+([^;]+);/g)]
         .map(([, name, value]) => [name, value.trim()]));
     const resolve = (name, depth) => {
         const value = defs.get(name);

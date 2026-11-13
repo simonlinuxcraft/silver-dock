@@ -28,6 +28,7 @@ const css = `
 @define-color loop_a @loop_b;
 @define-color loop_b @loop_a;
 @define-color shaded shade(#fff, 0.5);
+/* @define-color accent_bg_color #00ff00; */
 `;
 check(definedColor(css, ['accent_bg_color']) === '236, 1, 1', 'the later definition wins');
 check(definedColor(css, ['theme_bg_color']) === '8, 8, 8', 'references are followed');

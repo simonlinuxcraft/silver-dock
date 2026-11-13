@@ -153,6 +153,17 @@ trayRows.find(row => row.title === 'Discord').active = true;
 check(settings.get_strv('tray-pinned').join() === 'discord', 'tray pin not written');
 trayRows.find(row => row.title === 'Discord').active = false;
 check(settings.get_strv('tray-pinned').length === 0, 'tray unpin not written');
+settings.set_strv('tray-known', ['livepatch\tUpdates', 'unattended-upgrade\tUpdates']);
+const titles = [];
+const collect = widget => {
+    for (let child = widget.get_first_child(); child; child = child.get_next_sibling()) {
+        if (child instanceof Adw.SwitchRow && child.title.startsWith('Updates'))
+            titles.push(child.title);
+        collect(child);
+    }
+};
+collect(window);
+check(titles.join() === 'Updates (livepatch),Updates (unattended-upgrade)', `same tray titles not told apart (${titles})`);
 
 // An empty place clears the weather location without asking the network.
 settings.set_value('weather-location', new GLib.Variant('(sdd)', ['Berlin, Germany', 52.52, 13.41]));

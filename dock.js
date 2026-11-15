@@ -37,6 +37,8 @@ const HIDE_DELAY = 400;
 const SLIDE_TIME = 200;
 const LIFT_TIME = 300;
 const WIGGLE_EVERY = 2500;
+// angle and ms per swing, no repeatCount: after a 250 ms stall Clutter's autoReverse swings on for weeks
+const WIGGLE = [[-8, 60], [8, 120], [-8, 120], [8, 120], [-8, 120], [8, 120], [0, 60]];
 const MOVE_TIME = 150;
 // with the panel buttons' 8 px padding this gives 12 px beside every separator
 const EDGE = 4;
@@ -1132,15 +1134,13 @@ export class Dock {
         if (!this._bar.visible || this._hidden)
             return;
         const mode = Clutter.AnimationMode.EASE_IN_OUT_SINE;
+        const swing = (icon, [[angle, duration], ...rest]) => icon.ease({
+            rotation_angle_z: angle, duration, mode,
+            onComplete: () => rest.length && swing(icon, rest),
+        });
         for (const {attention, icon} of this._items) {
-            if (!attention || icon.get_transition('rotation-angle-z'))
-                continue;
-            icon.ease({
-                rotation_angle_z: -8, duration: 60, mode, onComplete: () => icon.ease({
-                    rotation_angle_z: 8, duration: 120, mode, repeatCount: 4, autoReverse: true,
-                    onComplete: () => icon.ease({rotation_angle_z: 0, duration: 60, mode}),
-                }),
-            });
+            if (attention && !icon.get_transition('rotation-angle-z'))
+                swing(icon, WIGGLE);
         }
     }
 

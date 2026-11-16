@@ -90,10 +90,6 @@ export function downloadsSection(menu) {
     };
 }
 
-function opens(types, mime) {
-    return types.some(type => Gio.content_type_is_a(mime, type));
-}
-
 // Parsed per right click, a few ms at the usual few hundred entries.
 function recentFiles(types) {
     // The file keeps entries that GTK hides by these settings.
@@ -115,7 +111,7 @@ function recentFiles(types) {
         try {
             const mime = bookmarks.get_mime_type(uri);
             const time = bookmarks.get_modified_date_time(uri).to_unix();
-            if (time >= oldest && opens(types, mime))
+            if (time >= oldest && types.some(type => Gio.content_type_is_a(mime, type)))
                 entries.push({uri, mime, time});
         } catch {
             // An entry without a type or date.

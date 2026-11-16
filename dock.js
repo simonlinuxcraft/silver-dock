@@ -367,15 +367,15 @@ export class Dock {
 
     // pill: the tray on a faint pill of this color. gap: logical px between the clock and the tray.
     _dressBoxes(boxes, alpha = 1, pill = null, gap = 0) {
+        const margin = gap ? `margin-${this._vertical ? 'top' : 'left'}: ${gap}px;` : '';
         boxes.forEach((box, i) => {
             if (i !== 2)
                 box.set_style(null);
             else if (pill)
                 box.set_style(`background-color: rgba(${pill}, ${0.1 * alpha}); border-radius: 99px; ` +
-                    (this._vertical ? 'padding: 4px 0; margin: 0 7px;' : 'padding: 0 4px; margin: 7px 0;') +
-                    (gap ? `margin-${this._vertical ? 'top' : 'left'}: ${gap}px;` : ''));
+                    (this._vertical ? 'padding: 4px 0; margin: 0 7px;' : 'padding: 0 4px; margin: 7px 0;') + margin);
             else
-                box.set_style(gap ? `margin-${this._vertical ? 'top' : 'left'}: ${gap}px;` : null);
+                box.set_style(margin || null);
         });
     }
 
@@ -783,13 +783,8 @@ export class Dock {
         const s = this._scale;
         const app = key instanceof Shell.App ? key : null;
         const name = app ? app.get_name() : placeName(key);
-        let icon;
-        if (app)
-            icon = app.create_icon_texture(big / s);
-        else if (key === SYSMON)
-            icon = loadGraph(this._ext.load, big);
-        else
-            icon = placeIcon(key, big / s, this._ext.trash?.full);
+        const icon = app ? app.create_icon_texture(big / s)
+            : key === SYSMON ? loadGraph(this._ext.load, big) : placeIcon(key, big / s, this._ext.trash?.full);
         icon.set_pivot_point(0.5, 0.5);
         // Drawn smaller than rendered while at rest, mipmaps keep the edges from aliasing.
         const smooth = child => child.set_content_scaling_filters(Clutter.ScalingFilter.TRILINEAR, Clutter.ScalingFilter.LINEAR);

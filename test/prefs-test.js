@@ -17,15 +17,17 @@ const settings = prefs.getSettings();
 const window = new Adw.PreferencesWindow();
 await prefs.fillPreferencesWindow(window);
 
-const rows = {};
-const walk = widget => {
+const find = (test, widget = window, out = []) => {
     for (let child = widget.get_first_child(); child; child = child.get_next_sibling()) {
-        if (child instanceof Adw.PreferencesRow)
-            rows[child.title] ??= child; // an expander holds a header row of the same title
-        walk(child);
+        if (test(child))
+            out.push(child);
+        find(test, child, out);
     }
+    return out;
 };
-walk(window);
+const rows = {};
+for (const row of find(child => child instanceof Adw.PreferencesRow))
+    rows[row.title] ??= row; // an expander holds a header row of the same title
 const check = (ok, msg) => {
     if (!ok)
         throw new Error(msg);
@@ -139,15 +141,7 @@ for (const [title, key] of [['Separators', 'separators'], ['Shadow', 'shadow'],
 
 // The tray list follows tray-known, written by the shell, and writes tray-pinned.
 settings.set_strv('tray-known', ['steam\tSteam & Co', 'discord\tDiscord']);
-const trayRows = [];
-const findTray = widget => {
-    for (let child = widget.get_first_child(); child; child = child.get_next_sibling()) {
-        if (child instanceof Adw.SwitchRow && ['Steam & Co', 'Discord'].includes(child.title))
-            trayRows.push(child);
-        findTray(child);
-    }
-};
-findTray(window);
+const trayRows = find(child => child instanceof Adw.SwitchRow && ['Steam & Co', 'Discord'].includes(child.title));
 check(trayRows.length === 2, `tray rows not built from tray-known (${trayRows.length})`);
 check(trayRows.every(row => !row.use_markup), 'tray titles read as markup');
 trayRows.find(row => row.title === 'Discord').active = true;
@@ -155,15 +149,7 @@ check(settings.get_strv('tray-pinned').join() === 'discord', 'tray pin not writt
 trayRows.find(row => row.title === 'Discord').active = false;
 check(settings.get_strv('tray-pinned').length === 0, 'tray unpin not written');
 settings.set_strv('tray-known', ['livepatch\tUpdates', 'unattended-upgrade\tUpdates']);
-const titles = [];
-const collect = widget => {
-    for (let child = widget.get_first_child(); child; child = child.get_next_sibling()) {
-        if (child instanceof Adw.SwitchRow && child.title.startsWith('Updates'))
-            titles.push(child.title);
-        collect(child);
-    }
-};
-collect(window);
+const titles = find(child => child instanceof Adw.SwitchRow && child.title.startsWith('Updates')).map(row => row.title);
 check(titles.join() === 'Updates (livepatch),Updates (unattended-upgrade)', `same tray titles not told apart (${titles})`);
 
 // An empty place clears the weather location without asking the network.

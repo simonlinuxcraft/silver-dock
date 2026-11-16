@@ -121,10 +121,6 @@ export class TrayOverflow {
         this._onToggle();
     }
 
-    _monitor() {
-        return Main.layoutManager.findMonitorForActor(this._arrow) ?? Main.layoutManager.primaryMonitor;
-    }
-
     // Upwards only from a bottom dock holding the top bar. The arrow points where it opens, back while open.
     _up() {
         return this._settings.get_string('position') === 'bottom' && !this._settings.get_boolean('keep-top-bar');
@@ -137,7 +133,7 @@ export class TrayOverflow {
     _place() {
         const [ax, ay] = this._arrow.get_transformed_position();
         const [aw, ah] = this._arrow.get_transformed_size();
-        const monitor = this._monitor();
+        const monitor = Main.layoutManager.findMonitorForActor(this._arrow) ?? Main.layoutManager.primaryMonitor;
         const [, , fw, fh] = this._flyout.get_preferred_size();
         const up = this._up();
         this._point(true);

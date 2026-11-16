@@ -52,8 +52,7 @@ export default class SilverDock extends Extension {
         this._watched = new Set();
 
         const sync = () => this._each(dock => dock.sync());
-        this._check = () => this._each(dock => dock.queueCheck());
-        const check = this._check;
+        const check = this._check = () => this._each(dock => dock.queueCheck());
         const recolor = () => this._recolor();
         Shell.AppSystem.get_default().connectObject(
             'app-state-changed', (appSystem, app) => this._each(dock => dock.onAppState(app)),
@@ -196,10 +195,10 @@ export default class SilverDock extends Extension {
 
     // Where the top bar stays GNOME's own, the weather goes next to its clock there.
     _syncPanelWeather() {
-        const want = this.weather && !this._docks.some(dock => dock.holdsPanel()) && clockButton();
-        if (want && !this._panelWeather) {
-            this._panelWeather = new WeatherButton(this.weather, clockButton(), St.Side.TOP);
-        } else if (!want && this._panelWeather) {
+        const clock = this.weather && !this._docks.some(dock => dock.holdsPanel()) && clockButton();
+        if (clock && !this._panelWeather) {
+            this._panelWeather = new WeatherButton(this.weather, clock, St.Side.TOP);
+        } else if (!clock && this._panelWeather) {
             this._panelWeather.destroy();
             this._panelWeather = null;
         }

@@ -133,7 +133,7 @@ export class WindowPreviews {
     _endPeek(immediate = false) {
         this._stop('peek');
         this._stop('unpeek');
-        this._peeked.forEach((opacity, actor) => this._restore(actor, immediate));
+        this._peeked.forEach((_, actor) => this._restore(actor, immediate));
     }
 
     // Forgotten only once back, a peek meanwhile would take the opacity halfway.

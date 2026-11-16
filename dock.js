@@ -1380,8 +1380,7 @@ export class Dock {
             Boolean(global.display.sort_windows_by_stacking(windows).at(-1)?.is_fullscreen());
         const grab = global.stage.get_grab_actor();
         // GNOME places a menu only on a mapped source, ArcMenu's hotkey would open it where it last was.
-        const source = grab?._delegate?.sourceActor;
-        const menu = Boolean(source && this._bar.contains(source));
+        const menu = Boolean(this._grabSource());
         // A menu of the bar closed by a click on the bar: the bar stays, like a menu, for the volume and the like.
         // Only with no grab above, dropping one below a menu takes the menu's key focus and closes it.
         const pointed = () => this._bar.contains(global.stage.get_actor_at_pos(
@@ -1920,7 +1919,14 @@ export class Dock {
 
     _menuOpen() {
         return Boolean(this._dockMenu?.isOpen || this._items.some(item => item.menu?.isOpen) ||
-            (this._boxes.length && Main.panel.menuManager.activeMenu));
+            (this._boxes.length && Main.panel.menuManager.activeMenu) ||
+            Boolean(this._grabSource()));
+    }
+
+    // ArcMenu has its own menu manager, its grab still names the button in the bar.
+    _grabSource() {
+        const source = global.stage.get_grab_actor()?._delegate?.sourceActor;
+        return source && this._bar.contains(source) ? source : null;
     }
 
     // grow: px on the screen side, to catch windows that only touch the bar.
@@ -1999,7 +2005,12 @@ export class Dock {
         const [, , , thick] = this._barAxes();
         const shadow = this._settings.get_boolean('shadow') ? SHADOW * this._scale : 0;
         // A 1 px strip stays on screen and catches the pointer.
-        this._bar.ease({...params, [this._across]: hidden ? out * (thick - 1) : 0, onComplete: () => this._syncHover()});
+        this._bar.ease({...params, [this._across]: hidden ? out * (thick - 1) : 0, onComplete: () => {
+            this._syncHover();
+            // A menu opened on the hidden bar (ArcMenu's hotkey) was placed off its button.
+            if (!hidden && this._grabSource())
+                global.stage.get_grab_actor().queue_relayout();
+        }});
         for (const actor of [this._bg, this._blur].filter(Boolean))
             actor.ease({...params, [this._across]: hidden ? out * (thick + shadow) : 0});
     }

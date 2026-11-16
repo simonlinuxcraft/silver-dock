@@ -6,6 +6,7 @@ import Gtk from 'gi://Gtk';
 import Soup from 'gi://Soup?version=3.0';
 
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
+import * as Config from 'resource:///org/gnome/Shell/Extensions/js/misc/config.js';
 
 export default class SilverDockPrefs extends ExtensionPreferences {
     fillPreferencesWindow(window) {
@@ -18,7 +19,7 @@ export default class SilverDockPrefs extends ExtensionPreferences {
             window.add(p);
             return p;
         };
-        const group = (p, title) => {
+        const group = (p, title = null) => {
             const g = new Adw.PreferencesGroup({title});
             p.add(g);
             return g;
@@ -245,24 +246,41 @@ export default class SilverDockPrefs extends ExtensionPreferences {
         toggle(windows, 'minimize-to-icon', _('Windows minimize into their icon'));
         showIf(toggle(windows, 'warp', _('Warp start for the ArcMenu button')), topBarInDock, 'position', 'keep-top-bar');
 
-        const support = new Adw.PreferencesGroup({
-            description: _('Silver Dock is made in my spare time. If it helps you, you can support it ' +
-                'with a voluntary payment on Ko-fi. Nothing gets unlocked by it.'),
-        });
-        page(_('Support'), 'emblem-favorite-symbolic').add(support);
-        const kofi = new Adw.ActionRow({title: _('Support Silver Dock'), subtitle: _('Optional, through Ko-fi'),
-            activatable: true});
-        kofi.add_prefix(new Gtk.Image({icon_name: 'emblem-favorite-symbolic'}));
-        kofi.add_suffix(new Gtk.Image({icon_name: 'adw-external-link-symbolic'}));
-        // Ko-fi opens in the browser, payment never touches the extension.
-        kofi.connect('activated', () => new Gtk.UriLauncher({uri: 'https://ko-fi.com/simonlinuxcraft'})
-            .launch(window, null, (launcher, result) => {
+        const about = page(_('About'), 'emote-love-symbolic');
+        const head = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 6});
+        head.append(new Gtk.Label({label: this.metadata.name, css_classes: ['title-1']}));
+        head.append(new Gtk.Label({label: `${_('Version')} ${this.metadata['version-name']}`, css_classes: ['dim-label']}));
+        head.append(new Gtk.Label({label: _('A dock for GNOME, made in my spare time.'), wrap: true,
+            justify: Gtk.Justification.CENTER, margin_top: 6}));
+        group(about).add(head);
+        const links = group(about);
+        const link = (title, subtitle, icon, uri) => {
+            const row = new Adw.ActionRow({title, subtitle, activatable: true});
+            row.add_prefix(new Gtk.Image({icon_name: icon}));
+            row.add_suffix(new Gtk.Image({icon_name: 'adw-external-link-symbolic'}));
+            // Links open in the browser, a Ko-fi payment never touches the extension.
+            row.connect('activated', () => new Gtk.UriLauncher({uri}).launch(window, null, (launcher, result) => {
                 try {
                     launcher.launch_finish(result);
                 } catch (e) {
                     console.warn(`Silver Dock: ${e.message}`);
                 }
             }));
-        support.add(kofi);
+            links.add(row);
+        };
+        link(_('Buy me a coffee'), _('If you like Silver Dock. Totally optional, nothing gets unlocked.'),
+            'emote-love-symbolic', 'https://ko-fi.com/simonlinuxcraft');
+        link(_('Source code'), _('All of it is on GitHub'), 'applications-engineering-symbolic', this.metadata.url);
+        link(_('Found a bug?'), _('Tell me on GitHub, with the line below'), 'dialog-warning-symbolic',
+            `${this.metadata.url}/issues`);
+        const info = `${this.metadata.name} ${this.metadata['version-name']}, GNOME Shell ${Config.PACKAGE_VERSION}, ` +
+            `${GLib.getenv('XDG_SESSION_TYPE') ?? 'unknown session'}`;
+        const copy = new Adw.ActionRow({title: info, subtitle: _('Click to copy'), activatable: true});
+        copy.add_prefix(new Gtk.Image({icon_name: 'edit-copy-symbolic'}));
+        copy.connect('activated', () => {
+            copy.get_clipboard().set(info);
+            window.add_toast(new Adw.Toast({title: _('Copied')}));
+        });
+        links.add(copy);
     }
 }

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: silver-dock\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-13 19:53+0100\n"
+"POT-Creation-Date: 2026-11-15 23:14+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: dock.js:228
+#: dock.js:230
 msgid "Dock"
 msgstr ""
 
@@ -38,11 +38,11 @@ msgstr ""
 msgid "Recent Files"
 msgstr ""
 
-#: places.js:40 prefs.js:200
+#: places.js:40 prefs.js:201
 msgid "Trash"
 msgstr ""
 
-#: places.js:42 prefs.js:202
+#: places.js:42 prefs.js:203
 msgid "Downloads"
 msgstr ""
 
@@ -92,450 +92,476 @@ msgstr ""
 msgid "Cannot unmount %s"
 msgstr ""
 
-#: prefs.js:128
+#: prefs.js:129
 msgid "General"
 msgstr ""
 
-#: prefs.js:129
+#: prefs.js:130
 msgid "Position"
 msgstr ""
 
-#: prefs.js:130
+#: prefs.js:131
 msgid "Screen edge"
 msgstr ""
 
-#: prefs.js:131
+#: prefs.js:132
 msgid "Bottom"
 msgstr ""
 
-#: prefs.js:131
+#: prefs.js:132
 msgid "Top"
 msgstr ""
 
-#: prefs.js:131
+#: prefs.js:132
 msgid "Left"
 msgstr ""
 
-#: prefs.js:131
+#: prefs.js:132
 msgid "Right"
 msgstr ""
 
-#: prefs.js:132
+#: prefs.js:133
 msgid "A dock on every monitor"
 msgstr ""
 
-#: prefs.js:134
+#: prefs.js:135
 msgid "Top bar"
 msgstr ""
 
-#: prefs.js:135
+#: prefs.js:136
 msgid "Keep the top bar"
 msgstr ""
 
-#: prefs.js:136
+#: prefs.js:137
 msgid "Top bar in the dock's look"
 msgstr ""
 
-#: prefs.js:138
+#: prefs.js:139
 msgid "Buttons lift on hover instead of lighting up"
 msgstr ""
 
-#: prefs.js:140
+#: prefs.js:141
 msgid "Light up the button of an open menu"
 msgstr ""
 
-#: prefs.js:142
+#: prefs.js:143
 msgid "Weather next to the clock"
 msgstr ""
 
-#: prefs.js:143
+#: prefs.js:144
 msgid "The place you type in and your IP address go to Open-Meteo"
 msgstr ""
 
-#: prefs.js:144
+#: prefs.js:145
 msgid "Place, the weather comes from Open-Meteo"
 msgstr ""
 
-#: prefs.js:148
+#: prefs.js:149
 msgid "Unit"
 msgstr ""
 
-#: prefs.js:148
+#: prefs.js:149
 msgid "Celsius, km/h"
 msgstr ""
 
-#: prefs.js:148
+#: prefs.js:149
 msgid "Fahrenheit, mph"
 msgstr ""
 
-#: prefs.js:149
+#: prefs.js:150
 msgid "Hiding"
 msgstr ""
 
-#: prefs.js:150
+#: prefs.js:151
 msgid "Hide when a window overlaps the bar"
 msgstr ""
 
-#: prefs.js:151
+#: prefs.js:152
 msgid "Only come back when the pointer pushes against the edge"
 msgstr ""
 
-#: prefs.js:153
+#: prefs.js:154
 msgid "Appearance"
 msgstr ""
 
-#: prefs.js:154
+#: prefs.js:155
 msgid "Bar"
 msgstr ""
 
-#: prefs.js:155
+#: prefs.js:156
 msgid "Design"
 msgstr ""
 
-#: prefs.js:155
+#: prefs.js:156
 msgid "Silver Dock"
 msgstr ""
 
-#: prefs.js:155
+#: prefs.js:156
 msgid "Floating"
 msgstr ""
 
-#: prefs.js:157
+#: prefs.js:158
 msgid "Separate islands for menu, apps and clock"
 msgstr ""
 
-#: prefs.js:159
+#: prefs.js:160
 msgid "Pill behind the tray icons"
 msgstr ""
 
-#: prefs.js:160
+#: prefs.js:161
 msgid "Distance from screen edge"
 msgstr ""
 
-#: prefs.js:161
+#: prefs.js:162
 msgid "Corner radius"
 msgstr ""
 
-#: prefs.js:162
+#: prefs.js:163
 msgid "Shadow"
 msgstr ""
 
-#: prefs.js:163
+#: prefs.js:164
 msgid "Separators"
 msgstr ""
 
-#: prefs.js:164
+#: prefs.js:165
 msgid "Blur the wallpaper behind the bar"
 msgstr ""
 
-#: prefs.js:164
+#: prefs.js:165
 msgid "Strength"
 msgstr ""
 
-#: prefs.js:165
+#: prefs.js:166
 msgid "Colors"
 msgstr ""
 
-#: prefs.js:166
+#: prefs.js:167
 msgid "Colors from"
 msgstr ""
 
-#: prefs.js:167
+#: prefs.js:168
 msgid "Design default"
 msgstr ""
 
-#: prefs.js:167
+#: prefs.js:168
 msgid "Shell and GTK theme"
 msgstr ""
 
-#: prefs.js:167
+#: prefs.js:168
 msgid "Own color"
 msgstr ""
 
-#: prefs.js:168
+#: prefs.js:169
 msgid "Wallpaper"
 msgstr ""
 
-#: prefs.js:170
+#: prefs.js:171
 msgid "Light or dark"
 msgstr ""
 
-#: prefs.js:170
+#: prefs.js:171
 msgid "As the design"
 msgstr ""
 
-#: prefs.js:170
+#: prefs.js:171
 msgid "Light"
 msgstr ""
 
-#: prefs.js:171
+#: prefs.js:172
 msgid "Dark"
 msgstr ""
 
-#: prefs.js:171
+#: prefs.js:172
 msgid "As the system"
 msgstr ""
 
-#: prefs.js:172
+#: prefs.js:173
 msgid "Color"
 msgstr ""
 
-#: prefs.js:173
+#: prefs.js:174
 msgid "Background opacity (%)"
 msgstr ""
 
-#: prefs.js:174
+#: prefs.js:175
 msgid "Opaque while a window touches the bar"
 msgstr ""
 
-#: prefs.js:175
+#: prefs.js:176
 msgid "Icons"
 msgstr ""
 
-#: prefs.js:176
+#: prefs.js:177
 msgid "Icon size"
 msgstr ""
 
-#: prefs.js:177
+#: prefs.js:178
 msgid "Highlight the active app"
 msgstr ""
 
-#: prefs.js:178
+#: prefs.js:179
 msgid "Tint app icons"
 msgstr ""
 
-#: prefs.js:178
+#: prefs.js:179
 msgid "Icon color"
 msgstr ""
 
-#: prefs.js:180
+#: prefs.js:181
 msgid "Behavior"
 msgstr ""
 
-#: prefs.js:181
+#: prefs.js:182
 msgid "Clicks and scrolling"
 msgstr ""
 
-#: prefs.js:182
+#: prefs.js:183
 msgid "Minimize all its windows"
 msgstr ""
 
-#: prefs.js:183
+#: prefs.js:184
 msgid "Click on an app"
 msgstr ""
 
-#: prefs.js:183
+#: prefs.js:184
 msgid "Previews if it has several windows"
 msgstr ""
 
-#: prefs.js:184
+#: prefs.js:185
 msgid "Minimize or switch windows"
 msgstr ""
 
-#: prefs.js:184
+#: prefs.js:185
 msgid "Only bring to the front"
 msgstr ""
 
-#: prefs.js:185
+#: prefs.js:186
 msgid "Middle click"
 msgstr ""
 
-#: prefs.js:185
+#: prefs.js:186
 msgid "New window"
 msgstr ""
 
-#: prefs.js:186
+#: prefs.js:187
 msgid "Close the app"
 msgstr ""
 
-#: prefs.js:186
+#: prefs.js:187
 msgid "Nothing"
 msgstr ""
 
-#: prefs.js:187
+#: prefs.js:188
 msgid "Scroll over an icon to switch its windows"
 msgstr ""
 
-#: prefs.js:188
+#: prefs.js:189
 msgid "Scroll on a free spot to switch workspaces"
 msgstr ""
 
-#: prefs.js:189
+#: prefs.js:190
 msgid "Drag to rearrange, pin and unpin apps"
 msgstr ""
 
-#: prefs.js:190
+#: prefs.js:191
 msgid "Names and previews"
 msgstr ""
 
-#: prefs.js:191
+#: prefs.js:192
 msgid "Show app names on hover"
 msgstr ""
 
-#: prefs.js:192
+#: prefs.js:193
 msgid "Show window previews on hover"
 msgstr ""
 
-#: prefs.js:192
+#: prefs.js:193
 msgid "Show only that window while on its preview"
 msgstr ""
 
-#: prefs.js:193
+#: prefs.js:194
 msgid "Badges and media"
 msgstr ""
 
-#: prefs.js:194
+#: prefs.js:195
 msgid "Badges and progress on app icons"
 msgstr ""
 
-#: prefs.js:195
+#: prefs.js:196
 msgid "Count notifications of apps without their own badge"
 msgstr ""
 
-#: prefs.js:196
+#: prefs.js:197
 msgid "Badges pop up"
 msgstr ""
 
-#: prefs.js:197
+#: prefs.js:198
 msgid "Media controls in the right click menu"
 msgstr ""
 
-#: prefs.js:198
+#: prefs.js:199
 msgid "Recent files in the right click menu"
 msgstr ""
 
-#: prefs.js:199
+#: prefs.js:200
 msgid "Places"
 msgstr ""
 
-#: prefs.js:201
+#: prefs.js:202
 msgid "Removable drives (USB sticks, SD cards)"
 msgstr ""
 
-#: prefs.js:201
+#: prefs.js:202
 msgid "Internal drives too"
 msgstr ""
 
-#: prefs.js:203
+#: prefs.js:204
 msgid "System load"
 msgstr ""
 
-#: prefs.js:204
+#: prefs.js:205
 msgid "Tray"
 msgstr ""
 
-#: prefs.js:204
+#: prefs.js:205
 msgid "Collect tray icons behind an arrow"
 msgstr ""
 
-#: prefs.js:215
+#: prefs.js:216
 msgid "Shown in the bar"
 msgstr ""
 
-#: prefs.js:222
+#: prefs.js:223
 msgid "Tray icons show up here once their apps ran with this on"
 msgstr ""
 
-#: prefs.js:228
+#: prefs.js:229
 msgid "Animation"
 msgstr ""
 
-#: prefs.js:229
+#: prefs.js:230
 msgid "Hover"
 msgstr ""
 
-#: prefs.js:230
+#: prefs.js:231
 msgid "Hover animation"
 msgstr ""
 
-#: prefs.js:231
+#: prefs.js:232
 msgid "Magnify"
 msgstr ""
 
-#: prefs.js:231
+#: prefs.js:232
 msgid "Ripple"
 msgstr ""
 
-#: prefs.js:231
+#: prefs.js:232
 msgid "Lift"
 msgstr ""
 
-#: prefs.js:231
+#: prefs.js:232
 msgid "Lift and grow"
 msgstr ""
 
-#: prefs.js:232
+#: prefs.js:233
 msgid "None"
 msgstr ""
 
-#: prefs.js:233
+#: prefs.js:234
 msgid "Magnification"
 msgstr ""
 
-#: prefs.js:235
+#: prefs.js:236
 msgid "Icon effects"
 msgstr ""
 
-#: prefs.js:236
+#: prefs.js:237
 msgid "Apps pop in and out"
 msgstr ""
 
-#: prefs.js:237
+#: prefs.js:238
 msgid "Bounce while an app starts"
 msgstr ""
 
-#: prefs.js:238
+#: prefs.js:239
 msgid "Wiggle when an app asks for attention"
 msgstr ""
 
-#: prefs.js:239
+#: prefs.js:240
 msgid "Squash on click"
 msgstr ""
 
-#: prefs.js:240
+#: prefs.js:241
 msgid "A little cloud when an app is dragged off"
 msgstr ""
 
-#: prefs.js:241
+#: prefs.js:242
 msgid "Window dots glide"
 msgstr ""
 
-#: prefs.js:242
+#: prefs.js:243
 msgid "Rise in a wave after login and unlock"
 msgstr ""
 
-#: prefs.js:243
+#: prefs.js:244
 msgid "Bar and windows"
 msgstr ""
 
-#: prefs.js:244
+#: prefs.js:245
 msgid "Bar springs back in after hiding"
 msgstr ""
 
-#: prefs.js:245
+#: prefs.js:246
 msgid "Windows minimize into their icon"
 msgstr ""
 
-#: prefs.js:246
+#: prefs.js:247
 msgid "Warp start for the ArcMenu button"
 msgstr ""
 
 #: prefs.js:249
-msgid ""
-"Silver Dock is made in my spare time. If it helps you, you can support it "
-"with a voluntary payment on Ko-fi. Nothing gets unlocked by it."
+msgid "About"
 msgstr ""
 
 #: prefs.js:252
-msgid "Support"
+msgid "Version"
 msgstr ""
 
 #: prefs.js:253
-msgid "Support Silver Dock"
+msgid "A dock for GNOME, made in my spare time."
 msgstr ""
 
-#: prefs.js:253
-msgid "Optional, through Ko-fi"
+#: prefs.js:271
+msgid "Buy me a coffee"
+msgstr ""
+
+#: prefs.js:271
+msgid "If you like Silver Dock. Totally optional, nothing gets unlocked."
+msgstr ""
+
+#: prefs.js:273
+msgid "Source code"
+msgstr ""
+
+#: prefs.js:273
+msgid "All of it is on GitHub"
+msgstr ""
+
+#: prefs.js:274
+msgid "Found a bug?"
+msgstr ""
+
+#: prefs.js:274
+msgid "Tell me on GitHub, with the line below"
+msgstr ""
+
+#: prefs.js:278
+msgid "Click to copy"
+msgstr ""
+
+#: prefs.js:282
+msgid "Copied"
 msgstr ""
 
 #: tray.js:22

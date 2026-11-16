@@ -57,11 +57,17 @@ export function trayIndicator(button) {
 }
 
 // The StatusNotifierItem id stays the same across restarts, the status area key does not.
+// Legacy XEmbed icons (Wine) have no indicator, only the Shell.TrayIcon with its window class.
 export function trayIcons() {
-    return Object.values(Main.panel.statusArea)
-        .filter(item => item?._indicator?.id && item.container)
-        .map(item => ({id: item._indicator.id, title: item._indicator.title || item._indicator.id,
-            container: item.container, menu: item.menu}));
+    return Object.values(Main.panel.statusArea).filter(item => item?.container).map(item => {
+        const sni = item._indicator?.id;
+        const wmClass = !sni && item._icon?.wm_class;
+        if (!sni && !wmClass)
+            return null;
+        const id = sni ?? `legacy:${wmClass}`;
+        const title = sni ? item._indicator.title || sni : item._icon.title || wmClass;
+        return {id, title, container: item.container, menu: item.menu};
+    }).filter(Boolean);
 }
 
 export function restorePanel(bar, boxes) {

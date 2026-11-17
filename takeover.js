@@ -16,7 +16,6 @@ export function panelBoxes() {
     return boxes.every(box => box?.get_parent() === panel) ? boxes : [];
 }
 
-// Returns the moved boxes.
 export function takePanel(bar, before, after) {
     const panel = Main.panel;
     const boxes = panelBoxes();
@@ -44,7 +43,7 @@ export function clockLabel() {
     return Main.panel.statusArea.dateMenu?._clockDisplay ?? null;
 }
 
-// The top bar's right box, wherever it is, and the AppIndicator icons in it or in the flyout.
+// The top bar's right box, wherever it is.
 export function trayBox() {
     return Main.panel._rightBox;
 }

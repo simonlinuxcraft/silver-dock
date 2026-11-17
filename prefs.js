@@ -57,9 +57,8 @@ export default class SilverDockPrefs extends ExtensionPreferences {
             show();
             settings.connect(`changed::${key}`, show);
             row.connect('notify::selected', () => {
-                if (showing)
-                    return;
-                settings.set_string(key, options[row.selected][0]);
+                if (!showing)
+                    settings.set_string(key, options[row.selected][0]);
             });
             put(g, row);
             return row;

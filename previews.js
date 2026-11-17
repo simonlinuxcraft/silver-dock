@@ -16,6 +16,7 @@ const THUMB_HEIGHT = 140;
 const MIN_THUMB = 48;
 const GAP = 8;
 const PEEK_DELAY = 250;
+const UNPEEK_DELAY = 100;
 const PEEK_TIME = 200;
 const FADE_TIME = 150;
 const MOVE_TIME = 150;
@@ -252,7 +253,7 @@ export class WindowPreviews {
                 this._start('peek', PEEK_DELAY, () => this._peekAt(win));
             } else {
                 this._stop('peek');
-                this._start('unpeek', 100, () => this._endPeek());
+                this._start('unpeek', UNPEEK_DELAY,() => this._endPeek());
             }
         });
         button.connect('clicked', () => {

@@ -10,13 +10,13 @@ import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import {gtkColors, wallpaperColor} from './colors.js';
 import {COLORS, Dock} from './dock.js';
 import {LauncherEntries, NotificationCounts} from './launcher.js';
+import {MediaPlayers} from './media.js';
 import {TrashWatcher} from './places.js';
+import {WindowPreviews} from './previews.js';
 import {SystemLoad} from './sysload.js';
+import {clockButton} from './takeover.js';
 import {TrayOverflow} from './tray.js';
 import {Weather, WeatherButton} from './weather.js';
-import {clockButton} from './takeover.js';
-import {MediaPlayers} from './media.js';
-import {WindowPreviews} from './previews.js';
 
 // ms after a window appears in which demands-attention is GNOME's, not the app's (urgent is always the app's)
 const OPENING = 5000;

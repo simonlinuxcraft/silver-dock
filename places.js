@@ -27,7 +27,7 @@ function monitorApp() {
 }
 
 function isRemovable(mount) {
-    return mount.can_eject() || Boolean(mount.get_drive()?.is_removable());
+    return mount.can_eject() || mount.get_drive()?.is_removable();
 }
 
 export function driveMounts(monitor, removable, internal) {

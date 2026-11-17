@@ -528,13 +528,12 @@ export class Dock {
 
         // The strut needs the bar on the screen edge, the gap is padding.
         const end = this._end = Math.round(radius / 2) + 4;
-        this._barStyle = {
+        this._bar.set_style({
             bottom: `padding: 0 ${end}px ${margin}px;`,
             top: `padding: ${margin}px ${end}px 0;`,
             left: `padding: ${end}px 0 ${end}px ${margin}px;`,
             right: `padding: ${end}px ${margin}px ${end}px 0;`,
-        }[this._position];
-        this._bar.set_style(this._barStyle);
+        }[this._position]);
         setVertical(this._bar, this._vertical);
         setClass(this._bar, 'vertical', this._vertical);
         this._bar.set_size(-1, -1);
@@ -558,12 +557,12 @@ export class Dock {
         this._weather = null;
         this._clock?.destroy();
         this._clock = null;
-        const label = this._boxes.length && icon >= TWO_LINES * s ? clockLabel() : null;
-        if (label && this._bar.contains(label))
+        const label = this._boxes.length ? clockLabel() : null;
+        const clock = label && this._bar.contains(label);
+        if (clock && icon >= TWO_LINES * s)
             this._clock = new TwoLineClock(label, this._vertical);
-        const clock = this._boxes.length ? clockLabel() : null;
         // A side bar is too narrow for it.
-        if (this._ext.weather && !this._vertical && clock && this._bar.contains(clock))
+        if (this._ext.weather && !this._vertical && clock)
             this._weather = new WeatherButton(this._ext.weather, clockButton(), this._side);
         for (const key of ['lift-buttons', 'warp', 'glide'])
             setClass(this._bar, key, this._settings.get_boolean(key));
@@ -991,7 +990,7 @@ export class Dock {
         const item = this._items.find(other => other.app === app && !other.leaving);
         if (!item || app.state !== Shell.AppState.STARTING || fromTray())
             return;
-        // A bounce from a click on the icon now also ends with the start.
+        // A bounce from a click on the icon ends with the start too.
         item.starting = true;
         if (this._settings.get_boolean('bounce'))
             this._bounce(item);
@@ -1053,7 +1052,7 @@ export class Dock {
     }
 
     updateLoad() {
-        this._items.find(i => i.key === SYSMON)?.icon.queue_repaint();
+        this._items.find(item => item.key === SYSMON)?.icon.queue_repaint();
         if (this._labelItem?.key === SYSMON) {
             this._label.text = loadText(this._ext.load);
             this._placeLabel();
@@ -1098,7 +1097,7 @@ export class Dock {
         let fresh = false;
         for (const item of this._items) {
             const attention = enabled && Boolean(item.app) &&
-                (Boolean(this._ext.launcher?.get(item.app.get_id())?.urgent) ||
+                (this._ext.launcher?.get(item.app.get_id())?.urgent ||
                  item.app.get_windows().some(win => this._ext.wantsAttention(win)));
             // A rebuild forgets the state, a request still standing is not a new one.
             const was = item.attention ?? (!item.born && attention);
@@ -1497,7 +1496,7 @@ export class Dock {
         // A fullscreen app keeps the edge, a push would slide the dock in and break direct scanout.
         const wanted = this._settings.get_boolean('autohide') && this._settings.get_boolean('edge-pressure') &&
             !shared && !this._fullscreen &&
-            Boolean(global.backend.capabilities & Meta.BackendCapabilities.BARRIERS);
+            global.backend.capabilities & Meta.BackendCapabilities.BARRIERS;
         const [x1, y1] = this._xy(along, edge);
         const [x2, y2] = this._xy(along + length, edge);
         const key = wanted ? `${x1} ${y1} ${x2} ${y2} ${this._position}` : null;
@@ -1887,13 +1886,9 @@ export class Dock {
         if (!this._settings.get_boolean('dnd') || !(app instanceof Shell.App) || app.is_window_backed())
             return DND.DragMotionResult.NO_DROP;
         this.startDrag(global.stage.get_grab_actor());
-        this._setDropIndex(this._dropIndexAt(app, along));
-        return this._dropIndex === null ? DND.DragMotionResult.NO_DROP : DND.DragMotionResult.MOVE_DROP;
-    }
-
-    _dropIndexAt(app, along) {
         const from = AppFavorites.getAppFavorites().getFavorites().indexOf(app);
-        return dropIndex(this._restNoDrop.centers, this._geom.slot, along, this._dropIndex, this._bounds[0], from);
+        this._setDropIndex(dropIndex(this._restNoDrop.centers, this._geom.slot, along, this._dropIndex, this._bounds[0], from));
+        return this._dropIndex === null ? DND.DragMotionResult.NO_DROP : DND.DragMotionResult.MOVE_DROP;
     }
 
     _acceptDrop(source) {
@@ -1920,7 +1915,7 @@ export class Dock {
     _menuOpen() {
         return Boolean(this._dockMenu?.isOpen || this._items.some(item => item.menu?.isOpen) ||
             (this._boxes.length && Main.panel.menuManager.activeMenu) ||
-            Boolean(this._grabSource()));
+            this._grabSource());
     }
 
     // ArcMenu has its own menu manager, its grab still names the button in the bar.

@@ -145,7 +145,11 @@ export class WeatherButton {
         this.menu.actor.hide();
         // The top bar's manager: the dock stays while it is open, and the pointer moves on to the other menus.
         Main.panel.menuManager.addMenu(this.menu);
-        this.menu.connect('open-state-changed', (menu, open) => (this.actor.checked = open));
+        this.menu.connect('open-state-changed', (menu, open) => {
+            this.actor.checked = open;
+            if (!open && this._stale)
+                this.update();
+        });
         this.actor.connect('clicked', () => this.menu.toggle());
         clock.get_parent().insert_child_above(this.actor, clock);
         this.update();
@@ -157,8 +161,16 @@ export class WeatherButton {
             this._icon.icon_name = this._weather.icon;
             this._temp.text = this._weather.text;
         }
-        // Filled ahead, an empty menu does not open.
-        this._fill();
+        // Filled ahead, an empty menu does not open. A reply missing fields must not stop the dock's rebuild.
+        try {
+            // An open menu keeps its rows and gets them on closing.
+            this._stale = this.menu.isOpen;
+            if (!this._stale)
+                this._fill();
+        } catch (e) {
+            this.menu.removeAll();
+            console.log(`Silver Dock: no weather menu (${e.message})`);
+        }
     }
 
     _fill() {

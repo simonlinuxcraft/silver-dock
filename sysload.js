@@ -31,7 +31,8 @@ export class SystemLoad {
             const total = ticks.reduce((sum, t) => sum + t, 0);
             if (this._last) {
                 const spent = total - this._last.total;
-                const now = spent > 0 ? 1 - (idle - this._last.idle) / spent : 0;
+                // iowait can run backwards.
+                const now = spent > 0 ? Math.min(1, Math.max(0, 1 - (idle - this._last.idle) / spent)) : 0;
                 this.cpu = (this.cpu + now) / 2;
             }
             this._last = {idle, total};
@@ -39,7 +40,7 @@ export class SystemLoad {
                 const [key, value] = line.split(/:\s+/);
                 return [key, parseInt(value)];
             }));
-            this.memory = 1 - mem.MemAvailable / mem.MemTotal;
+            this.memory = 1 - mem.MemAvailable / mem.MemTotal || 0;
         } catch (e) {
             console.log(`Silver Dock: no system load (${e.message})`);
         }

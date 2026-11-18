@@ -125,10 +125,9 @@ function existing(entries, cancellable, done, files = [], i = 0) {
     if (i === entries.length || files.length === SHOWN / 2)
         return done(files);
     const file = Gio.File.new_for_uri(entries[i].uri);
-    file.query_info_async('standard::type', Gio.FileQueryInfoFlags.NONE, GLib.PRIORITY_DEFAULT, cancellable, (f, result) => {
+    file.query_info_async('standard::display-name', Gio.FileQueryInfoFlags.NONE, GLib.PRIORITY_DEFAULT, cancellable, (f, result) => {
         try {
-            f.query_info_finish(result);
-            files.push({file, mime: entries[i].mime});
+            files.push({file, mime: entries[i].mime, name: f.query_info_finish(result).get_display_name()});
         } catch (e) {
             if (e.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
                 return;
@@ -154,8 +153,8 @@ export function recentSection(menu, app) {
             if (!files.length)
                 return;
             section.addMenuItem(new PopupMenu.PopupSeparatorMenuItem(_('Recent Files')));
-            for (const {file, mime} of files)
-                addFile(section, file, file.get_basename(), Gio.content_type_get_symbolic_icon(mime), appInfo);
+            for (const {file, mime, name} of files)
+                addFile(section, file, name, Gio.content_type_get_symbolic_icon(mime), appInfo);
             section.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
         });
     };

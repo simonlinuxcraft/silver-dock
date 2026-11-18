@@ -119,7 +119,9 @@ function fromTray() {
     while (actor) {
         if (actor.has_style_class_name?.('panel-button'))
             return Boolean(findActor(actor, child => child.has_style_class_name?.('appindicator-icon')));
-        actor = actor._delegate?.sourceActor ?? actor.get_parent();
+        // A dummy menu names its own actor as the source.
+        const source = actor._delegate?.sourceActor;
+        actor = source && source !== actor ? source : actor.get_parent();
     }
     return false;
 }
@@ -226,8 +228,7 @@ export class Dock {
         this.trackBar();
         Main.layoutManager.addChrome(this._label);
         Main.layoutManager.addChrome(this._reach);
-        if (primary)
-            Main.ctrlAltTabManager.addGroup(this._bar, _('Dock'), 'shell-focus-top-bar-symbolic');
+        Main.ctrlAltTabManager.addGroup(this._bar, _('Dock'), 'shell-focus-top-bar-symbolic');
     }
 
     destroy() {
@@ -239,8 +240,7 @@ export class Dock {
         this._useRocket(null);
         this._amount.remove_transition('value');
 
-        if (this._primary)
-            Main.ctrlAltTabManager.removeGroup(this._bar);
+        Main.ctrlAltTabManager.removeGroup(this._bar);
         // Off the stage before any child changes, or Clutter relayouts the destroyed bar.
         const actors = [this._bar, this._bg, this._label, this._reach];
         // Clutter can hold a chrome actor twice for relayout, flush it while still on stage.
@@ -326,9 +326,10 @@ export class Dock {
                 this._panelStyle = Main.panel.get_style();
                 this._dressed = true;
             }
-            Main.panel.set_style(`margin: ${margin}px ${margin}px 0; ` +
-                `background-color: rgba(${colors.bg}, ${opacity}); border: ${colors.border}; ` +
-                `border-radius: ${radius}px;`);
+            // The alpha comes last: dynamic opacity writes it again.
+            this._panelCss = `margin: ${margin}px ${margin}px 0; border: ${colors.border}; border-radius: ${radius}px; ` +
+                `transition-duration: 250ms; background-color: rgba(${colors.bg}, `;
+            Main.panel.set_style(`${this._panelCss}${opacity});`);
             setClass(Main.panel, 'silver-dock-ink', ink);
             setClass(Main.panel, 'silver-dock-bright', bright);
             setClass(Main.panel, 'silver-dock-shadow', shadow);
@@ -942,8 +943,10 @@ export class Dock {
         });
         this._rowSeps.forEach((sep, i) => {
             const at = this._bounds[i];
+            // A drop at the end of the favorites lands before the separator, so does its hole.
+            const hole = this._dropIndex === at ? slot : 0;
             if (at > 0 && at < n)
-                move(sep, centers[at] - slot / 2 - gaps[at] + sepGap / 2, (this._edgeFirst ? outer : inner) + icon * 0.2);
+                move(sep, centers[at] - slot / 2 - gaps[at] + hole + sepGap / 2, (this._edgeFirst ? outer : inner) + icon * 0.2);
         });
         this._row.set_size(...this._xy(width, thick));
         this._animate();
@@ -1277,12 +1280,21 @@ export class Dock {
 
     // Stable order, so each step goes on from the window the last one raised.
     _scroll({app}, event) {
-        const step = {
+        let step = {
             [Clutter.ScrollDirection.UP]: -1,
             [Clutter.ScrollDirection.LEFT]: -1,
             [Clutter.ScrollDirection.DOWN]: 1,
             [Clutter.ScrollDirection.RIGHT]: 1,
         }[event.get_scroll_direction()];
+        // A touchpad only sends smooth deltas, one wheel notch is 1.
+        if (event.get_scroll_direction() === Clutter.ScrollDirection.SMOOTH) {
+            const [dx, dy] = event.get_scroll_delta();
+            this._smooth = (this._smooth ?? 0) + dx + dy;
+            if (Math.abs(this._smooth) >= 1) {
+                step = Math.sign(this._smooth);
+                this._smooth = 0;
+            }
+        }
         if (!app || !step || !this._settings.get_boolean('scroll'))
             return Clutter.EVENT_PROPAGATE;
         const now = GLib.get_monotonic_time();
@@ -1833,7 +1845,7 @@ export class Dock {
         const [x, y] = global.get_pointer();
         const [, , across, thick] = this._barAxes();
         const p = this._vertical ? x : y;
-        return p < across - thick || p > across + 2 * thick;
+        return global.display.get_current_monitor() !== this.monitorIndex || p < across - thick || p > across + 2 * thick;
     }
 
     // Also for drags from the overview or menus.
@@ -1944,13 +1956,17 @@ export class Dock {
         this._bgOpacity = target;
         this._bg.ease({opacity: target, duration: 250, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
         this._inkBar(target / 255);
+        if (this._dressed)
+            Main.panel.set_style(`${this._panelCss}${target / 255});`);
     }
 
     // Text dark on a light color that shows, light on any other of ours. Themes may write either.
     _inkBar(alpha) {
         const ink = this._light && alpha >= 0.5;
-        setClass(this._bar, 'silver-dock-ink', ink);
-        setClass(this._bar, 'silver-dock-bright', !this._themed && !ink);
+        for (const actor of this._dressed ? [this._bar, Main.panel] : [this._bar]) {
+            setClass(actor, 'silver-dock-ink', ink);
+            setClass(actor, 'silver-dock-bright', !this._themed && !ink);
+        }
     }
 
     _shouldHide() {

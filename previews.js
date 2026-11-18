@@ -103,11 +103,11 @@ export class WindowPreviews {
 
     // Flush a pending relayout and leave the stage before the children go, see Dock.destroy().
     destroy() {
-        this._stop('show');
-        this._stop('hide');
         this._endPeek(true);
         this.actor.get_allocation_box();
         Main.layoutManager.removeChrome(this.actor);
+        // After the removal: unmapping drops the hover and that starts the hide timer again.
+        Object.keys(this._timers).forEach(name => this._stop(name));
         this.actor.destroy();
     }
 

@@ -61,23 +61,26 @@ export class TrayOverflow {
         if (this._sorting)
             return;
         this._sorting = true;
-        const icons = trayIcons();
-        this._remember(icons);
-        const pinned = new Set(this._settings.get_strv('tray-pinned'));
-        for (const {id, container, menu} of icons) {
-            const hide = !pinned.has(id);
-            const parent = container.get_parent();
-            if (hide && parent !== this._flyout) {
-                parent?.remove_child(container);
-                this._flyout.add_child(container);
-                // Done with its menu, done with the flyout.
-                menu?.connectObject('open-state-changed', (m, open) => open || this._close(), this);
-            } else if (!hide && parent === this._flyout) {
-                this._unhide(container, menu);
+        try {
+            const icons = trayIcons();
+            this._remember(icons);
+            const pinned = new Set(this._settings.get_strv('tray-pinned'));
+            for (const {id, container, menu} of icons) {
+                const hide = !pinned.has(id);
+                const parent = container.get_parent();
+                if (hide && parent !== this._flyout) {
+                    parent?.remove_child(container);
+                    this._flyout.add_child(container);
+                    // Done with its menu, done with the flyout.
+                    menu?.connectObject('open-state-changed', (m, open) => open || this._close(), this);
+                } else if (!hide && parent === this._flyout) {
+                    this._unhide(container, menu);
+                }
             }
+            this._showArrow();
+        } finally {
+            this._sorting = false;
         }
-        this._showArrow();
-        this._sorting = false;
     }
 
     _unwatch(button) {
@@ -91,6 +94,8 @@ export class TrayOverflow {
         this._point(this.open);
         if (!this._arrow.visible)
             this._close();
+        else if (this.open)
+            this._place();
     }
 
     _unhide(container, menu) {

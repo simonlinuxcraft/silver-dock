@@ -30,6 +30,11 @@
     background-color: rgba(255, 255, 255, 0.12);
 }
 
+/* The id outranks the dark ink rule below. */
+#panel.silver-dock.accent .silver-dock-app:checked {
+    background-color: st-transparentize(-st-accent-color, 0.7);
+}
+
 .silver-dock-app:focus {
     background-color: rgba(255, 255, 255, 0.25);
 }

@@ -71,7 +71,6 @@ export class TrayOverflow {
                 if (hide && parent !== this._flyout) {
                     parent?.remove_child(container);
                     this._flyout.add_child(container);
-                    // Done with its menu, done with the flyout.
                     menu?.connectObject('open-state-changed', (m, open) => open || this._close(), this);
                 } else if (!hide && parent === this._flyout) {
                     this._unhide(container, menu);

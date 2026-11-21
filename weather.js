@@ -111,7 +111,6 @@ export class Weather {
     }
 }
 
-// Columns of a label, an icon and further labels, for the hours and the days.
 function forecastRow(columns) {
     const item = new PopupMenu.PopupBaseMenuItem({reactive: false});
     const row = new St.BoxLayout({style_class: 'silver-dock-forecast', x_expand: true});

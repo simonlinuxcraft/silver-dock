@@ -2022,7 +2022,7 @@ export class Dock {
         // A 1 px strip stays on screen and catches the pointer.
         this._bar.ease({...params, [this._across]: hidden ? out * (thick - 1) : 0, onComplete: () => {
             this._syncHover();
-            // A menu opened on the hidden bar (ArcMenu's hotkey) was placed off its button.
+            // Otherwise ArcMenu's hotkey opens the menu off its button on a hidden bar.
             if (!hidden && this._grabSource())
                 global.stage.get_grab_actor().queue_relayout();
         }});

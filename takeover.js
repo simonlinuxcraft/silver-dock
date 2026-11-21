@@ -34,7 +34,6 @@ export function takePanel(bar, before, after) {
     return boxes;
 }
 
-// The date menu's button, the weather goes next to it.
 export function clockButton() {
     return Main.panel.statusArea.dateMenu?.container ?? null;
 }

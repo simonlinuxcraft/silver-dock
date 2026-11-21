@@ -42,14 +42,7 @@ Every extra can be switched off in the preferences.
 
 ## Install
 
-Pack in this folder, the ZIP is named after `version-name` in `metadata.json`:
-
-```
-gnome-extensions pack --force --podir=po --extra-source=LICENSE $(ls *.js | grep -vE '^(extension|prefs)\.js$' | sed 's/^/--extra-source=/') .
-mv silver-dock@simonlinuxcraft.github.io.shell-extension.zip silverdock-v$(sed -n 's/.*"version-name": "\(.*\)".*/\1/p' metadata.json).zip
-```
-
-Install it on the target machine:
+Download the ZIP from [gnome-look.org](https://www.gnome-look.org/p/2381251/) and install it:
 
 ```
 gnome-extensions install --force silverdock-v*.zip
@@ -57,6 +50,16 @@ gnome-extensions install --force silverdock-v*.zip
 
 Log out and back in, then `gnome-extensions enable silver-dock@simonlinuxcraft.github.io`.
 Switch other docks off (ubuntu-dock, dash-to-dock, dash-to-panel).
+
+### From source
+
+`main` can be ahead of the release on gnome-look.org. Pack it in this folder, the ZIP is named
+after `version-name` in `metadata.json`, and install it as above:
+
+```
+gnome-extensions pack --force --podir=po --extra-source=LICENSE $(ls *.js | grep -vE '^(extension|prefs)\.js$' | sed 's/^/--extra-source=/') .
+mv silver-dock@simonlinuxcraft.github.io.shell-extension.zip silverdock-v$(sed -n 's/.*"version-name": "\(.*\)".*/\1/p' metadata.json).zip
+```
 
 For development, install the ZIP the same way or try changes with `test/smoke.sh --show`.
 Do not link this folder into the extensions folder: removing or updating the extension then

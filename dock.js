@@ -171,7 +171,6 @@ export class Dock {
         this._seps = [this._separator(), this._separator()];
         [this._seps[0], this._row, this._seps[1]].forEach(actor => this._bar.add_child(actor));
         this._boxes = [];
-        this._panelOk = true;
         this._rowSeps = [this._separator(), this._separator()];
         this._rowSeps.forEach(sep => this._row.add_child(sep));
         this._bounds = [0, 0];
@@ -544,10 +543,9 @@ export class Dock {
             this._bar.height = this._geom.thick + this._geom.margin;
         this._ownTopBar = this._vertical ||
             (this._position === 'bottom' && this._settings.get_boolean('keep-top-bar'));
-        const wantPanel = this._primary && !this._ownTopBar && this._panelOk;
+        const wantPanel = this._primary && !this._ownTopBar;
         if (wantPanel && !this._boxes.length) {
             this._boxes = takePanel(this._bar, this._seps[0], this._seps[1]);
-            this._panelOk = this._boxes.length > 0;
         } else if (!wantPanel && this._boxes.length) {
             restorePanel(this._bar, this._boxes);
             this._boxes = [];

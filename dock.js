@@ -1910,9 +1910,10 @@ export class Dock {
 
     _acceptDrop(source) {
         const app = source?.app;
-        const pos = this._dropIndex;
-        if (!(app instanceof Shell.App) || pos === null)
+        if (!(app instanceof Shell.App) || this._dropIndex === null)
             return false;
+        // Shrinking icons are no favorites anymore.
+        const pos = this._dropIndex - this._items.slice(0, this._dropIndex).filter(item => item.leaving).length;
         this.endDrag();
         const favorites = AppFavorites.getAppFavorites();
         const from = favorites.getFavorites().indexOf(app);

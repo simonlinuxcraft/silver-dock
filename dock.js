@@ -1289,7 +1289,12 @@ export class Dock {
         // A touchpad only sends smooth deltas, one wheel notch is 1.
         if (event.get_scroll_direction() === Clutter.ScrollDirection.SMOOTH) {
             const [dx, dy] = event.get_scroll_delta();
-            this._smooth = (this._smooth ?? 0) + dx + dy;
+            const delta = dy || dx;
+            // A rest from another icon or the other way must not count.
+            if (this._smoothApp !== app || Math.sign(delta) !== Math.sign(this._smooth))
+                this._smooth = 0;
+            this._smoothApp = app;
+            this._smooth += delta;
             if (Math.abs(this._smooth) >= 1) {
                 step = Math.sign(this._smooth);
                 this._smooth = 0;

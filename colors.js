@@ -61,9 +61,8 @@ let cache = {key: null, files: null};
 
 // Like GTK, each file comes from the first folder that has it.
 function loadThemeCss(name, dark, done) {
-    const bases = [GLib.get_user_data_dir(), ...GLib.get_system_data_dirs()]
-        .map(dir => GLib.build_filenamev([dir, 'themes', name]))
-        .concat(GLib.build_filenamev([GLib.get_home_dir(), '.themes', name]));
+    const bases = [GLib.get_user_data_dir(), GLib.get_home_dir(), ...GLib.get_system_data_dirs()]
+        .map(dir => GLib.build_filenamev([dir, dir === GLib.get_home_dir() ? '.themes' : 'themes', name]));
     const variants = ['libadwaita/gtk.css', ...['gtk-3.0', 'gtk-4.0'].flatMap(version =>
         [dark ? `${version}/gtk-dark.css` : null, `${version}/gtk.css`].filter(Boolean))];
     const files = [];

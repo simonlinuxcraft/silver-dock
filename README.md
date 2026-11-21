@@ -19,7 +19,7 @@ holds the top bar's menu, clock, tray and system menu.
 ## Features
 
 - Any screen edge, on one monitor or all. On the left or right the top bar keeps its content, optionally in the dock's look
-- Dock look, an own color, the wallpaper's or the shell and GTK theme's colors, optionally tinted app icons. The wallpaper behind the bar blurred, the app in front on a soft tile
+- Dock look, a color of your own, the wallpaper's or the shell and GTK theme's colors, optionally tinted app icons. The wallpaper behind the bar blurred, the app in front on a soft tile
 - Two designs: Silver Dock's own, and floating, where the icons stand free on the desktop and only the menu button, the clock and the tray sit on chips of their own
 - Both mark the focused app in the system accent (GNOME 47 and later) and show the time over the date. Silver Dock puts the tray on a soft pill, optionally the menu button, the apps and the clock with the tray sit on separate islands
 - Both designs light or dark: as the design has it, fixed, or following the system's dark style
@@ -58,11 +58,9 @@ gnome-extensions install --force silverdock-v*.zip
 Log out and back in, then `gnome-extensions enable silver-dock@simonlinuxcraft.github.io`.
 Switch other docks off (ubuntu-dock, dash-to-dock, dash-to-panel).
 
-For development, link this folder instead:
-
-```
-ln -s "$PWD" ~/.local/share/gnome-shell/extensions/silver-dock@simonlinuxcraft.github.io
-```
+For development, install the ZIP the same way or try changes with `test/smoke.sh --show`.
+Do not link this folder into the extensions folder: removing or updating the extension then
+deletes the repository.
 
 ## Test
 

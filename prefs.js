@@ -113,6 +113,9 @@ export default class SilverDockPrefs extends ExtensionPreferences {
                         return;
                     console.warn(`Silver Dock: ${e.message}`);
                 }
+                // Typed on meanwhile, that text waits for its own apply.
+                if (row.text.trim() !== name)
+                    return;
                 if (!found) {
                     row.add_css_class('error');
                     return;

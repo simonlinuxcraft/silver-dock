@@ -58,6 +58,8 @@ export function definedColor(css, names) {
 }
 
 let cache = {key: null, files: null};
+// The latest caller, a load started before a disable must reach the new instance.
+let loaded = () => {};
 
 // Like GTK, each file comes from the first folder that has it.
 function loadThemeCss(name, dark, done) {
@@ -96,13 +98,14 @@ export function gtkColors(settings, onLoaded) {
     const name = settings.get_string('gtk-theme');
     const dark = settings.get_string('color-scheme') === 'prefer-dark';
     const key = `${name} ${dark}`;
+    loaded = onLoaded;
     if (cache.key !== key) {
         cache = {key, files: null};
         loadThemeCss(name, dark, files => {
             if (cache.key !== key)
                 return;
             cache.files = files;
-            onLoaded();
+            loaded();
         });
     }
     const files = cache.files ?? [];
@@ -120,6 +123,7 @@ export function wallpaperColor(settings, dark, onLoaded) {
     const uri = (dark && settings.get_string('picture-uri-dark')) || settings.get_string('picture-uri');
     const plain = settings.get_string('picture-options') === 'none' || !uri;
     const key = plain ? settings.get_string('primary-color') : uri;
+    loaded = onLoaded;
     if (wallpaper.key === key)
         return wallpaper.color;
     wallpaper = {key, color: plain ? parseColor(key) : null};
@@ -135,7 +139,7 @@ export function wallpaperColor(settings, dark, onLoaded) {
                             if (wallpaper.key !== key)
                                 return;
                             wallpaper.color = averageColor(p.get_pixels(), p.width, p.height, p.rowstride, p.n_channels);
-                            onLoaded();
+                            loaded();
                         } catch {
                             failed();
                         } finally {
